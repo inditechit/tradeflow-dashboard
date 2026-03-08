@@ -1,21 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface UserData {
-  name: string;
-  mobile: string;
-  telegram: string;
-  username: string;
-  password: string;
-  email: string;
-  emailVerified: boolean;
-  country: string;
-  state: string;
-  city: string;
-  pincode: string;
-  photoCaptured: boolean;
-  experienceYears: string;
-  userId: string;
-  depositMethod: string;
+  name?: string;
+  mobile?: string;
+  telegram?: string;
+  username?: string;
+  password?: string; 
+  email?: string;
+  emailVerified?: boolean;
+  country?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
+  photoCaptured?: boolean;
+  experienceYears?: string;
+  userId?: string;
+  depositMethod?: string;
 }
 
 export interface PurchasedPackage {
@@ -24,6 +24,7 @@ export interface PurchasedPackage {
   price: number;
   icon: string;
   purchasedAt: string;
+  transactionId?: string;
 }
 
 export interface MockLocation {

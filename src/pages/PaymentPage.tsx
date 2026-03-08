@@ -67,7 +67,7 @@ const PaymentPage = () => {
         body: formData, // Fetch automatically sets multipart/form-data boundary
       });
 
-      const data = await response.json();
+      const data:any = await response.json();
 
       if (data.success) {
         setStep('success');
