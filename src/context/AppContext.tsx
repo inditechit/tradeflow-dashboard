@@ -14,6 +14,7 @@ export interface UserData {
   pincode: string;
   photoCaptured: boolean;
   experienceYears: string;
+  userId: string;
   depositMethod: string;
 }
 
