@@ -69,7 +69,7 @@ const ProfilePage = () => {
             <span className="font-semibold tracking-wide uppercase text-sm">Step 2 of 3</span>
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mt-2">Trading Profile</h1>
-          <p className="text-slate-500 text-sm mt-2">Help Equitee personalize your trading experience</p>
+          <p className="text-slate-500 text-sm mt-2">Help DWG personalize your trading experience</p>
         </div>
 
         {/* Global Error Message */}

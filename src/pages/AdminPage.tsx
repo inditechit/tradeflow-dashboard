@@ -64,7 +64,7 @@ const AdminPage = () => {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                Equitee Admin <span className="text-slate-300 font-light">|</span> Location Hub
+                DWG Admin <span className="text-slate-300 font-light">|</span> Location Hub
               </h1>
               <p className="text-slate-500 text-sm mt-0.5">Real-time user geolocation monitoring</p>
             </div>
