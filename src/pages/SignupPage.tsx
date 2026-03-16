@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
-import { 
-  Mail, Camera, Loader2, CheckCircle, Shield, 
+import {
+  Mail, Camera, Loader2, CheckCircle, Shield,
   User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft
 } from 'lucide-react';
 
@@ -36,7 +36,7 @@ const SignupPage = () => {
   const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
   const [otp, setOtp] = useState('');
   const [permissionsState, setPermissionsState] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
-  
+
   // New states for error handling and submission
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,7 +116,7 @@ const SignupPage = () => {
   const handleProceed = async () => {
     setErrorMessage('');
     setIsSubmitting(true);
-    
+
     try {
       // Create the payload matching your MySQL database columns
       const payload = {
@@ -163,7 +163,7 @@ const SignupPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-10 bg-slate-50">
       <div className="w-full max-w-3xl rounded-2xl bg-white border border-slate-100 shadow-2xl shadow-cyan-900/5 overflow-hidden flex flex-col">
-        
+
         {/* Header Section */}
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
           <div className="inline-flex items-center justify-center gap-3 mb-2 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
@@ -172,7 +172,7 @@ const SignupPage = () => {
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mt-4">Join DWG</h1>
           <p className="text-slate-500 text-sm mt-2">Create your account and verify your device to get started</p>
-          
+
           <div className="flex items-center justify-center mt-8 max-w-xs mx-auto">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-400'}`}>1</div>
             <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-cyan-600' : 'bg-slate-100'}`}></div>
@@ -192,7 +192,7 @@ const SignupPage = () => {
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <User size={22} className="text-cyan-500"/> Account Details
+                <User size={22} className="text-cyan-500" /> Account Details
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-5">
@@ -201,17 +201,27 @@ const SignupPage = () => {
                 <InputField icon={Send} placeholder="Telegram Username (Optional)" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
                 <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} />
               </div>
-              
+
               <InputField icon={Lock} type="password" placeholder="Secure Password" value={form.password} onChange={(e: any) => update('password', e.target.value)} />
 
-              <div className="pt-6">
-                <button 
-                  onClick={() => setStep(2)} 
+              <div className="pt-6 flex flex-col gap-4">
+                <button
+                  onClick={() => setStep(2)}
                   disabled={!isStep1Valid}
                   className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   Continue to Verification <ArrowRight size={20} />
                 </button>
+
+                <div className="text-center text-sm text-slate-500">
+                  Already have an account?{" "}
+                  <span
+                    onClick={() => navigate("/login")}
+                    className="text-cyan-600 font-semibold cursor-pointer hover:underline"
+                  >
+                    Login
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -219,7 +229,7 @@ const SignupPage = () => {
           {step === 2 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <Shield size={22} className="text-cyan-500"/> Verification
+                <Shield size={22} className="text-cyan-500" /> Verification
               </h2>
 
               <div className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4 shadow-sm">
@@ -272,35 +282,52 @@ const SignupPage = () => {
                     </p>
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={requestSystemPermissions}
+
                   disabled={permissionsState === 'requesting' || permissionsState === 'granted'}
                   className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
-                    ${permissionsState === 'granted' 
-                      ? 'bg-teal-100 text-teal-700 cursor-default' 
+                    ${permissionsState === 'granted'
+                      ? 'bg-teal-100 text-teal-700 cursor-default'
                       : permissionsState === 'denied'
-                      ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                      : 'bg-white border border-cyan-200 text-cyan-700 hover:bg-cyan-50 shadow-sm'}`}
+                        ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                        : 'bg-white border border-cyan-200 text-cyan-700 hover:bg-cyan-50 shadow-sm'}`}
                 >
                   {permissionsState === 'requesting' && <Loader2 className="animate-spin" size={18} />}
                   {permissionsState === 'idle' && 'Grant Permissions'}
                   {permissionsState === 'requesting' && 'Waiting for approval...'}
-                  {permissionsState === 'granted' && 'Permissions Granted'}
+                  {permissionsState === 'granted' && 'Permissions Granted'}   
                   {permissionsState === 'denied' && 'Access Denied - Try Again'}
+                  {permissionsState === 'denied' && (
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-red-500 mb-2">
+                        Permissions were denied. Watch this video to enable them.
+                      </p>
+
+                      <a
+                        href="/videos/enable-permissions.mp4"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-600 font-semibold hover:underline"
+                      >
+                        Watch How to Enable Permissions
+                      </a>
+                    </div>
+                  )}
                 </button>
               </div>
 
               <div className="pt-4 flex gap-4">
-                <button 
+                <button
                   onClick={() => setStep(1)}
                   disabled={isSubmitting}
                   className="px-6 py-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <ArrowLeft size={20} /> Back
                 </button>
-                <button 
-                  onClick={handleProceed} 
+                <button
+                  onClick={handleProceed}
                   disabled={otpState !== 'verified' || permissionsState !== 'granted' || isSubmitting}
                   className="flex-1 py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >

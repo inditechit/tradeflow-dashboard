@@ -55,7 +55,7 @@ const DashboardPage = () => {
     setCurrentUser(null);
     localStorage.removeItem('mt5_user');
     localStorage.removeItem('mt5_packages'); // Keeping this just to clean up old data
-    navigate('/signup');
+    navigate('/login');
   };
 
   return (
