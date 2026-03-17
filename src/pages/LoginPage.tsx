@@ -79,8 +79,60 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-2xl shadow-cyan-900/5 overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center p-4 bg-slate-50 overflow-hidden">
+      
+      {/* --- CREATIVE BACKGROUND ELEMENTS --- */}
+      
+      {/* 1. Subtle Trading Grid */}
+      <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+      {/* 2. Infinite Scrolling Market Ticker (Diagonal) */}
+      <div className="absolute z-0 w-[200%] h-16 top-1/4 -left-1/2 -rotate-12 bg-white/40 border-y border-slate-200/50 backdrop-blur-sm flex items-center overflow-hidden">
+        <div className="animate-ticker flex whitespace-nowrap text-slate-400 font-mono text-sm tracking-wider opacity-60">
+          <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
+          <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
+          <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
+          <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
+          <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
+          <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
+          {/* Duplicate for seamless looping */}
+          <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
+          <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
+          <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
+          <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
+          <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
+          <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
+        </div>
+      </div>
+
+      {/* 3. Floating Graphic Candlesticks */}
+      
+      {/* Bullish Candle 1 */}
+      <div className="absolute z-0 left-[15%] top-[20%] w-6 h-48 animate-float-slow opacity-40">
+        <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[20%] w-full h-[50%] bg-emerald-400 rounded-sm shadow-[0_0_15px_rgba(52,211,153,0.3)]" /> {/* Body */}
+      </div>
+
+      {/* Bearish Candle 1 */}
+      <div className="absolute z-0 right-[20%] bottom-[15%] w-8 h-40 animate-float-medium opacity-30">
+        <div className="w-1 h-full bg-red-400 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[40%] w-full h-[40%] bg-red-400 rounded-sm shadow-[0_0_15px_rgba(248,113,113,0.3)]" /> {/* Body */}
+      </div>
+
+      {/* Bullish Candle 2 */}
+      <div className="absolute z-0 right-[10%] top-[10%] w-4 h-32 animate-float-fast opacity-30">
+        <div className="w-1 h-full bg-cyan-400 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[10%] w-full h-[60%] bg-cyan-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" /> {/* Body */}
+      </div>
+
+      {/* Bearish Candle 2 */}
+      <div className="absolute z-0 left-[25%] bottom-[10%] w-5 h-24 animate-float-slow opacity-20" style={{ animationDelay: '2s' }}>
+        <div className="w-0.5 h-full bg-slate-400 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[30%] w-full h-[30%] bg-slate-400 rounded-sm" /> {/* Body */}
+      </div>
+
+      {/* --- ORIGINAL FORM UNTOUCHED --- */}
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-2xl shadow-cyan-900/5 overflow-hidden">
 
         {/* Header */}
         <div className="text-center p-8 border-b border-slate-100">
@@ -145,6 +197,31 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Keyframes for the custom animations */}
+      <style>{`
+        @keyframes ticker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-ticker {
+          animation: ticker 30s linear infinite;
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-float-slow {
+          animation: float 8s ease-in-out infinite;
+        }
+        .animate-float-medium {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-fast {
+          animation: float 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
