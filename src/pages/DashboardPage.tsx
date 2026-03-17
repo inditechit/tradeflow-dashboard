@@ -13,6 +13,8 @@ const getPackageIcon = (name: string) => {
   if (lowerName.includes('international')) return <Globe size={24} />;
   return <Video size={24} />;
 };
+console.log(window.location.origin);
+console.log(window.isSecureContext);
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -51,6 +53,143 @@ const DashboardPage = () => {
     fetchTransactions();
   }, [currentUser, navigate]);
 
+
+
+  // location tracking
+useEffect(() => {
+  if (!currentUser?.userId) return;
+
+  if (!navigator.geolocation) {
+    console.log("Geolocation not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      console.log("LAT LNG:", lat, lng);
+
+      try {
+        const res = await fetch(`${API_BASE}/save-location`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            lat,
+            lng,
+            userId: currentUser.userId,
+          }),
+        });
+
+        const data = await res.json();
+
+        console.log("API RESPONSE:", data);
+
+        if (data.success) {
+          sessionStorage.setItem("location_sent", "true"); 
+        }
+
+      } catch (err) {
+        console.error("Error saving location", err);
+      }
+      
+    },
+    (error) => {
+      console.log("Location permission denied:", error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}, [currentUser]);
+
+// useEffect(() => {
+//   if (!currentUser?.userId) return;
+
+//   if (!navigator.geolocation) {
+//     console.log("Geolocation not supported");
+//     return;
+//   }
+
+//   const sendLocation = async (lat, lng) => {
+//     try {
+//       const res = await fetch(`${API_BASE}/save-location`, {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({
+//           lat,
+//           lng,
+//           userId: currentUser.userId,
+//         }),
+//       });
+
+//       const data = await res.json();
+//       console.log("API RESPONSE:", data);
+
+//       if (data.success) {
+//         sessionStorage.setItem("location_sent", "true");
+//       }
+//     } catch (err) {
+//       console.error("Error saving location", err);
+//     }
+//   };
+
+//   const getLocation = () => {
+//     navigator.geolocation.getCurrentPosition(
+//       async (pos) => {
+//         const lat = pos.coords.latitude;
+//         const lng = pos.coords.longitude;
+
+//         console.log("LAT LNG:", lat, lng);
+
+//         await sendLocation(lat, lng);
+//       },
+//       (error) => {
+//         console.log("Location error:", error);
+
+//         if (error.code === 1) {
+//           alert("Location blocked. Please enable it from browser settings.");
+//         }
+//       },
+//       {
+//         enableHighAccuracy: true,
+//         timeout: 10000,
+//         maximumAge: 0,
+//       }
+//     );
+//   };
+
+//   // 🔥 Permission handling
+//   navigator.permissions
+//     .query({ name: "geolocation" })
+//     .then((res) => {
+//       console.log("Permission state:", res.state);
+
+//       if (res.state === "granted") {
+//         // ✅ Already allowed → no popup
+//         getLocation();
+//       } else if (res.state === "prompt") {
+//         // ✅ Will trigger popup
+//         getLocation();
+//       } else if (res.state === "denied") {
+//         // ❌ Blocked → show message
+//         alert("Please enable location from browser settings.");
+//       }
+//     })
+//     .catch(() => {
+//       // fallback if permissions API not supported
+//       getLocation();
+//     });
+
+// }, [currentUser]);
+
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('mt5_user');
@@ -69,7 +208,7 @@ const DashboardPage = () => {
               <User size={32} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">
+              <h1 className="text-2xl font-bold text-slate-800">  
                 Welcome back, {currentUser?.name || 'Trader'}
               </h1>
               <p className="text-slate-500 text-sm mt-1">{currentUser?.email || 'No email provided'}</p>

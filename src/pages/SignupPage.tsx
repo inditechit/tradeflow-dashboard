@@ -306,7 +306,7 @@ const SignupPage = () => {
                       </p>
 
                       <a
-                        href="/videos/enable-permissions.mp4"
+                        href="/videos/video.mp4"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-cyan-600 font-semibold hover:underline"
