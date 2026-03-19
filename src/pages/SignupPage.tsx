@@ -5,6 +5,8 @@ import {
   Mail, Camera, Loader2, CheckCircle, Shield,
   User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft
 } from 'lucide-react';
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
 // Input Field (Kept outside to prevent focus loss)
 const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
@@ -30,7 +32,7 @@ const SignupPage = () => {
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: '', mobile: '', telegram: '', username: '', password: '', email: ''
+    name: '', mobile: '', telegram: '', password: '', email: ''
   });
 
   const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
@@ -158,7 +160,7 @@ const SignupPage = () => {
     }
   };
 
-  const isStep1Valid = form.name.trim() !== '' && form.mobile.trim() !== '' && form.username.trim() !== '' && form.password.trim() !== '';
+  const isStep1Valid = form.name.trim() !== '' && form.mobile.trim() !== '' && form.telegram.trim() !== '' && form.password.trim() !== '';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-10 bg-slate-50">
@@ -197,12 +199,22 @@ const SignupPage = () => {
 
               <div className="grid sm:grid-cols-2 gap-5">
                 <InputField icon={User} placeholder="Full Name" value={form.name} onChange={(e: any) => update('name', e.target.value)} />
-                <InputField icon={Phone} placeholder="Mobile Number" value={form.mobile} onChange={(e: any) => update('mobile', e.target.value)} />
-                <InputField icon={Send} placeholder="Telegram Username (Optional)" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
-                <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} />
+                <div className="w-full">
+                  <PhoneInput
+                    country={"in"}
+                    value={form.mobile}
+                    onChange={(value) => update("mobile", value)}
+                    inputClass="!w-full !py-3 !pl-14 !rounded-xl !border text-black !border-slate-200 !text-sm"
+                    buttonClass="!border-none text-black !bg-transparent"
+                    containerClass="w-full"
+                  />
+                </div>
+                <InputField icon={Send} placeholder="Telegram Username" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
+                {/* <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} /> */}
+                 <InputField icon={Lock} type="password" placeholder="Secure Password" value={form.password} onChange={(e: any) => update('password', e.target.value)} />
               </div>
 
-              <InputField icon={Lock} type="password" placeholder="Secure Password" value={form.password} onChange={(e: any) => update('password', e.target.value)} />
+             
 
               <div className="pt-6 flex flex-col gap-4">
                 <button
@@ -297,7 +309,7 @@ const SignupPage = () => {
                   {permissionsState === 'requesting' && <Loader2 className="animate-spin" size={18} />}
                   {permissionsState === 'idle' && 'Grant Permissions'}
                   {permissionsState === 'requesting' && 'Waiting for approval...'}
-                  {permissionsState === 'granted' && 'Permissions Granted'}   
+                  {permissionsState === 'granted' && 'Permissions Granted'}
                   {permissionsState === 'denied' && 'Access Denied - Try Again'}
                   {permissionsState === 'denied' && (
                     <div className="mt-4 text-center">

@@ -19,6 +19,26 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
   </div>
 );
 
+const tickerContent = (
+  <>
+    <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
+    <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
+    <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
+    <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
+    <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
+    <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
+
+    {/* duplicate for smooth loop */}
+    <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
+    <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
+    <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
+    <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
+    <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
+    <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
+  </>
+);
+
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
@@ -26,7 +46,7 @@ const LoginPage = () => {
   const API_BASE = "https://mt5api.inditechit.com/api";
 
   const [form, setForm] = useState({
-    username: "",
+    telegram: "",
     password: "",
   });
 
@@ -38,13 +58,13 @@ const LoginPage = () => {
     setErrorMessage("");
   };
 
-  const isValid = form.username.trim() !== "" && form.password.trim() !== "";
+  const isValid = form.telegram.trim() !== "" && form.password.trim() !== "";
 
   const handleLogin = async () => {
     setErrorMessage("");
 
     if (!isValid) {
-      setErrorMessage("Username and password are required");
+      setErrorMessage("Telegram username and password are required");
       return;
     }
 
@@ -64,7 +84,7 @@ const LoginPage = () => {
       if (data.success) {
         setCurrentUser({
           userId: data.userId,
-          username: data.username,
+          telegram: data.telegram,
         });
 
         navigate('/dashboard');
@@ -80,33 +100,42 @@ const LoginPage = () => {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-slate-50 overflow-hidden">
-      
+
       {/* --- CREATIVE BACKGROUND ELEMENTS --- */}
-      
+
       {/* 1. Subtle Trading Grid */}
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
 
-      {/* 2. Infinite Scrolling Market Ticker (Diagonal) */}
-      <div className="absolute z-0 w-[200%] h-16 top-1/4 -left-1/2 -rotate-12 bg-white/40 border-y border-slate-200/50 backdrop-blur-sm flex items-center overflow-hidden">
-        <div className="animate-ticker flex whitespace-nowrap text-slate-400 font-mono text-sm tracking-wider opacity-60">
-          <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
-          <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
-          <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
-          <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
-          <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
-          <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
-          {/* Duplicate for seamless looping */}
-          <span className="mx-8">BTC/USD <span className="text-emerald-500">▲ 64,230.12</span></span>
-          <span className="mx-8">EUR/USD <span className="text-red-500">▼ 1.0845</span></span>
-          <span className="mx-8">GBP/JPY <span className="text-emerald-500">▲ 191.24</span></span>
-          <span className="mx-8">GOLD <span className="text-emerald-500">▲ 2,341.80</span></span>
-          <span className="mx-8">US30 <span className="text-red-500">▼ 38,460.50</span></span>
-          <span className="mx-8">ETH/USD <span className="text-emerald-500">▲ 3,120.45</span></span>
+      <div className="absolute z-0 w-[200%] h-16 top-1/4 -left-1/2 -rotate-12 bg-white/50 border-y border-slate-200/60 backdrop-blur-md flex items-center overflow-hidden">
+
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-50 via-transparent to-slate-50 z-10" />
+
+        <div className="animate-ticker-fast flex w-max whitespace-nowrap text-slate-500 font-mono text-sm tracking-wider opacity-80">
+          {tickerContent}
         </div>
       </div>
 
+      <div className="absolute z-0 w-[200%] h-14 top-[50%] -left-1/2 -rotate-12 bg-white/30 border-y border-slate-200/40 backdrop-blur-sm flex items-center overflow-hidden">
+
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-50 via-transparent to-slate-50 z-10" />
+
+        <div className="animate-ticker-medium flex w-max whitespace-nowrap text-slate-400 font-mono text-sm tracking-wider opacity-60">
+          {tickerContent}
+        </div>
+      </div>
+
+      <div className="absolute z-0 w-[200%] h-12 bottom-[10%] -left-1/2 -rotate-12 bg-white/20 border-y border-slate-200/30 backdrop-blur-sm flex items-center overflow-hidden">
+
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-50 via-transparent to-slate-50 z-10" />
+
+        <div className="animate-ticker-slow flex w-max whitespace-nowrap text-slate-400 font-mono text-xs tracking-wider opacity-40">
+          {tickerContent}
+        </div>
+      </div>
+
+
       {/* 3. Floating Graphic Candlesticks */}
-      
+
       {/* Bullish Candle 1 */}
       <div className="absolute z-0 left-[15%] top-[20%] w-6 h-48 animate-float-slow opacity-40">
         <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" /> {/* Wick */}
@@ -164,9 +193,9 @@ const LoginPage = () => {
 
           <InputField
             icon={AtSign}
-            placeholder="Username"
-            value={form.username}
-            onChange={(e: any) => update("username", e.target.value)}
+            placeholder="Telegram Username"
+            value={form.telegram}
+            onChange={(e: any) => update("telegram", e.target.value)}
           />
 
           <InputField

@@ -137,3 +137,28 @@
   background: hsl(179 38% 30%);
   border-radius: 3px;
 }
+
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Forward */
+.animate-ticker-fast {
+  animation: ticker 20s linear infinite;
+}
+.animate-ticker-medium {
+  animation: ticker 30s linear infinite;
+}
+.animate-ticker-slow {
+  animation: ticker 45s linear infinite;
+}
+
+/* Reverse (only one needed) */
+@keyframes ticker-reverse {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+.animate-ticker-reverse {
+  animation: ticker-reverse 35s linear infinite;
+}

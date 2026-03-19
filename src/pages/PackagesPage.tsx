@@ -19,6 +19,7 @@ const packages = [
     name: 'International Tour',
     duration: '1 Month',
     price: 3000,
+    
     icon: Globe,
     description: 'Global forex trading exposure across 5 major international countries.',
     features: ['5-country access', 'Global trading floors', 'VIP accommodation'],
