@@ -1,24 +1,65 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { 
-  AlertTriangle, QrCode, Upload, Loader2, CheckCircle, 
+import {
+  AlertTriangle, QrCode, Upload, Loader2, CheckCircle,
   ShieldCheck, Image as ImageIcon, X, ArrowRight
 } from 'lucide-react';
+import { QRCodeCanvas } from "qrcode.react";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
   const { currentUser, selectedPackage, addPackage } = useApp();
-  
+
   const [step, setStep] = useState<'terms' | 'pay' | 'success'>('terms');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [paymentData, setPaymentData] = useState<any>(null);
 
-  const depositMethod = currentUser?.depositMethod || 'USDT';
-  const isCrypto = depositMethod === 'USDT';
+  const [selectedMethod, setSelectedMethod] = useState<'USDT' | 'INR' | 'AED'>('USDT');
   const API_BASE = 'https://mt5api.inditechit.com/api';
+
+
+
+  const handleChangeMethod = async (method: 'USDT' | 'INR' | 'AED') => {
+    setSelectedMethod(method);
+    setPaymentData(null); // reset old data
+
+    if (!currentUser?.userId || !selectedPackage) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const res = await fetch(`${API_BASE}/create-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.userId,
+          packageId: selectedPackage.id,
+          payment_method: method
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setPaymentData(data);
+      } else {
+        setErrorMessage(data.error);
+      }
+
+    } catch (err) {
+      setErrorMessage('Failed to switch payment method');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
+
+
 
   // Handle file selection and generate a preview thumbnail
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,6 +79,39 @@ const PaymentPage = () => {
     }
   };
 
+  const handleCreatePayment = async () => {
+    if (!currentUser?.userId || !selectedPackage) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const res = await fetch(`${API_BASE}/create-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.userId,
+          packageId: selectedPackage.id,
+          payment_method: selectedMethod
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setPaymentData(data);
+        setStep('pay');
+      } else {
+        setErrorMessage(data.error);
+      }
+
+    } catch (err) {
+      setErrorMessage('Failed to create payment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
   const removeFile = () => {
     setFile(null);
     setPreview(null);
@@ -46,6 +120,11 @@ const PaymentPage = () => {
   const handleConfirmPayment = async () => {
     if (!file) {
       setErrorMessage('Please upload a screenshot of your payment receipt.');
+      return;
+    }
+
+    if (!paymentData?.paymentId) {
+      setErrorMessage('Payment not initialized. Please try again.');
       return;
     }
 
@@ -59,7 +138,8 @@ const PaymentPage = () => {
     formData.append('userId', currentUser.userId.toString());
     formData.append('packageName', selectedPackage.name);
     formData.append('amount', selectedPackage.price.toString());
-    formData.append('method', depositMethod);
+    formData.append('method', paymentData.payment_method);
+    formData.append('paymentId', paymentData.paymentId);
 
     try {
       const response = await fetch(`${API_BASE}/payment/upload`, {
@@ -67,16 +147,16 @@ const PaymentPage = () => {
         body: formData, // Fetch automatically sets multipart/form-data boundary
       });
 
-      const data:any = await response.json();
+      const data: any = await response.json();
 
       if (data.success) {
         setStep('success');
-        addPackage({ 
-          ...selectedPackage, 
+        addPackage({
+          ...selectedPackage,
           purchasedAt: new Date().toISOString(),
           transactionId: data.txnId // Storing the AI-extracted ID
         });
-        
+
         // Auto redirect after 3 seconds
         setTimeout(() => {
           navigate('/dashboard');
@@ -102,8 +182,8 @@ const PaymentPage = () => {
           </div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">No Package Selected</h2>
           <p className="text-slate-500 text-sm mb-8">Please choose a package before proceeding to checkout.</p>
-          <button 
-            onClick={() => navigate('/packages')} 
+          <button
+            onClick={() => navigate('/packages')}
             className="w-full py-3.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition-colors shadow-lg shadow-cyan-600/20"
           >
             Browse Packages
@@ -116,7 +196,7 @@ const PaymentPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl shadow-cyan-900/5 overflow-hidden border border-slate-100">
-        
+
         {/* Header */}
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-slate-50/50">
           <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
@@ -152,9 +232,9 @@ const PaymentPage = () => {
                   is strictly non-refundable once the transaction is verified.
                 </p>
               </div>
-              
-              <button 
-                onClick={() => setStep('pay')} 
+
+              <button
+                onClick={handleCreatePayment}
                 className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
               >
                 I Understand & Accept <ArrowRight size={20} />
@@ -165,29 +245,96 @@ const PaymentPage = () => {
           {/* STEP 2: PAYMENT & UPLOAD */}
           {step === 'pay' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-              
+
               {/* Payment Info Card */}
               <div className="border border-slate-200 rounded-xl p-6 text-center bg-slate-50">
-                <p className="text-sm font-semibold text-cyan-600 uppercase tracking-wider mb-4">
-                  {isCrypto ? 'Send USDT (TRC20)' : `Send via ${depositMethod}`}
-                </p>
-                
-                <div className="inline-block p-3 bg-white rounded-xl shadow-sm border border-slate-100 mb-4">
-                  {/* Real app: Replace this icon with an actual QR code <img> */}
-                  <QrCode className="text-slate-800" size={140} strokeWidth={1.5} />
-                </div>
-                
-                <div className="bg-white p-3 rounded-lg border border-slate-200">
-                  <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Amount to Pay</p>
-                  <p className="text-2xl font-bold text-slate-800">${selectedPackage.price.toLocaleString()}</p>
+                <div className="flex gap-2 mb-4 justify-center">
+                  {['USDT', 'INR', 'AED'].map((method) => (
+                    <button
+                      key={method}
+                      onClick={() => handleChangeMethod(method as 'USDT' | 'INR' | 'AED')}
+                      className={`px-4 py-2 rounded-lg border text-sm font-semibold
+        ${selectedMethod === method
+                          ? 'bg-cyan-600 text-white border-cyan-600'
+                          : 'bg-white text-slate-600 border-slate-300'}`}
+                    >
+                      {method}
+                    </button>
+                  ))}
                 </div>
 
-                {isCrypto && (
+                <p className="text-sm font-semibold text-cyan-600 uppercase tracking-wider mb-4">
+                  {paymentData?.type === 'crypto' && 'Send USDT (TRC20)'}
+                  {paymentData?.type === 'upi' && 'Pay via UPI'}
+                  {paymentData?.type === 'bank' && 'Bank Transfer'}
+                  {!paymentData && 'Select payment method'}
+                </p>
+
+                <div className="flex justify-center mb-4">
+                  <div className="bg-white p-2 rounded-xl shadow-md border border-slate-200">
+
+                    {paymentData?.type === 'crypto' && (
+                      <QRCodeCanvas
+                        value={`tron:${paymentData.wallet}?amount=${paymentData.amount}`}
+                        size={220}
+                      />
+                    )}
+
+                    {paymentData?.type === 'upi' && (
+                      <img
+                        src={paymentData.qr}
+                        alt="UPI QR"
+                        className="w-[220px] h-[220px] object-cover rounded-lg"
+                      />
+                    )}
+
+                    {paymentData?.type === 'bank' && (
+                      <img
+                        src={paymentData.qr}
+                        alt="Bank QR"
+                        className="w-[220px] h-[220px] object-cover rounded-lg"
+                      />
+                    )}
+
+                  </div>
+                </div>
+
+                <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Amount to Pay</p>
+                  <p className="text-2xl font-bold text-slate-800">${paymentData?.amount || selectedPackage?.price.toLocaleString()}</p>
+                </div>
+
+                {paymentData?.type === 'crypto' && (
                   <div className="mt-4">
-                    <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Network Address</p>
-                    <div className="bg-slate-100 px-4 py-3 rounded-lg text-sm font-mono text-slate-700 break-all border border-slate-200">
-                      TKx9a4gPf8RwQU2E7mnVxR3jP5qZbNdYwQ
+                    <p className="text-xs text-slate-400">Wallet Address</p>
+                    <div className="bg-slate-100 px-4 py-3 text-black rounded-lg text-sm font-mono break-all">
+                      {paymentData.wallet}
                     </div>
+                  </div>
+                )}
+
+                {paymentData?.type === 'upi' && (
+                  <div className="mt-4">
+                    <p className="text-xs text-slate-400">UPI ID</p>
+                    <div className="bg-slate-100 text-black px-4 py-3 rounded-lg text-sm font-mono">
+                      {paymentData.upiId}
+                    </div>
+                  </div>
+                )}
+
+                {paymentData?.type === 'bank' && (
+                  <div className="mt-4">
+                    <p className="text-xs text-slate-400">Bank Account</p>
+                    <div className="bg-slate-100 text-black px-4 py-3 rounded-lg text-sm">
+                      {paymentData.account}
+                    </div>
+                  </div>
+                )}
+
+                {paymentData && (
+                  <div className="mt-3">
+                    <p className="text-xs text-slate-400">Payment ID</p>
+                    <p className="font-mono text-slate-800 text-sm">{paymentData.paymentId}</p>
                   </div>
                 )}
               </div>
@@ -195,7 +342,7 @@ const PaymentPage = () => {
               {/* Upload Dropzone */}
               <div>
                 <p className="text-sm font-semibold text-slate-800 mb-3">Upload Payment Receipt</p>
-                
+
                 {!preview ? (
                   <label className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-cyan-500 hover:bg-cyan-50/50 transition-colors group bg-white">
                     <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
@@ -218,7 +365,7 @@ const PaymentPage = () => {
                         <CheckCircle size={14} /> Ready for AI Scan
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={removeFile}
                       className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 text-slate-500 transition-colors"
                     >
