@@ -299,7 +299,7 @@ const PaymentPage = () => {
 
                         {paymentData?.type === 'crypto' && (
                           <QRCodeCanvas
-                            value={`tron:${paymentData.wallet}`}  
+                            value={paymentData.wallet}
                             size={220}
                           />
                         )}
@@ -319,7 +319,7 @@ const PaymentPage = () => {
                     <div className="bg-white p-3 rounded-lg border border-slate-200">
                       <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Amount to Pay</p>
                       <p className="text-2xl font-bold text-slate-800">
-                        ${Number(paymentData?.amount).toFixed(2)}
+                        ${paymentData?.amount}
                       </p>
                     </div>
 
