@@ -336,7 +336,7 @@ const PaymentPage = () => {
 
                       <div className="flex items-center justify-center">
                         <p className="text-2xl font-bold text-slate-800">
-                          ${paymentData?.amount}
+                        ${Number(paymentData?.amount).toFixed(6)}
                         </p>
 
                         <button
