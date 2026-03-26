@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
 import {
@@ -7,6 +7,67 @@ import {
 } from 'lucide-react';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+
+// --- TRADINGVIEW WIDGET COMPONENT ---
+const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!container.current) return;
+    
+    // Clear the container to prevent duplicates in strict mode
+    container.current.innerHTML = ''; 
+
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+    script.type = "text/javascript";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      symbols: symbols,
+      showSymbolLogo: true,
+      isTransparent: true,
+      displayMode: "regular",
+      colorTheme: "light",
+      locale: "en"
+    });
+
+    container.current.appendChild(script);
+  }, [symbols]);
+
+  return (
+    <div className="tradingview-widget-container" ref={container} style={{ width: '100%' }}>
+      <div className="tradingview-widget-container__widget"></div>
+    </div>
+  );
+});
+
+// Real-time market data categories for the strips
+const cryptoSymbols = [
+  { proName: "BITSTAMP:BTCUSD", title: "Bitcoin" },
+  { proName: "BITSTAMP:ETHUSD", title: "Ethereum" },
+  { proName: "BINANCE:SOLUSDT", title: "Solana" },
+  { proName: "BINANCE:BNBUSDT", title: "BNB" },
+  { proName: "BINANCE:XRPUSDT", title: "XRP" },
+  { proName: "BINANCE:ADAUSDT", title: "Cardano" }
+];
+
+const forexSymbols = [
+  { proName: "FX_IDC:EURUSD", title: "EUR/USD" },
+  { proName: "FX_IDC:GBPUSD", title: "GBP/USD" },
+  { proName: "FX_IDC:USDJPY", title: "USD/JPY" },
+  { proName: "OANDA:XAUUSD", title: "Gold" },
+  { proName: "OANDA:XAGUSD", title: "Silver" },
+  { proName: "FX_IDC:AUDUSD", title: "AUD/USD" }
+];
+
+const indexSymbols = [
+  { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
+  { proName: "FOREXCOM:NSXUSD", title: "US 100" },
+  { proName: "FOREXCOM:DJI", title: "Dow 30" },
+  { proName: "OANDA:UK100GBP", title: "UK 100" },
+  { proName: "INDEX:NKY", title: "Nikkei 225" },
+  { proName: "INDEX:DAX", title: "DAX" }
+];
 
 // Input Field (Kept outside to prevent focus loss)
 const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
@@ -39,16 +100,14 @@ const SignupPage = () => {
   const [otp, setOtp] = useState('');
   const [permissionsState, setPermissionsState] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
 
-  // New states for error handling and submission
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const update = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
-    setErrorMessage(''); // Clear errors when user types
+    setErrorMessage('');
   };
 
-  // --- API: 1. Send OTP ---
   const handleGetOtp = async () => {
     setErrorMessage('');
     setOtpState('sending');
@@ -73,7 +132,6 @@ const SignupPage = () => {
     }
   };
 
-  // --- API: 2. Verify OTP ---
   const handleVerifyOtp = async () => {
     setErrorMessage('');
     try {
@@ -114,17 +172,15 @@ const SignupPage = () => {
     }
   };
 
-  // --- API: 3. Final Signup ---
   const handleProceed = async () => {
     setErrorMessage('');
     setIsSubmitting(true);
 
     try {
-      // Create the payload matching your MySQL database columns
       const payload = {
         ...form,
-        photo: 'permissions_granted', // Backend expects photo_data, we send a placeholder since we did device auth
-        country: '', // Sending empty strings so the DB doesn't crash on undefined
+        photo: 'permissions_granted', 
+        country: '', 
         state: '',
         city: '',
         pincode: ''
@@ -138,10 +194,9 @@ const SignupPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Update context with the new User ID and navigate
         const user: UserData = {
           ...form,
-          userId: data.userId, // Storing DB ID
+          userId: data.userId, 
           emailVerified: true,
           photoCaptured: true,
           experienceYears: '',
@@ -163,8 +218,66 @@ const SignupPage = () => {
   const isStep1Valid = form.name.trim() !== '' && form.mobile.trim() !== '' && form.telegram.trim() !== '' && form.password.trim() !== '';
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-10 bg-slate-50">
-      <div className="w-full max-w-3xl rounded-2xl bg-white border border-slate-100 shadow-2xl shadow-cyan-900/5 overflow-hidden flex flex-col">
+    <div className="relative min-h-screen flex items-center justify-center p-4 py-10 bg-slate-200 overflow-hidden">
+      
+      {/* --- CREATIVE BACKGROUND ELEMENTS --- */}
+
+      {/* 1. Subtle Trading Grid */}
+      <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+      {/* Parallel Line 1 (Crypto) */}
+      {/* Changed pointer-events-none so users can't click the background iframe */}
+      <div className="absolute z-0 w-[200%] h-[72px] top-[15%] -left-1/2 -rotate-12 bg-white/50 border-y border-slate-300/60 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+        <div className="w-full opacity-80">
+          <TradingViewTicker symbols={cryptoSymbols} />
+        </div>
+      </div>
+
+      {/* Parallel Line 2 (Forex/Gold) */}
+      <div className="absolute z-0 w-[200%] h-[72px] bottom-[15%] -left-1/2 -rotate-12 bg-white/20 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+        <div className="w-full opacity-60">
+          <TradingViewTicker symbols={forexSymbols} />
+        </div>
+      </div>
+
+      {/* Intersecting Line (Indices) */}
+      <div className="absolute z-0 w-[200%] h-[72px] top-[45%] -left-[30%] rotate-12 bg-white/30 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden shadow-sm shadow-cyan-900/5 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+        <div className="w-full opacity-70">
+          <TradingViewTicker symbols={indexSymbols} />
+        </div>
+      </div>
+
+      {/* 3. Floating Graphic Candlesticks */}
+      
+      {/* Bullish Candle 1 */}
+      <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-50">
+        <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" />
+        <div className="absolute top-[20%] w-full h-[50%] bg-emerald-400 rounded-sm shadow-[0_0_15px_rgba(52,211,153,0.3)]" />
+      </div>
+
+      {/* Bearish Candle 1 */}
+      <div className="absolute z-0 right-[15%] bottom-[20%] w-8 h-40 animate-float-medium opacity-40">
+        <div className="w-1 h-full bg-red-400 mx-auto rounded-full" />
+        <div className="absolute top-[40%] w-full h-[40%] bg-red-400 rounded-sm shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
+      </div>
+
+      {/* Bullish Candle 2 */}
+      <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-40">
+        <div className="w-1 h-full bg-cyan-400 mx-auto rounded-full" />
+        <div className="absolute top-[10%] w-full h-[60%] bg-cyan-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+      </div>
+
+      {/* Bearish Candle 2 */}
+      <div className="absolute z-0 left-[20%] bottom-[15%] w-5 h-24 animate-float-slow opacity-30" style={{ animationDelay: '2s' }}>
+        <div className="w-0.5 h-full bg-slate-400 mx-auto rounded-full" />
+        <div className="absolute top-[30%] w-full h-[30%] bg-slate-400 rounded-sm" />
+      </div>
+
+      {/* --- ORIGINAL FORM UNTOUCHED --- */}
+      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-cyan-900/10 overflow-hidden flex flex-col">
 
         {/* Header Section */}
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
@@ -190,7 +303,7 @@ const SignupPage = () => {
         )}
 
         {/* Body Section */}
-        <div className="p-8 md:p-10 flex-1 pt-6">
+        <div className="p-8 md:p-10 flex-1 pt-6 bg-white/95 backdrop-blur-md">
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
@@ -213,8 +326,6 @@ const SignupPage = () => {
                 {/* <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} /> */}
                  <InputField icon={Lock} type="password" placeholder="Secure Password" value={form.password} onChange={(e: any) => update('password', e.target.value)} />
               </div>
-
-             
 
               <div className="pt-6 flex flex-col gap-4">
                 <button
@@ -268,6 +379,7 @@ const SignupPage = () => {
                       value={otp}
                       onChange={e => setOtp(e.target.value)}
                       disabled={otpState === 'verified'}
+                      style={{    color: 'black'}}
                     />
                     {otpState === 'verified' ? (
                       <div className="w-full sm:w-auto px-6 h-[50px] rounded-xl bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center gap-2 font-medium">
@@ -351,6 +463,23 @@ const SignupPage = () => {
           )}
         </div>
       </div>
+
+      {/* Keyframes for the floating candles */}
+      <style>{`        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-float-slow {
+          animation: float 8s ease-in-out infinite;
+        }
+        .animate-float-medium {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-fast {
+          animation: float 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
