@@ -21,6 +21,9 @@ const PaymentPage = () => {
   const [selectedMethod, setSelectedMethod] = useState<'USDT' | 'INR' | 'AED'>('USDT');
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
+  const [copied, setCopied] = useState(false);
+
+
 
 
   const handleChangeMethod = async (method: 'USDT' | 'INR' | 'AED') => {
@@ -175,6 +178,16 @@ const PaymentPage = () => {
     }
   };
 
+  const handleCopy = () => {
+    if (!paymentData?.amount) return;
+
+    navigator.clipboard.writeText(paymentData.amount.toString());
+    setCopied(true);
+
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+
   // Fallback if no package is selected
   if (!selectedPackage) {
     return (
@@ -299,7 +312,7 @@ const PaymentPage = () => {
 
                         {paymentData?.type === 'crypto' && (
                           <QRCodeCanvas
-                            value={`tron:${paymentData.wallet}`}  
+                            value={paymentData.wallet}
                             size={220}
                           />
                         )}
@@ -317,9 +330,26 @@ const PaymentPage = () => {
 
                     {/* Amount */}
                     <div className="bg-white p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Amount to Pay</p>
-                      <p className="text-2xl font-bold text-slate-800">
-                        ${Number(paymentData?.amount).toFixed(2)}
+                      <p className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">
+                        Amount to Pay
+                      </p>
+
+                      <div className="flex items-center justify-center">
+                        <p className="text-2xl font-bold text-slate-800">
+                        ${Number(paymentData?.amount).toFixed(6)}
+                        </p>
+
+                        <button
+                          onClick={handleCopy}
+                          className="ml-3 px-3 py-1 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                        >
+                          {copied ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+
+                      {/* Warning */}
+                      <p className="text-[10px] text-red-500 mt-2">
+                        Send exact amount. Do not round.
                       </p>
                     </div>
 
