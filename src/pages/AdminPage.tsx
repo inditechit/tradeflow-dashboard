@@ -4,6 +4,7 @@ import {
   MapPin, ArrowLeft, RefreshCw, User, 
   Globe, Clock, AlertTriangle, ExternalLink 
 } from 'lucide-react';
+import AdminSidebar from "../components/admin/AdminSidebar";
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -50,9 +51,15 @@ const AdminPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+  <div className="flex min-h-screen bg-slate-50">
+    
+    {/* Sidebar */}
+    <AdminSidebar />
+
+    {/* Main Content */}
+    <div className="flex-1 ml-64 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -63,23 +70,26 @@ const AdminPage = () => {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                DWG Admin <span className="text-slate-300 font-light">|</span> Location Hub
+              <h1 className="text-2xl font-bold text-slate-800">
+                Admin Panel
               </h1>
-              <p className="text-slate-500 text-sm mt-0.5">Real-time user geolocation monitoring</p>
+              <p className="text-slate-500 text-sm">
+                Manage system data & monitoring
+              </p>
             </div>
           </div>
 
           <button 
             onClick={fetchLocations}
             disabled={isLoading}
-            className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-cyan-600 font-bold hover:bg-cyan-50 hover:border-cyan-200 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
           >
             <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-            {isLoading ? 'Refreshing...' : 'Refresh Data'}
+            {isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
+        {/* KEEP YOUR EXISTING TABLE + LOGIC SAME */}
         {/* Global Error */}
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 font-medium flex items-center gap-3">
@@ -162,10 +172,12 @@ const AdminPage = () => {
             </table>
           </div>
         </div>
-        
+        </div>
+
       </div>
     </div>
-  );
+
+  )
 };
 
 export default AdminPage;
