@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import OpenTrades from "./pages/OpenTrades";
+import AdminLayout from "../src/layouts/AdminLayout";
 
 const queryClient = new QueryClient();
 
@@ -42,7 +43,7 @@ const App = () => (
             <Route path="/dashboard" element={<DashboardPage />} />
 
             {/* ✅ ADMIN ROUTES (Nested) */}
-            <Route path="/admin">
+            <Route path="/admin" element={<AdminLayout />}>
 
               {/* Default admin → locations page */}
               <Route index element={<Dashboard />} /> 

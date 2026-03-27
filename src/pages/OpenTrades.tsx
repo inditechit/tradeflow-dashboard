@@ -1,6 +1,6 @@
 const OpenTrades = () => {
   return (
-    <div>OpenTradesss</div>
+    <div className='text-black'>OpenTradesss</div>
   )
 }
 
