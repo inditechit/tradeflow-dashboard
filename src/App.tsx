@@ -10,13 +10,26 @@ import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
 import PackagesPage from "./pages/PackagesPage";
 import PaymentPage from "./pages/PaymentPage";
+
+// User Pages
 import DashboardPage from "./pages/DashboardPage";
-import Dashboard from "./pages/Dashboard";
+import Transactions from "./pages/Transactions";
+import Recharge from "./pages/Recharge";
+
 // Admin Pages
+import Dashboard from "./pages/Dashboard";
 import AdminPage from "./pages/AdminPage";
-import NotFound from "./pages/NotFound";
 import OpenTrades from "./pages/OpenTrades";
-import AdminLayout from "../src/layouts/AdminLayout";
+
+import NotFound from "./pages/NotFound";
+
+// Layouts
+import AdminLayout from "./layouts/AdminLayout";
+import UserLayout from "./layouts/UserLayout";
+import Mytrades from "./pages/userSIdebar/Mytrades";
+import ProfitLoss from "./pages/userSIdebar/ProfitLoss";
+import Transactionspage from "./pages/userSIdebar/Transactionspage";
+import RechargePage from "./pages/userSIdebar/RechargePage";
 
 const queryClient = new QueryClient();
 
@@ -36,21 +49,36 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
 
-            {/* User */}
+            {/* Public/User pages */}
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/payment" element={<PaymentPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+
+            {/* ✅ USER ROUTES (Nested with Outlet) */} 
+            <Route path="/user" element={<UserLayout />}>
+
+              {/* Default → /user/dashboard */}
+              <Route index element={<Navigate to="dashboard" replace />} />
+
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="my-trades" element={<Mytrades />} />
+              <Route path="pnl" element={<ProfitLoss />} />
+              <Route path="transactions" element={<Transactionspage />} />
+              <Route path="recharge" element={<RechargePage />} />
+
+            </Route>
 
             {/* ✅ ADMIN ROUTES (Nested) */}
             <Route path="/admin" element={<AdminLayout />}>
 
-              {/* Default admin → locations page */}
-              <Route index element={<Dashboard />} /> 
+              {/* Default → /admin/dashboard */}
+              <Route index element={<Navigate to="dashboard" replace />} />
 
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="open-trades" element={<OpenTrades />} />
               <Route path="users" element={<AdminPage />} />
+              <Route path="transactions" element={<Transactions />} />
+              <Route path="recharge" element={<Recharge />} />
 
             </Route>
 

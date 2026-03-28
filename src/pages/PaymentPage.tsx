@@ -165,7 +165,7 @@ const PaymentPage = () => {
 
         // Auto redirect after 3 seconds
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate('/user/dashboard');
         }, 3000);
       } else {
         setErrorMessage(data.error || 'Failed to verify payment receipt.');

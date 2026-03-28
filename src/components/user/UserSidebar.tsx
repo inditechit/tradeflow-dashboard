@@ -3,13 +3,13 @@ import {
   LayoutDashboard, Users, TrendingUp, ArrowLeftRight, Wallet 
 } from "lucide-react";
 
-const AdminSidebar = () => {
+const UserSidebar = () => {
   const menu = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Open Trades", icon: TrendingUp, path: "/admin/open-trades" },
-    { name: "Users", icon: Users, path: "/admin/users" },
-    { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
-    { name: "Recharge", icon: Wallet, path: "/admin/recharge" },
+    { name: "Dashboard", icon: LayoutDashboard, path: "/user/dashboard" },
+    { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
+    { name: "P&L", icon: Users, path: "/user/pnl" },
+    { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
+    { name: "Recharge", icon: Wallet, path: "/user/recharge" },
   ];
 
   return (
@@ -17,7 +17,7 @@ const AdminSidebar = () => {
       
       {/* Logo */}
       <div className="mb-10">
-        <h1 className="text-xl font-bold text-cyan-600">Admin Panel</h1>
+        <h1 className="text-xl font-bold text-cyan-600">User Panel</h1>
         <p className="text-xs text-slate-400">MT5 Control</p>
       </div>
 
@@ -48,4 +48,4 @@ const AdminSidebar = () => {
   );
 };
 
-export default AdminSidebar;
+export default UserSidebar;

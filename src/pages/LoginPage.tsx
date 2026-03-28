@@ -120,7 +120,7 @@ const LoginPage = () => {
           telegram: data.telegram,
         });
 
-        navigate('/dashboard');
+        navigate('/user/dashboard');
       } else {
         setErrorMessage(data.error || "Invalid login credentials");
       }
