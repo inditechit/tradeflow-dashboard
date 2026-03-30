@@ -7,7 +7,9 @@ const Recharge = () => {
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
 
-  const userId = localStorage.getItem("userId");
+  const userData = JSON.parse(localStorage.getItem("mt5_user"));
+  const userId = userData?.userId;
+  console.log("userId", userId);
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
   const handleRecharge = async () => {
@@ -41,7 +43,7 @@ const Recharge = () => {
 
   return (
     <div className="w-full min-h-screen bg-white p-8 text-black">
-      
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Recharge Wallet</h1>
@@ -55,7 +57,7 @@ const Recharge = () => {
 
         {/* LEFT SIDE - FORM */}
         <div className="border rounded-xl p-6 shadow-sm">
-          
+
           {/* Amount */}
           <div className="mb-6">
             <label className="block font-medium mb-2">
@@ -79,22 +81,20 @@ const Recharge = () => {
             <div className="flex gap-4">
               <button
                 onClick={() => setMethod("INR")}
-                className={`flex-1 py-3 rounded-lg border font-semibold ${
-                  method === "INR"
-                    ? "bg-black text-white"
-                    : "bg-gray-100"
-                }`}
+                className={`flex-1 py-3 rounded-lg border font-semibold ${method === "INR"
+                  ? "bg-black text-white"
+                  : "bg-gray-100"
+                  }`}
               >
                 INR
               </button>
 
               <button
                 onClick={() => setMethod("USDT")}
-                className={`flex-1 py-3 rounded-lg border font-semibold ${
-                  method === "USDT"
-                    ? "bg-black text-white"
-                    : "bg-gray-100"
-                }`}
+                className={`flex-1 py-3 rounded-lg border font-semibold ${method === "USDT"
+                  ? "bg-black text-white"
+                  : "bg-gray-100"
+                  }`}
               >
                 USDT
               </button>
@@ -132,7 +132,12 @@ const Recharge = () => {
           {paymentData && (
             <>
               <p className="mb-2">
-                Amount: <b>{paymentData.amount}</b>
+                Amount:{" "}
+                <b>
+                  {paymentData.type === "upi"
+                    ? Number(paymentData.amount)
+                    : paymentData.amount.toFixed(6)}
+                </b>
               </p>
 
               {paymentData.type === "crypto" && (

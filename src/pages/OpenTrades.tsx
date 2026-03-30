@@ -145,7 +145,7 @@ const OpenTrades = () => {
                       </td>
 
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {trade.price}
+                        {Number(trade.price).toFixed(2)}
                       </td>
 
 
