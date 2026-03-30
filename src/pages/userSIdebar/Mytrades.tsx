@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { RefreshCw } from "lucide-react";
+import axios from "axios";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 const SOCKET_URL = "https://astroapi.inditechit.com";
@@ -92,6 +93,30 @@ const Mytrades = () => {
 
   const openTrades = trades.filter((t) => t.status === "OPEN");
 
+
+  const [wallet, setWallet]:any = useState(0);
+
+  const userData = JSON.parse(localStorage.getItem("mt5_user"));
+  const userId = userData?.userId;
+
+  const API_BASE = "https://mt5api.inditechit.com/api";
+
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/user/wallet/${userId}`);
+        console.log("Wallet data", (res.data.wallet.balance * 94.44).toFixed(2));
+        setWallet((res.data.wallet.balance * 94.44).toFixed(2))
+      } catch (err) {
+        console.error("Wallet fetch error", err);
+      }
+    };
+
+    if (userId) fetchWallet();
+  }, [userId]);
+  console.log(wallet,"walletwalletwallet");
+  
+
   return (
     <div className="max-w-8xl mx-auto p-4">
 
@@ -114,7 +139,7 @@ const Mytrades = () => {
       </div>
 
       {/* 🔥 Profit Percentage Card */}
-      {profitPercentage !== null && (
+      {/* {profitPercentage !== null && (
         <div className="mb-6">
           <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl px-6 py-4 shadow-lg flex justify-between items-center">
             
@@ -131,7 +156,7 @@ const Mytrades = () => {
 
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Trades Card */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
@@ -192,7 +217,7 @@ const Mytrades = () => {
                       />
 
                       {isProfit ? "+" : ""}
-                      {parseFloat(trade.profit || 0).toFixed(2)}
+                      {((Number(parseFloat(trade.profit || 0).toFixed(2)) * profitPercentage) / 100).toFixed(2)} ---
                     </div>
                   </div>
                 </div>
