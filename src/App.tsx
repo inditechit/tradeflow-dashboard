@@ -30,6 +30,7 @@ import Mytrades from "./pages/userSIdebar/Mytrades";
 import ProfitLoss from "./pages/userSIdebar/ProfitLoss";
 import Transactionspage from "./pages/userSIdebar/Transactionspage";
 import RechargePage from "./pages/userSIdebar/RechargePage";
+import TradeHistory from "./pages/userSIdebar/TradeHistory";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="my-trades" element={<Mytrades />} />
               <Route path="pnl" element={<ProfitLoss />} />
               <Route path="transactions" element={<Transactionspage />} />
+              <Route path="trade-history" element={<TradeHistory />} />
               <Route path="recharge" element={<RechargePage />} />
 
             </Route>

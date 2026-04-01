@@ -84,7 +84,7 @@ const Mytrades = () => {
       );
     });
 
-    return () => {
+    return () => {  
       socket.off("mt5data");
       socket.off("mt5close");
       socket.off("mt5live");

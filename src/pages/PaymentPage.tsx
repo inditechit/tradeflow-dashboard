@@ -18,15 +18,31 @@ const PaymentPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [paymentData, setPaymentData] = useState<any>(null);
 
-  const [selectedMethod, setSelectedMethod] = useState<'USDT' | 'INR' | 'AED'>('USDT');
+  const [selectedMethod, setSelectedMethod] = useState<'USD' | 'INR' | 'AED'>('USD');
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
   const [copied, setCopied] = useState(false);
 
+const getCurrencySymbol = () => {
+  if (selectedMethod === "INR") return "₹";
+  if (selectedMethod === "AED") return "د.إ";
+  return "$";
+};
+
+const formatAmount = () => {
+  if (!paymentData?.amount) return 0;
+
+  const amount = Number(paymentData.amount);
+
+  if (selectedMethod === "INR") {
+    return amount.toFixed(0); // no decimals
+  }
+
+  return amount.toFixed(6); // keep decimals for crypto/USD
+};
 
 
-
-  const handleChangeMethod = async (method: 'USDT' | 'INR' | 'AED') => {
+  const handleChangeMethod = async (method: 'USD' | 'INR' | 'AED') => {
     setSelectedMethod(method);
     setPaymentData(null); // reset old data
 
@@ -213,50 +229,78 @@ const PaymentPage = () => {
     <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl shadow-cyan-900/5 overflow-hidden border border-slate-100">
 
-        {/* Header */}
-        <div className="text-center p-8 pb-6 border-b border-slate-100 bg-slate-50/50">
-          <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
-            <ShieldCheck size={18} />
-            <span className="font-semibold tracking-wide uppercase text-xs">Secure Checkout</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Payment Details</h1>
-          <p className="text-slate-500 mt-2">
-            Completing purchase for <span className="font-semibold text-slate-700">{selectedPackage.name}</span>
-          </p>
+       {/* Header */}
+<div className="text-center p-8 pb-6 border-b border-slate-200 bg-white">
+  <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+    <ShieldCheck size={18} />
+    <span className="font-semibold tracking-wide uppercase text-xs">
+      Secure Payment
+    </span>
+  </div>
+
+  <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
+    Payment Details
+  </h1>
+
+  <p className="text-slate-500 mt-2 text-sm">
+    You're purchasing{" "}
+    <span className="font-semibold text-slate-700">
+      {selectedPackage.name}
+    </span>
+  </p>
+</div>
+
+{/* Error Message */}
+{errorMessage && (
+  <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-3">
+    <AlertTriangle size={18} />
+    <span>{errorMessage}</span>
+  </div>
+)}
+
+<div className="p-8">
+  {step === "terms" && (
+    <div className="space-y-6">
+
+      {/* ✅ Clean Notice Card */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4">
+
+        {/* Nice Icon (not warning) */}
+        <div className="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600">
+          <ShieldCheck size={24} />
         </div>
 
-        {/* Error Message */}
-        {errorMessage && (
-          <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium flex items-start gap-3">
-            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+        {/* Content */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-1">
+            Please review before proceeding
+          </h3>
 
-        <div className="p-8">
-          {/* STEP 1: TERMS */}
-          {step === 'terms' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
-                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500">
-                  <AlertTriangle size={32} />
-                </div>
-                <h3 className="text-lg font-bold text-amber-900 mb-2">Important Notice</h3>
-                <p className="text-amber-700/80 text-sm leading-relaxed">
-                  By proceeding, you acknowledge that the amount of{' '}
-                  <span className="font-bold text-amber-900">${selectedPackage.price.toLocaleString()}</span>{' '}
-                  is strictly non-refundable once the transaction is verified.
-                </p>
-              </div>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            You are about to make a payment of{" "}
+            <span className="font-semibold text-slate-800">
+              ${selectedPackage.price.toLocaleString()}
+            </span>
+            . Once the transaction is successfully completed, it will be processed instantly.
+          </p>
 
-              <button
-                onClick={handleCreatePayment}
-                className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
-              >
-                I Understand & Accept <ArrowRight size={20} />
-              </button>
-            </div>
-          )}
+          <p className="text-sm text-slate-500 mt-2">
+            Make sure all details are correct before continuing.
+          </p>
+        </div>
+      </div>
+
+      {/* CTA Button */}
+      <button
+        onClick={handleCreatePayment}
+        className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-semibold shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
+      >
+        Continue to Payment
+        <ArrowRight size={20} />
+      </button>
+    </div>
+  )}
+
 
           {/* STEP 2: PAYMENT & UPLOAD */}
           {step === 'pay' && (
@@ -264,10 +308,10 @@ const PaymentPage = () => {
 
               {/* Payment Method Switch */}
               <div className="flex gap-2 mb-4 justify-center">
-                {['USDT', 'INR', 'AED'].map((method) => (
+                {['USD', 'INR', 'AED'].map((method) => (
                   <button
                     key={method}
-                    onClick={() => handleChangeMethod(method as 'USDT' | 'INR' | 'AED')}
+                    onClick={() => handleChangeMethod(method as 'USD' | 'INR' | 'AED')}
                     className={`px-4 py-2 rounded-lg border text-sm font-semibold
             ${selectedMethod === method
                         ? 'bg-cyan-600 text-white border-cyan-600'
@@ -336,7 +380,7 @@ const PaymentPage = () => {
 
                       <div className="flex items-center justify-center">
                         <p className="text-2xl font-bold text-slate-800">
-                        ${Number(paymentData?.amount).toFixed(6)}
+                          {getCurrencySymbol()} {formatAmount()}
                         </p>
 
                         <button
@@ -349,7 +393,9 @@ const PaymentPage = () => {
 
                       {/* Warning */}
                       <p className="text-[10px] text-red-500 mt-2">
-                        Send exact amount. Do not round.
+                        {selectedMethod === "USD"
+                          ? "Send exact amount. Do not round."
+                          : "Send exact amount"}
                       </p>
                     </div>
 

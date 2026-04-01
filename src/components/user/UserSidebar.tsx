@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Users, TrendingUp, ArrowLeftRight, Wallet 
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ClipboardList } from "lucide-react";
 import axios from "axios";
 
 const UserSidebar = () => {
@@ -32,6 +33,7 @@ const UserSidebar = () => {
     { name: "Dashboard", icon: LayoutDashboard, path: "/user/dashboard" },
     { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
+    { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Investments", icon: Wallet, path: "/user/recharge" },
   ];
 

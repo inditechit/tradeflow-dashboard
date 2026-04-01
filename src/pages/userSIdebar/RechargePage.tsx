@@ -1,26 +1,22 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { QRCodeCanvas } from "qrcode.react"; // ✅ added
 
 const Recharge = () => {
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("INR");
+  const [method] = useState("USD");
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
 
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
-  console.log("userId", userId);
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
   const handleRecharge = async () => {
     if (!amount) return alert("Enter amount");
 
-    if (method === "INR" && Number(amount) < 1000) {
-      return alert("Minimum ₹1000 required");
-    }
-
-    if (method === "USDT" && Number(amount) < 10) {
-      return alert("Minimum 10 USDT required");
+    if (Number(amount) < 10) {
+      return alert("Minimum 10 USD required");
     }
 
     try {
@@ -29,13 +25,12 @@ const Recharge = () => {
       const res = await axios.post(`${API_BASE}/recharge`, {
         userId,
         amount: Number(amount),
-        payment_method: method
+        payment_method: "USD"
       });
 
       setPaymentData(res.data);
     } catch (err) {
       alert(err.response?.data?.error || "Error");
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -44,24 +39,21 @@ const Recharge = () => {
   return (
     <div className="w-full min-h-screen bg-white p-8 text-black">
 
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Recharge Wallet</h1>
         <p className="text-gray-600 text-sm">
-          Add funds securely to your trading wallet
+          Add funds securely using USDT (Crypto)
         </p>
       </div>
 
-      {/* Main Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        {/* LEFT SIDE - FORM */}
+        {/* LEFT */}
         <div className="border rounded-xl p-6 shadow-sm">
 
-          {/* Amount */}
           <div className="mb-6">
             <label className="block font-medium mb-2">
-              Enter Amount
+              Enter Amount (USD)
             </label>
             <input
               type="number"
@@ -70,44 +62,20 @@ const Recharge = () => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
+            <p className="text-sm text-gray-500 mt-2">
+              Minimum 10 USD recharge
+            </p>
           </div>
 
-          {/* Payment Method */}
           <div className="mb-6">
             <label className="block font-medium mb-3">
               Payment Method
             </label>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => setMethod("INR")}
-                className={`flex-1 py-3 rounded-lg border font-semibold ${method === "INR"
-                  ? "bg-black text-white"
-                  : "bg-gray-100"
-                  }`}
-              >
-                INR
-              </button>
-
-              <button
-                onClick={() => setMethod("USDT")}
-                className={`flex-1 py-3 rounded-lg border font-semibold ${method === "USDT"
-                  ? "bg-black text-white"
-                  : "bg-gray-100"
-                  }`}
-              >
-                USDT
-              </button>
+            <div className="w-full py-3 rounded-lg border font-semibold bg-black text-white text-center">
+              USD (Crypto)
             </div>
-
-            <p className="text-sm text-gray-500 mt-2">
-              {method === "INR"
-                ? "Minimum ₹1000 recharge"
-                : "Minimum 10 USDT recharge"}
-            </p>
           </div>
 
-          {/* Button */}
           <button
             onClick={handleRecharge}
             disabled={loading}
@@ -117,7 +85,7 @@ const Recharge = () => {
           </button>
         </div>
 
-        {/* RIGHT SIDE - PAYMENT DETAILS */}
+        {/* RIGHT */}
         <div className="border rounded-xl p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-4">
             Payment Details
@@ -133,40 +101,33 @@ const Recharge = () => {
             <>
               <p className="mb-2">
                 Amount:{" "}
-                <b>
-                  {paymentData.type === "upi"
-                    ? Number(paymentData.amount)
-                    : paymentData.amount.toFixed(6)}
-                </b>
+                <b>{paymentData.amount.toFixed(6)} USD</b>
               </p>
 
-              {paymentData.type === "crypto" && (
-                <>
-                  <p className="mb-2 font-medium">
-                    Send USDT to this wallet:
-                  </p>
-                  <div className="bg-gray-100 p-3 rounded text-sm break-all">
-                    {paymentData.wallet}
-                  </div>
-                </>
-              )}
+              {/* ✅ QR CODE */}
+              <div className="flex flex-col items-center my-4">
+                <QRCodeCanvas
+                  value={paymentData.wallet}
+                  size={180}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Scan QR to pay
+                </p>
+              </div>
 
-              {paymentData.type === "upi" && (
-                <>
-                  <p className="mb-2 font-medium">
-                    UPI ID:
-                  </p>
-                  <div className="bg-gray-100 p-3 rounded text-sm">
-                    {paymentData.upiId}
-                  </div>
+              {/* WALLET */}
+              <p className="mb-2 font-medium">
+                Send USD to this wallet:
+              </p>
 
-                  <img
-                    src={paymentData.qr}
-                    alt="QR"
-                    className="mt-4 w-48"
-                  />
-                </>
-              )}
+              <div className="bg-gray-100 p-3 rounded text-sm break-all">
+                {paymentData.wallet}
+              </div>
+
+              {/* WARNING */}
+              <p className="text-[12px] text-red-500 mt-3">
+                Send exact amount. Do not round.
+              </p>
 
               <div className="mt-4 text-green-600 text-sm">
                 Payment will be verified automatically or by admin.
@@ -179,4 +140,4 @@ const Recharge = () => {
   );
 };
 
-export default Recharge;
+export default Recharge;  

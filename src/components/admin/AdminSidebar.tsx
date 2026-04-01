@@ -6,7 +6,7 @@ import {
 const AdminSidebar = () => {
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Open Trades", icon: TrendingUp, path: "/admin/open-trades" },
+    { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
     { name: "Users", icon: Users, path: "/admin/users" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
     { name: "Recharge", icon: Wallet, path: "/admin/recharge" },
