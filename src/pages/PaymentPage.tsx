@@ -10,36 +10,37 @@ import { QRCodeCanvas } from "qrcode.react";
 const PaymentPage = () => {
   const navigate = useNavigate();
   const { currentUser, selectedPackage, addPackage } = useApp();
-
   const [step, setStep] = useState<'terms' | 'pay' | 'success'>('terms');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [paymentData, setPaymentData] = useState<any>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
 
   const [selectedMethod, setSelectedMethod] = useState<'USD' | 'INR' | 'AED'>('USD');
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
   const [copied, setCopied] = useState(false);
 
-const getCurrencySymbol = () => {
-  if (selectedMethod === "INR") return "₹";
-  if (selectedMethod === "AED") return "د.إ";
-  return "$";
-};
+  const getCurrencySymbol = () => {
+    if (selectedMethod === "INR") return "₹";
+    if (selectedMethod === "AED") return "د.إ";
+    return "$";
+  };
 
-const formatAmount = () => {
-  if (!paymentData?.amount) return 0;
+  const formatAmount = () => {
+    if (!paymentData?.amount) return 0;
 
-  const amount = Number(paymentData.amount);
+    const amount = Number(paymentData.amount);
 
-  if (selectedMethod === "INR") {
-    return amount.toFixed(0); // no decimals
-  }
+    if (selectedMethod === "INR") {
+      return amount.toFixed(0); // no decimals
+    }
 
-  return amount.toFixed(6); // keep decimals for crypto/USD
-};
+    return amount.toFixed(6); // keep decimals for crypto/USD
+  };
 
 
   const handleChangeMethod = async (method: 'USD' | 'INR' | 'AED') => {
@@ -132,6 +133,39 @@ const formatAmount = () => {
     }
   };
 
+  const checkPaymentStatus = async () => {
+    if (!paymentData?.paymentId) return;
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/payment-status/${paymentData.paymentId}`
+      );
+
+      const data = await res.json();
+
+      console.log("🔍 Status:", data.status);
+
+      if (data.status === "success") {
+        setPaymentVerified(true);
+        setIsChecking(false);
+      }
+
+    } catch (err) {
+      console.log("Error checking payment:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (step !== "pay" || !paymentData?.paymentId) return;
+
+    setIsChecking(true);
+
+    const interval = setInterval(() => {
+      checkPaymentStatus();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [step, paymentData]);
 
   const removeFile = () => {
     setFile(null);
@@ -229,77 +263,77 @@ const formatAmount = () => {
     <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl shadow-cyan-900/5 overflow-hidden border border-slate-100">
 
-       {/* Header */}
-<div className="text-center p-8 pb-6 border-b border-slate-200 bg-white">
-  <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
-    <ShieldCheck size={18} />
-    <span className="font-semibold tracking-wide uppercase text-xs">
-      Secure Payment
-    </span>
-  </div>
-
-  <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
-    Payment Details
-  </h1>
-
-  <p className="text-slate-500 mt-2 text-sm">
-    You're purchasing{" "}
-    <span className="font-semibold text-slate-700">
-      {selectedPackage.name}
-    </span>
-  </p>
-</div>
-
-{/* Error Message */}
-{errorMessage && (
-  <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-3">
-    <AlertTriangle size={18} />
-    <span>{errorMessage}</span>
-  </div>
-)}
-
-<div className="p-8">
-  {step === "terms" && (
-    <div className="space-y-6">
-
-      {/* ✅ Clean Notice Card */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4">
-
-        {/* Nice Icon (not warning) */}
-        <div className="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600">
-          <ShieldCheck size={24} />
-        </div>
-
-        {/* Content */}
-        <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">
-            Please review before proceeding
-          </h3>
-
-          <p className="text-sm text-slate-600 leading-relaxed">
-            You are about to make a payment of{" "}
-            <span className="font-semibold text-slate-800">
-              ${selectedPackage.price.toLocaleString()}
+        {/* Header */}
+        <div className="text-center p-8 pb-6 border-b border-slate-200 bg-white">
+          <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+            <ShieldCheck size={18} />
+            <span className="font-semibold tracking-wide uppercase text-xs">
+              Secure Payment
             </span>
-            . Once the transaction is successfully completed, it will be processed instantly.
-          </p>
+          </div>
 
-          <p className="text-sm text-slate-500 mt-2">
-            Make sure all details are correct before continuing.
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
+            Payment Details
+          </h1>
+
+          <p className="text-slate-500 mt-2 text-sm">
+            You're purchasing{" "}
+            <span className="font-semibold text-slate-700">
+              {selectedPackage.name}
+            </span>
           </p>
         </div>
-      </div>
 
-      {/* CTA Button */}
-      <button
-        onClick={handleCreatePayment}
-        className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-semibold shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
-      >
-        Continue to Payment
-        <ArrowRight size={20} />
-      </button>
-    </div>
-  )}
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-3">
+            <AlertTriangle size={18} />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        <div className="p-8">
+          {step === "terms" && (
+            <div className="space-y-6">
+
+              {/* ✅ Clean Notice Card */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4">
+
+                {/* Nice Icon (not warning) */}
+                <div className="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600">
+                  <ShieldCheck size={24} />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-1">
+                    Please review before proceeding
+                  </h3>
+
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    You are about to make a payment of{" "}
+                    <span className="font-semibold text-slate-800">
+                      ${selectedPackage.price.toLocaleString()}
+                    </span>
+                    . Once the transaction is successfully completed, it will be processed instantly.
+                  </p>
+
+                <p className="text-sm text-slate-500 mt-2">
+                  Please ensure. Payments once processed are non-refundable.
+                </p>
+                </div>
+              </div>
+
+              {/* CTA Button */}
+              <button
+                onClick={handleCreatePayment}
+                className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-semibold shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
+              >
+                Continue to Payment
+                <ArrowRight size={20} />
+              </button>
+            </div>
+          )}
 
 
           {/* STEP 2: PAYMENT & UPLOAD */}
@@ -426,6 +460,30 @@ const formatAmount = () => {
                         <p className="font-mono text-slate-800 text-sm">{paymentData.paymentId}</p>
                       </div>
                     )}
+
+                    {/* 🔄 WAITING */}
+                    {isChecking && !paymentVerified && (
+                      <div className="flex flex-col items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <Loader2 className="animate-spin text-blue-600 mb-2" size={28} />
+                        <p className="text-sm text-blue-700">Waiting for payment...</p>
+                        <p className="text-xs text-blue-500 mt-1">
+                          We will detect your payment automatically
+                        </p>
+                      </div>
+                    )}
+
+                    {/* ✅ VERIFIED */}
+                    {paymentVerified && (
+                      <div className="flex flex-col items-center mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+                        <CheckCircle className="text-green-600 mb-2" size={28} />
+                        <p className="text-sm font-semibold text-green-700">
+                          Payment Verified Successfully 🎉
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          Now upload your screenshot and submit
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Upload Section */}
@@ -448,10 +506,14 @@ const formatAmount = () => {
                   {/* Submit */}
                   <button
                     onClick={handleConfirmPayment}
-                    disabled={!file || isSubmitting}
+                    disabled={!file || isSubmitting || !paymentVerified}
                     className="w-full py-4 rounded-xl text-lg font-bold bg-cyan-600 text-white"
                   >
-                    {isSubmitting ? 'Processing...' : 'Submit Payment'}
+                    {isSubmitting
+                      ? 'Processing...'
+                      : paymentVerified
+                        ? 'Submit Payment'
+                        : 'Waiting for Verification'}
                   </button>
                 </>
               )}

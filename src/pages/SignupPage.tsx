@@ -225,30 +225,31 @@ const SignupPage = () => {
       {/* 1. Subtle Trading Grid */}
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
 
-      {/* Parallel Line 1 (Crypto) */}
-      {/* Changed pointer-events-none so users can't click the background iframe */}
-      <div className="absolute z-0 w-[200%] h-[72px] top-[15%] -left-1/2 -rotate-12 bg-white/50 border-y border-slate-300/60 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-        <div className="w-full opacity-80">
-          <TradingViewTicker symbols={cryptoSymbols} />
-        </div>
-      </div>
+    {/* --- CLEAN STRAIGHT BACKGROUND STRIPS --- */}
 
-      {/* Parallel Line 2 (Forex/Gold) */}
-      <div className="absolute z-0 w-[200%] h-[72px] bottom-[15%] -left-1/2 -rotate-12 bg-white/20 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-        <div className="w-full opacity-60">
-          <TradingViewTicker symbols={forexSymbols} />
-        </div>
-      </div>
+{/* Top Strip (Crypto) */}
+<div className="absolute z-0 w-full h-[60px] top-[5%] left-0 bg-white/60 border-y border-slate-300/50 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
+  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+  <div className="w-full opacity-90">
+    <TradingViewTicker symbols={cryptoSymbols} />
+  </div>
+</div>
 
-      {/* Intersecting Line (Indices) */}
-      <div className="absolute z-0 w-[200%] h-[72px] top-[45%] -left-[30%] rotate-12 bg-white/30 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden shadow-sm shadow-cyan-900/5 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-        <div className="w-full opacity-70">
-          <TradingViewTicker symbols={indexSymbols} />
-        </div>
-      </div>
+{/* Middle Strip (Indices)
+<div className="absolute z-0 w-full h-[60px] top-[50%] left-0 -translate-y-1/2 bg-white/40 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
+  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+  <div className="w-full opacity-80">
+    <TradingViewTicker symbols={indexSymbols} />
+  </div>
+</div> */}
+
+{/* Bottom Strip (Forex) */}
+<div className="absolute z-0 w-full h-[60px] bottom-[5%] left-0 bg-white/30 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
+  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
+  <div className="w-full opacity-70">
+    <TradingViewTicker symbols={forexSymbols} />
+  </div>
+</div>
 
       {/* 3. Floating Graphic Candlesticks */}
       

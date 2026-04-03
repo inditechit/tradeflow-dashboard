@@ -97,7 +97,7 @@ const UserTransactions = () => {
 
             <thead>
               <tr className="bg-slate-50 border-b">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">ID</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500">Payment ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Amount</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Method</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Package</th>

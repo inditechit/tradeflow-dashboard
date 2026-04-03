@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { QRCodeCanvas } from "qrcode.react"; // ✅ added
+import { QRCodeCanvas } from "qrcode.react";
 
 const Recharge = () => {
   const [amount, setAmount] = useState("");
   const [method] = useState("USD");
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
+
+  // ✅ NEW STATES (added only)
+  const [isChecking, setIsChecking] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
 
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
@@ -29,12 +33,46 @@ const Recharge = () => {
       });
 
       setPaymentData(res.data);
+
+      // ✅ START CHECKING
+      setIsChecking(true);
+      setPaymentVerified(false);
+
     } catch (err) {
       alert(err.response?.data?.error || "Error");
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ CHECK STATUS
+  const checkPaymentStatus = async () => {
+    if (!paymentData?.paymentId) return;
+
+    try {
+      const res = await axios.get(
+        `${API_BASE}/payment-status/${paymentData.paymentId}`
+      );
+
+      if (res.data.status === "success") {
+        setPaymentVerified(true);
+        setIsChecking(false);
+      }
+    } catch (err) {
+      console.log("Error checking payment:", err);
+    }
+  };
+
+  // ✅ AUTO POLLING (same as payment page)
+  useEffect(() => {
+    if (!paymentData?.paymentId) return;
+
+    const interval = setInterval(() => {
+      checkPaymentStatus();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [paymentData]);
 
   return (
     <div className="w-full min-h-screen bg-white p-8 text-black">
@@ -104,7 +142,7 @@ const Recharge = () => {
                 <b>{paymentData.amount.toFixed(6)} USD</b>
               </p>
 
-              {/* ✅ QR CODE */}
+              {/* QR */}
               <div className="flex flex-col items-center my-4">
                 <QRCodeCanvas
                   value={paymentData.wallet}
@@ -132,6 +170,22 @@ const Recharge = () => {
               <div className="mt-4 text-green-600 text-sm">
                 Payment will be verified automatically or by admin.
               </div>
+
+              {/* ✅ ONLY THIS UI ADDED (minimal change) */}
+
+              {/* ⏳ WAITING */}
+              {isChecking && !paymentVerified && (
+                <div className="mt-3 text-blue-600 text-sm">
+                  ⏳ Waiting for payment verification...
+                </div>
+              )}
+
+              {/* ✅ VERIFIED */}
+              {paymentVerified && (
+                <div className="mt-3 text-green-600 font-semibold text-sm">
+                  ✅ Payment Verified Successfully
+                </div>
+              )}
             </>
           )}
         </div>
@@ -140,4 +194,4 @@ const Recharge = () => {
   );
 };
 
-export default Recharge;  
+export default Recharge;

@@ -126,7 +126,7 @@ const Transactions = () => {
 
                   {/* Amount */}
                   <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                    ${parseFloat(p.amount).toFixed(2)}
+                    ${parseFloat(p.amount).toFixed(6)}
                   </td>
 
                   {/* Method */}
