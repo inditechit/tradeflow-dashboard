@@ -80,7 +80,7 @@ const Recharge = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Recharge Wallet</h1>
         <p className="text-gray-600 text-sm">
-          Add funds securely using USDT (Crypto)
+          Add funds securely using USD (Crypto)
         </p>
       </div>
 
@@ -139,7 +139,7 @@ const Recharge = () => {
             <>
               <p className="mb-2">
                 Amount:{" "}
-                <b>{paymentData.amount.toFixed(6)} USD</b>
+                <b>{Number(paymentData.amount).toFixed(0)} USD</b>
               </p>
 
               {/* QR */}

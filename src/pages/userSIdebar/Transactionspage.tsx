@@ -119,7 +119,7 @@ const UserTransactions = () => {
                   <td className="px-6 py-4 text-sm font-semibold text-green-600">
                     {p.payment_method === "INR"
                       ? `₹${parseFloat(p.amount).toFixed(0)}`
-                      : `${parseFloat(p.amount).toFixed(6)}`}
+                      : `$${parseFloat(p.amount).toFixed(0)}`}
                   </td>
 
                   {/* Method */}
