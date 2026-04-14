@@ -118,9 +118,14 @@ const LoginPage = () => {
         setCurrentUser({
           userId: data.userId,
           telegram: data.telegram,
+          role: data.role,
         });
 
-        navigate('/user/dashboard');
+        if (data.role === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/user/dashboard");
+        }
       } else {
         setErrorMessage(data.error || "Invalid login credentials");
       }

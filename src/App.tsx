@@ -31,6 +31,7 @@ import ProfitLoss from "./pages/userSIdebar/ProfitLoss";
 import Transactionspage from "./pages/userSIdebar/Transactionspage";
 import RechargePage from "./pages/userSIdebar/RechargePage";
 import TradeHistory from "./pages/userSIdebar/TradeHistory";
+import AdminRoute from "./components/admin/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -71,7 +72,11 @@ const App = () => (
             </Route>
 
             {/* ✅ ADMIN ROUTES (Nested) */}
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+              }>
 
               {/* Default → /admin/dashboard */}
               <Route index element={<Navigate to="dashboard" replace />} />

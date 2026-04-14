@@ -16,6 +16,7 @@ export interface UserData {
   experienceYears?: string;
   userId?: string;
   depositMethod?: string;
+  role?: "admin" | "user";
 }
 
 export interface PurchasedPackage {
