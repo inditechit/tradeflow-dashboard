@@ -11,9 +11,9 @@ import { QRCodeCanvas } from "qrcode.react";
 const PaymentPage = () => {
   const navigate = useNavigate();
   const { currentUser, selectedPackage, addPackage } = useApp();
-  
-  const [step, setStep] = useState<'terms' | 'pay' | 'upload' | 'success'>('terms');
-  
+
+  const [step, setStep] = useState<'terms' | 'pay' | 'success'>('terms');
+
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,8 +131,12 @@ const PaymentPage = () => {
 
       if (data.status === "success") {
         setPaymentVerified(true);
-        setIsChecking(false);
-        setStep('upload'); 
+
+        // ✅ only USD flow
+        if (selectedMethod === "USD") {
+          setIsChecking(false);
+          setStep('success');
+        }
       }
     } catch (err) {
       console.log("Error checking payment:", err);
@@ -141,6 +145,7 @@ const PaymentPage = () => {
 
   useEffect(() => {
     if (step !== "pay" || !paymentData?.paymentId) return;
+    if (selectedMethod === "INR") return;
 
     setIsChecking(true);
     const interval = setInterval(() => {
@@ -190,7 +195,7 @@ const PaymentPage = () => {
         addPackage({
           ...selectedPackage,
           purchasedAt: new Date().toISOString(),
-          transactionId: data.txnId 
+          transactionId: data.txnId
         });
 
         setTimeout(() => {
@@ -241,8 +246,8 @@ const PaymentPage = () => {
     );
   }
 
-  const stepsList = ['Terms', 'Payment', 'Upload', 'Complete'];
-  const currentStepIndex = ['terms', 'pay', 'upload', 'success'].indexOf(step);
+  const stepsList = ['Terms', 'Payment', 'Complete'];
+  const currentStepIndex = ['terms', 'pay', 'success'].indexOf(step);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50 font-sans">
@@ -252,18 +257,17 @@ const PaymentPage = () => {
         <div className="p-8 pb-6 border-b border-slate-100 bg-white">
           <div className="flex justify-between items-center mb-8 relative">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-100 rounded-full -z-10"></div>
-            <div 
+            <div
               className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-cyan-500 rounded-full -z-10 transition-all duration-500"
               style={{ width: `${(currentStepIndex / (stepsList.length - 1)) * 100}%` }}
             ></div>
-            
+
             {stepsList.map((s, i) => (
               <div key={s} className="flex flex-col items-center gap-2 bg-white px-2">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-                  i < currentStepIndex ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20' : 
-                  i === currentStepIndex ? 'bg-white border-2 border-cyan-500 text-cyan-600 shadow-lg shadow-cyan-500/10' : 
-                  'bg-slate-100 text-slate-400'
-                }`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20' :
+                    i === currentStepIndex ? 'bg-white border-2 border-cyan-500 text-cyan-600 shadow-lg shadow-cyan-500/10' :
+                      'bg-slate-100 text-slate-400'
+                  }`}>
                   {i < currentStepIndex ? <Check size={20} strokeWidth={3} /> : i + 1}
                 </div>
                 <span className={`text-xs font-semibold ${i <= currentStepIndex ? 'text-slate-800' : 'text-slate-400'}`}>
@@ -276,13 +280,11 @@ const PaymentPage = () => {
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
               {step === 'terms' && 'Payment Terms'}
               {step === 'pay' && 'Complete Payment'}
-              {step === 'upload' && 'Verify Receipt'}
               {step === 'success' && 'Payment Successful'}
             </h1>
             <p className="text-slate-500 mt-2 text-sm">
               {step === 'terms' && 'Please acknowledge that payments are non-refundable before proceeding.'}
               {step === 'pay' && 'Scan the QR code or copy the address to pay.'}
-              {step === 'upload' && 'Please upload the screenshot of your transaction.'}
               {step === 'success' && 'Your transaction is complete.'}
             </p>
           </div>
@@ -300,7 +302,7 @@ const PaymentPage = () => {
           {/* STEP 1: TERMS (Restored Warning Paragraph) */}
           {step === "terms" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              
+
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
                 <div className="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600 shrink-0">
                   <ShieldCheck size={24} />
@@ -317,8 +319,8 @@ const PaymentPage = () => {
                     . Once the transaction is successfully completed, it will be processed instantly.
                   </p>
                   <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-cyan-400 pl-3">
-  By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset and fiat settlements, all processed transactions are final and strictly non-refundable.
-</p>
+                    By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset and fiat settlements, all processed transactions are final and strictly non-refundable.
+                  </p>
                 </div>
               </div>
 
@@ -363,7 +365,7 @@ const PaymentPage = () => {
                     <AlertTriangle size={32} />
                   </div>
                   <p className="text-2xl font-bold text-amber-800 mb-2">AED Payment Coming Soon</p>
-                  <p className="text-amber-600/80">We are currently setting up our AED gateway.<br/>Please switch to UPI or USDT for now.</p>
+                  <p className="text-amber-600/80">We are currently setting up our AED gateway.<br />Please switch to UPI or USDT for now.</p>
                 </div>
               ) : paymentData ? (
                 <div className="border border-slate-200 rounded-3xl p-8 bg-white shadow-sm">
@@ -418,73 +420,59 @@ const PaymentPage = () => {
                     </div>
                   </div>
 
-                  <div className="mt-8 flex flex-col items-center justify-center py-6 bg-cyan-50/50 rounded-2xl border border-cyan-100">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-cyan-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
-                      <Loader2 className="animate-spin text-cyan-600 relative z-10 mb-3" size={36} />
+                  {selectedMethod !== "INR" && (
+                    <div className="mt-8 flex flex-col items-center justify-center py-6 bg-cyan-50/50 rounded-2xl border border-cyan-100">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-cyan-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
+                        <Loader2 className="animate-spin text-cyan-600 relative z-10 mb-3" size={36} />
+                      </div>
+                      <p className="text-base font-bold text-cyan-800">Awaiting Payment</p>
+                      <p className="text-sm text-cyan-600/80 mt-1">Please do not close this window. We will detect your payment automatically.</p>
                     </div>
-                    <p className="text-base font-bold text-cyan-800">Awaiting Payment</p>
-                    <p className="text-sm text-cyan-600/80 mt-1">Please do not close this window. We will detect your payment automatically.</p>
-                  </div>
+                  )}
                 </div>
               ) : null}
+
+              {selectedMethod === "INR" && (
+                <div className="mt-8 border-t pt-6">
+
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 text-center">
+                    Upload Payment Screenshot
+                  </h3>
+
+                  {!preview ? (
+                    <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-cyan-50">
+                      <Upload size={28} className="mb-2 text-cyan-600" />
+                      <p className="text-sm font-medium">Click to upload receipt</p>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    </label>
+                  ) : (
+                    <div className="relative">
+                      <img src={preview} className="w-full h-56 object-cover rounded-xl" />
+                      <button
+                        onClick={removeFile}
+                        className="absolute top-2 right-2 bg-white p-2 rounded-full shadow"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleConfirmPayment}
+                    disabled={!file || isSubmitting}
+                    className="w-full mt-4 py-3 bg-cyan-600 text-white font-bold rounded-xl disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Processing..." : "Submit & Complete"}
+                  </button>
+
+                </div>
+              )}
             </div>
           )}
 
           {/* STEP 3: UPLOAD SCREEN */}
-          {step === 'upload' && (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center mb-6 shadow-sm">
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle size={32} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xl font-bold text-emerald-800">Payment Detected!</h3>
-                <p className="text-sm text-emerald-600 mt-1">Please upload your transaction screenshot to finalize the process.</p>
-              </div>
 
-              <div>
-                {!preview ? (
-                  <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-300 border-dashed rounded-3xl cursor-pointer bg-slate-50 hover:bg-cyan-50 hover:border-cyan-400 transition-all duration-300 group">
-                    <div className="w-16 h-16 bg-white shadow-sm rounded-2xl flex items-center justify-center text-cyan-600 mb-4 group-hover:scale-110 transition-transform duration-300">
-                      <Upload size={28} />
-                    </div>
-                    <p className="text-base font-bold text-slate-700 mb-1">Click or drag receipt here</p>
-                    <p className="text-sm text-slate-500">SVG, PNG, JPG or GIF (max. 5MB)</p>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                  </label>
-                ) : (
-                  <div className="border-2 border-cyan-200 bg-cyan-50 rounded-3xl p-6 relative">
-                    <img src={preview} className="w-full h-64 object-cover rounded-2xl shadow-sm" alt="Receipt preview" />
-                    <button 
-                      onClick={removeFile}
-                      className="absolute top-8 right-8 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <X size={20} strokeWidth={2.5} />
-                    </button>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-cyan-700 font-semibold text-sm">
-                      <ImageIcon size={18} /> Receipt attached successfully
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={handleConfirmPayment}
-                disabled={!file || isSubmitting}
-                className="w-full py-4 rounded-2xl text-lg font-bold bg-cyan-600 text-white shadow-xl shadow-cyan-600/20 hover:bg-cyan-700 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} /> Processing Receipt...
-                  </>
-                ) : (
-                  <>
-                    Submit Receipt <ArrowRight size={20} />
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           {/* STEP 4: SUCCESS */}
           {step === 'success' && (
