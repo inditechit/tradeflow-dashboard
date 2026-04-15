@@ -178,7 +178,7 @@ const PaymentPage = () => {
     formData.append('receipt', file);
     formData.append('userId', currentUser.userId.toString());
     formData.append('packageName', selectedPackage.name);
-    formData.append('amount', selectedPackage.price.toString());
+    formData.append('amount', paymentData.amount.toString());
     formData.append('method', paymentData.payment_method);
     formData.append('paymentId', paymentData.paymentId);
 
@@ -265,8 +265,8 @@ const PaymentPage = () => {
             {stepsList.map((s, i) => (
               <div key={s} className="flex flex-col items-center gap-2 bg-white px-2">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20' :
-                    i === currentStepIndex ? 'bg-white border-2 border-cyan-500 text-cyan-600 shadow-lg shadow-cyan-500/10' :
-                      'bg-slate-100 text-slate-400'
+                  i === currentStepIndex ? 'bg-white border-2 border-cyan-500 text-cyan-600 shadow-lg shadow-cyan-500/10' :
+                    'bg-slate-100 text-slate-400'
                   }`}>
                   {i < currentStepIndex ? <Check size={20} strokeWidth={3} /> : i + 1}
                 </div>
@@ -314,7 +314,7 @@ const PaymentPage = () => {
                   <p className="text-sm text-slate-600 leading-relaxed">
                     You are about to make a payment of{" "}
                     <span className="font-semibold text-slate-800">
-                      ${selectedPackage.price.toLocaleString()}
+                      ${paymentData ? `${getCurrencySymbol()} ${formatAmount()}` : `$${selectedPackage.price}`}
                     </span>
                     . Once the transaction is successfully completed, it will be processed instantly.
                   </p>
@@ -339,18 +339,34 @@ const PaymentPage = () => {
           {step === 'pay' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="flex gap-2 justify-center bg-slate-100 p-1.5 rounded-2xl w-max mx-auto">
-                {['USD', 'INR', 'AED'].map((method) => (
-                  <button
-                    key={method}
-                    onClick={() => handleChangeMethod(method as 'USD' | 'INR' | 'AED')}
-                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
-                      ${selectedMethod === method
-                        ? 'bg-white text-cyan-700 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {method}
-                  </button>
-                ))}
+                {['USD', 'INR', 'AED'].map((method) => {
+                  const isDisabled =
+                    selectedPackage.id === 'intl-tour' && method === 'INR';
+
+                  return (
+                    <button
+                      key={method}
+                      onClick={() => !isDisabled && handleChangeMethod(method as any)}
+                      disabled={isDisabled}
+                      className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
+        ${selectedMethod === method
+                          ? 'bg-white text-cyan-700 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'}
+        ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}
+      `}
+                    >
+                      {method}
+                    </button>
+
+                  );
+
+                })}
+
+                {selectedPackage.id === 'intl-tour' && selectedMethod === 'INR' && (
+                  <p className="text-center text-red-500 text-sm mt-2">
+                    INR payment is under process for International Tour
+                  </p>
+                )}
               </div>
 
               {/* Show loader while switching methods to prevent crash */}
@@ -387,6 +403,11 @@ const PaymentPage = () => {
                         <p className="text-3xl font-black text-slate-800">
                           {getCurrencySymbol()} {formatAmount()}
                         </p>
+                        {selectedMethod === "INR" && selectedPackage.id === "india-tour" && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            ₹60,000 + 18% GST included
+                          </p>
+                        )}
                         <p className="text-[11px] text-red-500 font-semibold mt-1">
                           {selectedMethod === "USD" ? "* Send exact amount. Do not round." : "* Send exact amount."}
                         </p>

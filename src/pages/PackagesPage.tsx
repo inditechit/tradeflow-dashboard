@@ -8,7 +8,7 @@ const packages = [
     id: 'india-tour',
     name: 'India Business Tour',
     duration: '7 Days',
-    price: 500,
+    price: 612,
     icon: Plane,
     description: 'Exclusive guided tour across major Indian financial hubs and trading centers.',
     features: ['Guided financial tour', 'Networking events', 'Local market insights'],
