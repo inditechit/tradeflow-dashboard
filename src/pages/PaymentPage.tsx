@@ -403,10 +403,20 @@ const PaymentPage = () => {
                         <p className="text-3xl font-black text-slate-800">
                           {getCurrencySymbol()} {formatAmount()}
                         </p>
-                        {selectedMethod === "INR" && selectedPackage.id === "india-tour" && (
-                          <p className="text-xs text-slate-500 mt-1">
-                            ₹60,000 + 18% GST included
-                          </p>
+                        {selectedMethod === "INR" && (
+                          <>
+                            {selectedPackage.id === "india-tour" && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                ₹60,000 + 18% GST included
+                              </p>
+                            )}
+
+                            {selectedPackage.id === "meet-guru" && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                ₹11,800 + 18% GST included
+                              </p>
+                            )}
+                          </>
                         )}
                         <p className="text-[11px] text-red-500 font-semibold mt-1">
                           {selectedMethod === "USD" ? "* Send exact amount. Do not round." : "* Send exact amount."}
