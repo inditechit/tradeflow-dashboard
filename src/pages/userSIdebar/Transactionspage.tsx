@@ -15,24 +15,34 @@ const UserTransactions = () => {
   const userId = userData?.userId;
 
   const fetchPayments = async () => {
+    if (!userId) return;
+
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/user/transactions/${userId}`);
+      const res = await fetch(`${API_BASE}/user/payments/${userId}`);
+
+      if (!res.ok) {
+        throw new Error("API not reachable");
+      }
+
       const data = await res.json();
 
+      console.log("Payments API:", data); // debug
+
       if (data.success) {
-        setPayments(data.transactions);
+        setPayments(data.data); // ✅ FIXED
       } else {
-        setError("Failed to fetch transactions");
+        setError("Failed to fetch payments");
       }
     } catch (err) {
+      console.error(err);
       setError("Server error");
 
       toast({
         title: "Error ❌",
-        description: "Unable to fetch transactions",
+        description: "Unable to fetch payments",
         variant: "destructive",
       });
     } finally {
@@ -42,8 +52,7 @@ const UserTransactions = () => {
 
   useEffect(() => {
     fetchPayments();
-  }, []);
-
+  }, [userId]);
   const formatDate = (date) => {
     return new Date(date).toLocaleString();
   };
@@ -99,6 +108,7 @@ const UserTransactions = () => {
               <tr className="bg-slate-50 border-b">
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Payment ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Amount</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500">Transaction ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Method</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Package</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Status</th>
@@ -122,6 +132,23 @@ const UserTransactions = () => {
                       : `$${parseFloat(p.amount).toFixed(0)}`}
                   </td>
 
+                  {/* Transaction ID */}
+                  <td className="px-6 py-4 text-xs text-slate-600 flex items-center gap-2">
+                    <span className="font-mono">
+                      {p.tx_hash ? p.tx_hash.slice(0, 10) + "..." : "N/A"}
+                    </span>
+
+                    {p.tx_hash && (
+                      <button
+                        onClick={() => navigator.clipboard.writeText(p.tx_hash)}
+                        className="text-cyan-600 hover:text-cyan-800 text-xs"
+                        title="Copy full TXN"
+                      >
+                        Copy
+                      </button>
+                    )}
+                  </td>
+
                   {/* Method */}
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {p.payment_method}
@@ -129,7 +156,7 @@ const UserTransactions = () => {
 
                   {/* Package */}
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {p.package_id}
+                    {p.package_name}
                   </td>
 
                   {/* Status */}

@@ -90,7 +90,7 @@ const DashboardPage = () => {
 
     const fetchTransactions = async () => {
       try {
-        const response = await fetch(`${API_BASE}/transactions/${currentUser.userId}`);
+        const response = await fetch(`${API_BASE}/user/payments/${currentUser.userId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -216,7 +216,9 @@ const DashboardPage = () => {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {transactions.map((txn, i) => (
+              {transactions
+              .filter((txn) => txn.package_id !== "recharge") 
+              .map((txn, i) => (
                 <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   
@@ -224,7 +226,7 @@ const DashboardPage = () => {
                     <div className="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center border border-cyan-100">
                       {getPackageIcon(txn.package_name)}
                     </div>
-                    {txn.status === 'verified' ? (
+                    {txn.status === 'success' ? (
                       <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200">
                         <CheckCircle2 size={14} /> Active
                       </span>
@@ -237,9 +239,18 @@ const DashboardPage = () => {
                   
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{txn.package_name}</h3>
-                    <p className="text-slate-400 text-xs font-mono mb-4">TXN: {txn.transaction_ref}</p>
+                    {txn.payment_method !== "INR" && (
+                      <p className="text-slate-400 text-xs font-mono mb-4">
+                        TXN: {txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "Processing..."}
+                      </p>
+                    )}
                     <div className="flex items-end justify-between mt-auto">
-                      <p className="text-3xl font-extrabold text-slate-900">${txn.amount}</p>
+                      <p className="text-3xl font-extrabold text-slate-900">
+                        {txn.payment_method === "INR" ? "₹" : "$"}
+                        {txn.payment_method === "USD"
+                          ? Number(txn.amount).toFixed(0)
+                          : Number(txn.amount).toLocaleString()}
+                      </p>
                       <p className="text-xs text-slate-500 font-medium uppercase">{txn.payment_method}</p>
                     </div>
                   </div>

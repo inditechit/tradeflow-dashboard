@@ -136,6 +136,10 @@ const PaymentPage = () => {
         if (selectedMethod === "USD") {
           setIsChecking(false);
           setStep('success');
+
+          setTimeout(() => {
+            navigate('/user/dashboard');
+          }, 3000);
         }
       }
     } catch (err) {
