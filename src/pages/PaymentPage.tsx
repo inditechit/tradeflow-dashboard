@@ -417,7 +417,7 @@ const PaymentPage = () => {
 
                             {selectedPackage.id === "meet-guru" && (
                               <p className="text-xs text-slate-500 mt-1">
-                                ₹11,800 + 18% GST included
+                                ₹10000 + 18% GST included
                               </p>
                             )}
                           </>
