@@ -1,6 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { RefreshCw } from "lucide-react";
+import {
+  RefreshCw,
+  CalendarRange,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  PieChart,
+  Landmark,
+  Scale,
+  Gauge,
+  Percent,
+} from "lucide-react";
+import { tradeInDateRange } from "@/utils/mt5TradeDates";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 const SOCKET_URL = "https://astroapi.inditechit.com";
@@ -9,10 +21,60 @@ const socket = io(SOCKET_URL, {
   transports: ["websocket"],
 });
 
+const fmtMoney = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(n));
+};
+
+const fmtPct = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return `${Number(n).toFixed(2)}%`;
+};
+
+const normStatus = (t) => String(t?.status ?? "").toUpperCase();
+
+const profitNum = (t) => {
+  if (t?.profit === undefined || t?.profit === null || t?.profit === "") {
+    return null;
+  }
+  const p = Number(t.profit);
+  return Number.isFinite(p) ? p : null;
+};
+
 const Dashboard = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [accountMetrics, setAccountMetrics] = useState(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const fetchAccountMetrics = async () => {
+    const paths = ["/admin/mt5-metrics", "/mt5-metrics"];
+    for (const path of paths) {
+      try {
+        const res = await fetch(`${API_BASE}${path}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const m = data.metrics || data;
+        if (data.success && (m?.equity != null || m?.margin != null)) {
+          setAccountMetrics({
+            equity: m.equity ?? m.Equity,
+            margin: m.margin ?? m.Margin,
+            free_margin: m.free_margin ?? m.freeMargin ?? m.FreeMargin,
+            margin_level: m.margin_level ?? m.marginLevel ?? m.MarginLevel,
+          });
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setAccountMetrics(null);
+  };
 
   const fetchTrades = async () => {
     try {
@@ -31,29 +93,38 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchTrades();
+    fetchAccountMetrics();
 
-    // Listen for the event emitted by AstroAPI
     socket.on("mt5data", (trade) => {
-      console.log("📥 Socket Data Received:", trade);
-
       setTrades((prev) => {
-        // Find by ticket number
-        const index = prev.findIndex((t) => Number(t.ticket) === Number(trade.ticket));
-
+        const index = prev.findIndex(
+          (t) => Number(t.ticket) === Number(trade.ticket)
+        );
         if (index !== -1) {
-          // Update existing trade
           const updatedTrades = [...prev];
           updatedTrades[index] = { ...updatedTrades[index], ...trade };
           return updatedTrades;
-        } else {
-          // Add new trade to top
-          return [trade, ...prev];
         }
+        return [trade, ...prev];
       });
     });
 
+    // Keep closed rows in the feed (final P/L) — removing them broke totals vs MT4/history.
     socket.on("mt5close", (trade) => {
-      setTrades((prev) => prev.filter((t) => Number(t.ticket) !== Number(trade.ticket)));
+      setTrades((prev) => {
+        const ticket = Number(trade.ticket);
+        const idx = prev.findIndex((t) => Number(t.ticket) === ticket);
+        const merged = {
+          ...trade,
+          status: normStatus(trade) || "CLOSED",
+        };
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...merged };
+          return next;
+        }
+        return [merged, ...prev];
+      });
     });
 
     socket.on("mt5live", (live) => {
@@ -66,16 +137,95 @@ const Dashboard = () => {
       );
     });
 
+    socket.on("mt5metrics", (payload) => {
+      const m = payload?.metrics || payload;
+      if (m && (m.equity != null || m.margin != null)) {
+        setAccountMetrics({
+          equity: m.equity,
+          margin: m.margin,
+          free_margin: m.free_margin ?? m.freeMargin,
+          margin_level: m.margin_level ?? m.marginLevel,
+        });
+      }
+    });
+
     return () => {
       socket.off("mt5data");
       socket.off("mt5close");
       socket.off("mt5live");
+      socket.off("mt5metrics");
     };
   }, []);
 
-  const filteredTrades = trades.filter((t) =>
-    t.status === "OPEN" &&
-    t.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
+  const tradesInRange = useMemo(
+    () => trades.filter((t) => tradeInDateRange(t, dateFrom, dateTo)),
+    [trades, dateFrom, dateTo]
+  );
+
+  const stats = useMemo(() => {
+    let realizedProfit = 0;
+    let realizedLoss = 0;
+    let realizedNet = 0;
+    let floatingPl = 0;
+    let openNotional = 0;
+
+    for (const t of tradesInRange) {
+      const st = normStatus(t);
+      const p = profitNum(t);
+      const vol = Number(t.volume);
+      const px = Number(t.price);
+
+      if (st === "OPEN") {
+        if (Number.isFinite(vol) && Number.isFinite(px)) {
+          openNotional += vol * px;
+        }
+        if (p !== null) floatingPl += p;
+        continue;
+      }
+
+      if (st === "CLOSED" && p !== null) {
+        realizedNet += p;
+        if (p > 0) realizedProfit += p;
+        if (p < 0) realizedLoss += Math.abs(p);
+      }
+    }
+
+    const combinedNet = realizedNet + floatingPl;
+
+    return {
+      openNotional,
+      floatingPl,
+      realizedProfit,
+      realizedLoss,
+      realizedNet,
+      combinedNet,
+    };
+  }, [tradesInRange]);
+
+  const filteredTrades = tradesInRange.filter(
+    (t) =>
+      String(t.status ?? "").toUpperCase() === "OPEN" &&
+      t.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const dateFilterActive = Boolean(dateFrom || dateTo);
+
+  const equity = accountMetrics?.equity;
+  const margin = accountMetrics?.margin;
+  const freeMargin = accountMetrics?.free_margin;
+  const marginLevel = accountMetrics?.margin_level;
+
+  const statCard = (icon, label, value, sub) => (
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-cyan-900/5">
+      <div className="mb-3 flex items-center gap-2 text-slate-500">
+        {icon}
+        <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="text-2xl font-extrabold tabular-nums text-slate-900">
+        {value}
+      </div>
+      {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+    </div>
   );
 
   return (
@@ -83,15 +233,140 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Market Dashboard</h1>
-          <p className="text-slate-500 text-sm">Live Trade Monitoring</p>
+          <p className="text-slate-500 text-sm">
+            Live trade monitoring &amp; aggregates
+            {dateFilterActive && (
+              <span className="text-slate-700">
+                {" "}
+                · Date range: {dateFrom || "…"} → {dateTo || "…"}
+              </span>
+            )}
+          </p>
         </div>
         <button
-          onClick={fetchTrades}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+          onClick={() => {
+            fetchTrades();
+            fetchAccountMetrics();
+          }}
+          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2 disabled:opacity-60"
+          disabled={loading}
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
         </button>
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-2 text-slate-600">
+          <CalendarRange className="h-5 w-5 shrink-0 text-cyan-600" />
+          <span className="text-sm font-semibold">Filter by date</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase text-slate-500">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase text-slate-500">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+          />
+        </div>
+        {dateFilterActive && (
+          <button
+            type="button"
+            onClick={() => {
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Clear dates
+          </button>
+        )}
+      </div>
+
+      <p className="mb-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+        Metrics include only trades whose{" "}
+        <strong>close time</strong> (closed) or <strong>open time</strong> (open) falls in the
+        range above (local timezone). If <code className="rounded bg-amber-100/80 px-1">close_time</code>{" "}
+        is missing on a closed row, open time is used. Feed-only sums; not full MT4 equity.
+      </p>
+
+      {/* Summary metrics — MT4-style split: realized (closed) vs floating (open) */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        {statCard(
+          <Wallet className="h-4 w-4" />,
+          "Open notional (Σ vol×price)",
+          fmtMoney(stats.openNotional),
+          "Only OPEN trades. Same as your “total invested” column per open row; not broker margin."
+        )}
+        {statCard(
+          <PieChart className="h-4 w-4 text-sky-600" />,
+          "Floating P/L (open)",
+          fmtMoney(stats.floatingPl),
+          "Sum of profit on OPEN trades only (unrealized)."
+        )}
+        {statCard(
+          <TrendingUp className="h-4 w-4 text-emerald-500" />,
+          "Realized profit (closed)",
+          fmtMoney(stats.realizedProfit),
+          "CLOSED trades with profit &gt; 0 only."
+        )}
+        {statCard(
+          <TrendingDown className="h-4 w-4 text-red-500" />,
+          "Realized loss (closed)",
+          fmtMoney(stats.realizedLoss),
+          "CLOSED trades with profit &lt; 0 (absolute sum)."
+        )}
+        {statCard(
+          <PieChart className="h-4 w-4" />,
+          "Net realized (closed)",
+          fmtMoney(stats.realizedNet),
+          "Sum of profit on all CLOSED rows."
+        )}
+        {statCard(
+          <PieChart className="h-4 w-4 text-violet-600" />,
+          "Combined P/L (feed)",
+          fmtMoney(stats.combinedNet),
+          "Closed net + floating open. Matches Σ profit if every row is OPEN or CLOSED."
+        )}
+      </div>
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statCard(
+          <Landmark className="h-4 w-4" />,
+          "Equity",
+          fmtMoney(equity),
+          equity == null
+            ? "From API / socket when your backend exposes it."
+            : undefined
+        )}
+        {statCard(
+          <Scale className="h-4 w-4" />,
+          "Margin",
+          fmtMoney(margin),
+          margin == null ? "Requires /admin/mt5-metrics or mt5metrics event." : undefined
+        )}
+        {statCard(
+          <Gauge className="h-4 w-4" />,
+          "Free margin",
+          fmtMoney(freeMargin),
+          freeMargin == null ? "Requires account metrics API." : undefined
+        )}
+        {statCard(
+          <Percent className="h-4 w-4" />,
+          "Margin level",
+          fmtPct(marginLevel),
+          marginLevel == null ? "Requires account metrics API." : undefined
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl shadow-cyan-900/5 border border-slate-100 overflow-hidden">
@@ -125,7 +400,9 @@ const Dashboard = () => {
                 >
                   <div>
                     <div className="font-bold text-slate-800">{trade.symbol}</div>
-                    <div className="text-xs text-slate-500">Ticket: {trade.ticket}</div>
+                    <div className="text-xs text-slate-500">
+                      Ticket: {trade.ticket}
+                    </div>
                   </div>
                   <div className="text-sm text-slate-600">Vol: {trade.volume}</div>
                   <div className="text-right">
