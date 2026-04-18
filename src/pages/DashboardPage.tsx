@@ -75,6 +75,7 @@ const getPackageIcon = (name: string) => {
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { currentUser, setCurrentUser } = useApp();
+  console.log("Current user:", currentUser?.name);
   
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
