@@ -351,12 +351,12 @@ const OpenTrades = () => {
                       {/* TYPE */}
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${isBuyType(trade?.type)
+                          className={`px-2 py-1 rounded text-xs font-bold ${trade?.type === "ORDER_TYPE_BUY"
                               ? "bg-green-50 text-green-600"
                               : "bg-red-50 text-red-600"
                             }`}
                         >
-                          {isBuyType(trade?.type) ? "BUY" : "SELL"}
+                          {trade?.type}
                         </span>
                       </td>
 
