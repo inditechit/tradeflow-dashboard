@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { RefreshCw } from "lucide-react";
-import axios from "axios";
+import { useApp } from "@/context/AppContext";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 const SOCKET_URL = "https://astroapi.inditechit.com";
@@ -11,9 +11,10 @@ const socket = io(SOCKET_URL, {
 });
 
 const Mytrades = () => {
+  const { currentUser } = useApp();
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [profitPercentage, setProfitPercentage] = useState(null); // ✅ NEW
+  const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
 
   // 🔹 Fetch Trades (same)
   const fetchTrades = async () => {
@@ -33,15 +34,13 @@ const Mytrades = () => {
 
   // 🔹 Fetch Profit Percentage (NEW)
   const fetchProfitPercentage = async () => {
+    if (!currentUser?.userId) return;
     try {
-      
-  const userData = JSON.parse(localStorage.getItem("mt5_user"));
-  const userId = userData?.userId;
-      const res = await fetch(`${API_BASE}/user/profit/${userId}`);
+      const res = await fetch(`${API_BASE}/user/profit/${currentUser.userId}`);
       const data = await res.json();
 
-      if (data.success) {
-        setProfitPercentage(data.profit_percentage);
+      if (data.success && data.profit_percentage != null) {
+        setProfitPercentage(Number(data.profit_percentage));
       }
     } catch (err) {
       console.error("Profit fetch error:", err);
@@ -49,8 +48,10 @@ const Mytrades = () => {
   };
 
   useEffect(() => {
+    if (!currentUser?.userId) return;
+
     fetchTrades();
-    fetchProfitPercentage(); // ✅ NEW
+    fetchProfitPercentage();
 
     socket.on("mt5data", (trade) => {
       setTrades((prev) => {
@@ -84,38 +85,16 @@ const Mytrades = () => {
       );
     });
 
-    return () => {  
+    return () => {
       socket.off("mt5data");
       socket.off("mt5close");
       socket.off("mt5live");
     };
-  }, []);
+  }, [currentUser?.userId]);
 
-  const openTrades = trades.filter((t) => t.status === "OPEN");
-
-
-  const [wallet, setWallet]:any = useState(0);
-
-  const userData = JSON.parse(localStorage.getItem("mt5_user"));
-  const userId = userData?.userId;
-
-  const API_BASE = "https://mt5api.inditechit.com/api";
-
-  useEffect(() => {
-    const fetchWallet = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/user/wallet/${userId}`);
-        console.log("Wallet data", (res.data.wallet.balance * 94.44).toFixed(2));
-        setWallet((res.data.wallet.balance * 94.44).toFixed(2))
-      } catch (err) {
-        console.error("Wallet fetch error", err);
-      }
-    };
-
-    if (userId) fetchWallet();
-  }, [userId]);
-  console.log(wallet,"walletwalletwallet");
-  
+  const openTrades = trades.filter(
+    (t) => String(t.status ?? "").toUpperCase() === "OPEN"
+  );
 
   return (
     <div className="max-w-8xl mx-auto p-4">
@@ -175,6 +154,11 @@ const Mytrades = () => {
           ) : (
             openTrades.map((trade, i) => {
               const isProfit = parseFloat(trade.profit || 0) >= 0;
+              const raw = Number(trade.profit || 0);
+              const yourShare =
+                profitPercentage != null
+                  ? (raw * profitPercentage) / 100
+                  : null;
 
               return (
                 <div
@@ -217,7 +201,10 @@ const Mytrades = () => {
                       />
 
                       {isProfit ? "+" : ""}
-                      {((Number(parseFloat(trade.profit || 0).toFixed(2)) * profitPercentage) / 100).toFixed(2)} ---
+                      {yourShare != null
+                        ? yourShare.toFixed(2)
+                        : "—"}{" "}
+                      <span className="text-xs font-normal opacity-80">(your {profitPercentage ?? "—"}%)</span>
                     </div>
                   </div>
                 </div>

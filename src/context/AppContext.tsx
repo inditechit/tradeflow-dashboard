@@ -15,6 +15,8 @@ export interface UserData {
   photoCaptured?: boolean;
   experienceYears?: string;
   userId?: string;
+  /** ISO timestamp — set at signup for client-side join date; server may also send on login. */
+  createdAt?: string;
   depositMethod?: string;
   role?: "admin" | "user";
 }

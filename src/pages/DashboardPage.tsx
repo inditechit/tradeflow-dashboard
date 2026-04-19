@@ -1,10 +1,15 @@
-import React, { useEffect, useState, useRef, memo } from 'react';
+import React, { useEffect, useState, useRef, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { 
-  Plane, Globe, Video, User, ShieldCheck, LogOut, 
-  Loader2, CheckCircle2, Clock, Plus, TrendingUp 
+  Plane, Globe, Video, User, LogOut, 
+  Loader2, CheckCircle2, Clock, Plus, TrendingUp,
+  Wallet, Percent,
 } from 'lucide-react';
+import {
+  aggregateUserProfitShare,
+  formatMoneyAmount,
+} from '@/utils/userProfitShare';
 
 // --- TradingView Component (Memoized for performance) ---
 const TradingViewChart = memo(() => {
@@ -74,14 +79,32 @@ const getPackageIcon = (name: string) => {
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser } = useApp();
-  console.log("Current user:", currentUser?.name);
+  const { currentUser, setCurrentUser, updateUser } = useApp();
   
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
+  const [profitPct, setProfitPct] = useState<number | null>(null);
+  const [tradesFeed, setTradesFeed] = useState<Record<string, unknown>[]>([]);
+  const [loadingFinance, setLoadingFinance] = useState(true);
+
   const API_BASE = 'https://mt5api.inditechit.com/api';
+
+  const joinMs = useMemo(() => {
+    const iso = currentUser?.createdAt;
+    if (!iso) return null;
+    const ms = Date.parse(String(iso));
+    return Number.isFinite(ms) ? ms : null;
+  }, [currentUser?.createdAt]);
+
+  const yourShareSinceJoin = useMemo(
+    () => aggregateUserProfitShare(tradesFeed, joinMs, profitPct),
+    [tradesFeed, joinMs, profitPct]
+  );
+
+  const shareIncludesAllTrades = joinMs == null && tradesFeed.length > 0;
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -108,6 +131,57 @@ const DashboardPage = () => {
 
     fetchTransactions();
   }, [currentUser, navigate]);
+
+  useEffect(() => {
+    if (!currentUser?.userId || currentUser.role === 'admin') {
+      setLoadingFinance(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFinance = async () => {
+      setLoadingFinance(true);
+      try {
+        const uid = currentUser.userId;
+        const [wRes, pRes, tRes] = await Promise.all([
+          fetch(`${API_BASE}/user/wallet/${uid}`),
+          fetch(`${API_BASE}/user/profit/${uid}`),
+          fetch(`${API_BASE}/mt5-trades`),
+        ]);
+        const wData = await wRes.json();
+        const pData = await pRes.json();
+        const tData = await tRes.json();
+        if (cancelled) return;
+
+        if (wData.success && wData.wallet) {
+          setWallet(wData.wallet);
+        }
+        if (pData.success) {
+          const pct = Number(pData.profit_percentage);
+          setProfitPct(Number.isFinite(pct) ? pct : null);
+          const joinFromApi =
+            pData.created_at || pData.joined_at || pData.signup_date;
+          if (joinFromApi && !currentUser.createdAt) {
+            updateUser({ createdAt: String(joinFromApi) });
+          }
+        }
+        if (tData.success && Array.isArray(tData.trades)) {
+          setTradesFeed(tData.trades);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setLoadingFinance(false);
+      }
+    };
+
+    loadFinance();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- updateUser identity changes each render
+  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt]);
 
   // Location tracking logic
   useEffect(() => {
@@ -168,6 +242,78 @@ const DashboardPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Wallet & profit share (user only) */}
+        {currentUser?.role !== 'admin' && (
+          <section className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
+              <div className="mb-2 flex items-center gap-2 text-slate-500">
+                <Wallet className="h-5 w-5 text-cyan-600" />
+                <span className="text-xs font-bold uppercase tracking-wide">Wallet balance</span>
+              </div>
+              {loadingFinance && !wallet ? (
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+              ) : wallet ? (
+                <>
+                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+                    {wallet.currency}{' '}
+                    {Number(wallet.balance).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">Funds in your app wallet</p>
+                </>
+              ) : (
+                <p className="text-slate-500 text-sm">Could not load wallet</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5 md:col-span-1">
+              <div className="mb-2 flex items-center gap-2 text-slate-500">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <span className="text-xs font-bold uppercase tracking-wide">Your share of trade P/L</span>
+              </div>
+              {loadingFinance && tradesFeed.length === 0 ? (
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+              ) : profitPct != null ? (
+                <>
+                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+                    {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || 'USD')}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {joinMs
+                      ? `After your join date (${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(joinMs)}). Each trade’s P/L × ${profitPct}%.`
+                      : shareIncludesAllTrades
+                        ? `Estimated: join date not stored yet — includes every trade in the feed × ${profitPct}%. Log in again after your API sends created_at, or contact support.`
+                        : `Each trade’s P/L × ${profitPct}% (no trades loaded).`}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500 text-sm">Profit % not assigned yet</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
+              <div className="mb-2 flex items-center gap-2 text-slate-500">
+                <Percent className="h-5 w-5 text-violet-600" />
+                <span className="text-xs font-bold uppercase tracking-wide">Your profit split</span>
+              </div>
+              {loadingFinance && profitPct == null ? (
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+              ) : profitPct != null ? (
+                <>
+                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">{profitPct}%</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Assigned by admin — applied to pooled MT5 trade results.
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500 text-sm">Not set</p>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Market Analysis Section - High Impact Chart */}
         <section>

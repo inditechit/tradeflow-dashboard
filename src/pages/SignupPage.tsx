@@ -196,7 +196,8 @@ const SignupPage = () => {
       if (data.success) {
         const user: UserData = {
           ...form,
-          userId: data.userId, 
+          userId: data.userId,
+          createdAt: new Date().toISOString(),
           emailVerified: true,
           photoCaptured: true,
           experienceYears: '',
