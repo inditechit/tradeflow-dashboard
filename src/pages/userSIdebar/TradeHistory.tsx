@@ -131,12 +131,12 @@ const TradeHistory = () => {
                       {/* TYPE */}
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${trade?.type === "DEAL_TYPE_BUY"
+                          className={`px-2 py-1 rounded text-xs font-bold ${trade?.type === "ORDER_TYPE_BUY"
                               ? "bg-green-50 text-green-600"
                               : "bg-red-50 text-red-600"
                             }`}
                         >
-                          {trade?.type === "DEAL_TYPE_BUY" ? "BUY" : "SELL"}
+                          {trade?.type}
                         </span>
                       </td>
 
