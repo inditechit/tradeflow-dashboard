@@ -21,6 +21,8 @@ const socket = io(SOCKET_URL, {
   transports: ["websocket"],
 });
 
+
+
 const fmtMoney = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   return new Intl.NumberFormat("en-US", {
@@ -228,6 +230,13 @@ const Dashboard = () => {
     </div>
   );
 
+  const plColor =
+  stats.floatingPl > 0
+    ? "text-green-600"
+    : stats.floatingPl < 0
+    ? "text-red-600"
+    : "text-gray-500";
+
   return (
     <div className="max-w-7xl mx-auto p-4">
       <div className="flex justify-between items-center mb-8">
@@ -309,9 +318,9 @@ const Dashboard = () => {
           "Only OPEN trades. Same as your “total invested” column per open row; not broker margin."
         )}
         {statCard(
-          <PieChart className="h-4 w-4 text-sky-600" />,
+          <PieChart className={`h-4 w-4 ${plColor}`} />,
           "Floating P/L (open)",
-          fmtMoney(stats.floatingPl),
+          <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
           "Sum of profit on OPEN trades only (unrealized)."
         )}
         {statCard(
