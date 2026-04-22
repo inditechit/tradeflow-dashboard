@@ -237,6 +237,20 @@ const Dashboard = () => {
     ? "text-red-600"
     : "text-gray-500";
 
+    const combinedColor =
+  stats.combinedNet > 0
+    ? "text-green-600"
+    : stats.combinedNet < 0
+    ? "text-red-600"
+    : "text-gray-500";
+
+    const realizedColor =
+  stats.realizedNet > 0
+    ? "text-green-600"
+    : stats.realizedNet < 0
+    ? "text-red-600"
+    : "text-gray-500";
+
   return (
     <div className="max-w-7xl mx-auto p-4">
       <div className="flex justify-between items-center mb-8">
@@ -336,15 +350,15 @@ const Dashboard = () => {
           "CLOSED trades with profit &lt; 0 (absolute sum)."
         )}
         {statCard(
-          <PieChart className="h-4 w-4" />,
+          <PieChart className={`h-4 w-4 ${realizedColor}`} />,
           "Net realized (closed)",
-          fmtMoney(stats.realizedNet),
+          <span className={realizedColor}>{fmtMoney(stats.realizedNet)}</span>,
           "Sum of profit on all CLOSED rows."
         )}
         {statCard(
-          <PieChart className="h-4 w-4 text-violet-600" />,
+          <PieChart className={`h-4 w-4 ${combinedColor}`} />,
           "Combined P/L (feed)",
-          fmtMoney(stats.combinedNet),
+          <span className={combinedColor}>{fmtMoney(stats.combinedNet)}</span>,
           "Closed net + floating open. Matches Σ profit if every row is OPEN or CLOSED."
         )}
       </div>
