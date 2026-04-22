@@ -316,7 +316,7 @@ const Dashboard = () => {
         )}
       </div>
 
-      <p className="mb-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+      <p className="mb-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-black">
         Metrics include only trades whose{" "}
         <strong>close time</strong> (closed) or <strong>open time</strong> (open) falls in the
         range above (local timezone). If <code className="rounded bg-amber-100/80 px-1">close_time</code>{" "}
@@ -338,7 +338,7 @@ const Dashboard = () => {
           "Sum of profit on OPEN trades only (unrealized)."
         )}
         {statCard(
-          <TrendingUp className="h-4 w-4 text-emerald-500" />,
+          <TrendingUp className="h-4 w-4 text-green-500" />,
           "Realized profit (closed)",
           fmtMoney(stats.realizedProfit),
           "CLOSED trades with profit &gt; 0 only."
