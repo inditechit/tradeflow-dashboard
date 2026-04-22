@@ -115,11 +115,15 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        setCurrentUser({
+        setCurrentUser((prev) => ({
+          ...(prev || {}),
           userId: data.userId,
-          telegram: data.telegram,
+          telegram: data.telegram ?? prev?.telegram,
           role: data.role,
-        });
+          ...(data.created_at || data.createdAt
+            ? { createdAt: String(data.created_at ?? data.createdAt) }
+            : {}),
+        }));
 
         if (data.role === "admin") {
           navigate("/admin/dashboard");

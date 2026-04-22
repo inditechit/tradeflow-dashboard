@@ -12,7 +12,7 @@ import { useApp } from "@/context/AppContext";
 
 const UserSidebar = () => {
   const [wallet, setWallet] = useState(null);
-
+  const [profitSplitPct, setProfitSplitPct] = useState<string | null>(null);
 
   const { currentUser } = useApp();
 
@@ -32,7 +32,23 @@ const UserSidebar = () => {
       }
     };
 
+    const fetchProfitSplit = async () => {
+      if (currentUser.role === "admin") return;
+      try {
+        const res = await fetch(
+          `${API_BASE}/user/profit/${currentUser.userId}`
+        );
+        const data = await res.json();
+        if (data.success && data.profit_percentage != null) {
+          setProfitSplitPct(String(data.profit_percentage));
+        }
+      } catch (err) {
+        console.error("Profit % fetch error:", err);
+      }
+    };
+
     fetchWallet();
+    fetchProfitSplit();
   }, [currentUser]);
 
   const menu = [
@@ -63,6 +79,11 @@ const UserSidebar = () => {
               ? "Loading wallet..."
               : `${wallet.currency} ${Number(wallet.balance).toFixed(2)}`}
           </h2>
+          {currentUser?.role !== "admin" && profitSplitPct != null && (
+            <p className="mt-2 text-sm font-medium text-white/90">
+              Your profit share: {profitSplitPct}%
+            </p>
+          )}
         </div>
 
         {/* Menu */}
