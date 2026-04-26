@@ -79,11 +79,11 @@ const UserSidebar = () => {
               ? "Loading wallet..."
               : `${wallet.currency} ${Number(wallet.balance).toFixed(2)}`}
           </h2>
-          {currentUser?.role !== "admin" && profitSplitPct != null && (
+          {/* {currentUser?.role !== "admin" && profitSplitPct != null && (
             <p className="mt-2 text-sm font-medium text-white/90">
               Your profit share: {profitSplitPct}%
             </p>
-          )}
+          )} */}
         </div>
 
         {/* Menu */}

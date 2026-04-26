@@ -80,6 +80,7 @@ const getPackageIcon = (name: string) => {
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, updateUser } = useApp();
+  console.log("CURRENT USER:", currentUser);
   
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -227,9 +228,9 @@ const DashboardPage = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-800">  
-                Welcome back, {currentUser?.name || 'Trader'}
+                Welcome back, {currentUser?.telegram || 'Trader'}
               </h1>
-              <p className="text-slate-500 text-sm mt-1">{currentUser?.email || 'No email provided'}</p>
+              {/* <p className="text-slate-500 text-sm mt-1">{currentUser?.email || 'No email provided'}</p> */}
             </div>
           </div>
           
@@ -294,7 +295,7 @@ const DashboardPage = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
+            {/* <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <Percent className="h-5 w-5 text-violet-600" />
                 <span className="text-xs font-bold uppercase tracking-wide">Your profit split</span>
@@ -311,7 +312,7 @@ const DashboardPage = () => {
               ) : (
                 <p className="text-slate-500 text-sm">Not set</p>
               )}
-            </div>
+            </div> */}
           </section>
         )}
 

@@ -39,7 +39,7 @@ export interface MockLocation {
 
 interface AppContextType {
   currentUser: UserData | null;
-  setCurrentUser: (user: UserData | null) => void;
+  setCurrentUser: React.Dispatch<React.SetStateAction<UserData | null>>;
   updateUser: (partial: Partial<UserData>) => void;
   purchasedPackages: PurchasedPackage[];
   addPackage: (pkg: PurchasedPackage) => void;

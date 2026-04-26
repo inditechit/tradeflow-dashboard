@@ -10,9 +10,9 @@ const TradingViewTicker = memo(({ symbols, widgetId }: { symbols: any[], widgetI
 
   useEffect(() => {
     if (!container.current) return;
-    
+
     // Clear the container to prevent duplicates in strict mode
-    container.current.innerHTML = ''; 
+    container.current.innerHTML = '';
 
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
@@ -119,6 +119,8 @@ const LoginPage = () => {
           ...(prev || {}),
           userId: data.userId,
           telegram: data.telegram ?? prev?.telegram,
+          name: data.name ?? prev?.name,
+          email: data.email ?? prev?.email,
           role: data.role,
           ...(data.created_at || data.createdAt
             ? { createdAt: String(data.created_at ?? data.createdAt) }
@@ -188,7 +190,7 @@ const LoginPage = () => {
       {/* Form Container - Centered */}
       <div className="relative z-10 flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-2xl shadow-cyan-900/10 overflow-hidden">
-          
+
           {/* Header */}
           <div className="text-center p-8 border-b border-slate-100 bg-white">
             <div className="inline-flex items-center gap-3 mb-3 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">

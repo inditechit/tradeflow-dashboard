@@ -15,8 +15,23 @@ const Mytrades = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
+  const [allowedTickets, setAllowedTickets] = useState(new Set());
 
-  // 🔹 Fetch Trades (same)
+  // 🔹 Fetch Assigned Tickets
+  useEffect(() => {
+    if (!currentUser?.userId) return;
+
+    fetch(`${API_BASE}/user/trade-assign/${currentUser.userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.tickets) {
+          setAllowedTickets(new Set(data.tickets.map(String)));
+        }
+      })
+      .catch((err) => console.error("Error fetching assigned tickets:", err));
+  }, [currentUser?.userId]);
+
+  // 🔹 Fetch All Trades
   const fetchTrades = async () => {
     try {
       setLoading(true);
@@ -32,7 +47,7 @@ const Mytrades = () => {
     }
   };
 
-  // 🔹 Fetch Profit Percentage (NEW)
+  // 🔹 Fetch Profit Percentage
   const fetchProfitPercentage = async () => {
     if (!currentUser?.userId) return;
     try {
@@ -56,7 +71,7 @@ const Mytrades = () => {
     socket.on("mt5data", (trade) => {
       setTrades((prev) => {
         const index = prev.findIndex(
-          (t) => Number(t.ticket) === Number(trade.ticket)
+          (t) => String(t.ticket) === String(trade.ticket)
         );
 
         if (index !== -1) {
@@ -71,34 +86,46 @@ const Mytrades = () => {
 
     socket.on("mt5close", (trade) => {
       setTrades((prev) =>
-        prev.filter((t) => Number(t.ticket) !== Number(trade.ticket))
+        prev.filter((t) => String(t.ticket) !== String(trade.ticket))
       );
     });
 
     socket.on("mt5live", (live) => {
       setTrades((prev) =>
         prev.map((t) =>
-          Number(t.ticket) === Number(live.ticket)
+          String(t.ticket) === String(live.ticket)
             ? { ...t, profit: live.profit }
             : t
         )
       );
     });
 
+    socket.on("trade_update", (trade) => {
+      setTrades((prev) => {
+        // avoid duplicate
+        if (prev.some((t) => String(t.ticket) === String(trade.ticket))) return prev;
+        return [trade, ...prev];
+      });
+      // console.log("Socket trade_update:", trade);
+    });
+
     return () => {
       socket.off("mt5data");
       socket.off("mt5close");
       socket.off("mt5live");
+      socket.off("trade_update");
     };
   }, [currentUser?.userId]);
 
-  const openTrades = trades.filter(
-    (t) => String(t.status ?? "").toUpperCase() === "OPEN"
-  );
+  // 🔹 Filter Trades (OPEN status AND ticket exists in assigned list)
+  const openTrades = trades.filter((t) => {
+    const isOpen = String(t.status ?? "").toUpperCase() === "OPEN";
+    const isAllowed = allowedTickets.has(String(t.ticket));
+    return isOpen && isAllowed;
+  });
 
   return (
     <div className="max-w-8xl mx-auto p-4">
-
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -139,9 +166,7 @@ const Mytrades = () => {
 
       {/* Trades Card */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-
         <div className="min-h-[300px]">
-
           {loading && openTrades.length === 0 ? (
             <div className="p-10 text-center text-slate-500">
               <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
@@ -204,14 +229,13 @@ const Mytrades = () => {
                       {yourShare != null
                         ? yourShare.toFixed(2)
                         : "—"}{" "}
-                      <span className="text-xs font-normal opacity-80">(your {profitPercentage ?? "—"}%)</span>
+                      {/* <span className="text-xs font-normal opacity-80">(your {profitPercentage ?? "—"}%)</span> */}
                     </div>
                   </div>
                 </div>
               );
             })
           )}
-
         </div>
       </div>
     </div>
