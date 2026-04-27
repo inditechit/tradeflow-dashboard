@@ -57,6 +57,8 @@ const UserTransactions = () => {
     return new Date(date).toLocaleString();
   };
 
+
+
   const getStatusStyle = (status) => {
     switch (status) {
       case "pending":
@@ -99,7 +101,19 @@ const UserTransactions = () => {
         </div>
       )}
 
+      {/* Empty State */}
+      {!loading && payments.length === 0 && (
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12">
+          <div className="text-center">
+            <div className="text-slate-400 text-6xl mb-4">📄</div>
+            <p className="text-slate-600 font-medium text-lg">No transaction history found</p>
+            <p className="text-slate-400 text-sm mt-2">Your transactions will appear here once you make any payments</p>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
+      {!loading && payments.length > 0 && (
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -180,6 +194,7 @@ const UserTransactions = () => {
           </table>
         </div>
       </div>
+      )}
 
       {/* Loading */}
       {loading && (

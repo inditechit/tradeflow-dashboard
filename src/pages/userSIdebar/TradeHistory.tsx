@@ -1,13 +1,48 @@
 import React, { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { useApp } from "@/context/AppContext";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 
 const TradeHistory = () => {
+  const { currentUser } = useApp();
   const [trades, setTrades] = useState([]);
-  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [allowedTickets, setAllowedTickets] = useState(new Set());
+  const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
 
+  // 🔹 Fetch Assigned Tickets
+  const fetchAssignedTickets = async () => {
+    if (!currentUser?.userId) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/user/trade-assign/${currentUser.userId}`
+      );
+      const data = await res.json();
+      if (data && data.tickets) {
+        setAllowedTickets(new Set(data.tickets.map(String)));
+      }
+    } catch (err) {
+      console.error("Error fetching assigned tickets:", err);
+    }
+  };
+
+  // 🔹 Fetch Profit Percentage
+  const fetchProfitPercentage = async () => {
+    if (!currentUser?.userId) return;
+    try {
+      const res = await fetch(`${API_BASE}/user/profit/${currentUser.userId}`);
+      const data = await res.json();
+
+      if (data.success && data.profit_percentage != null) {
+        setProfitPercentage(Number(data.profit_percentage));
+      }
+    } catch (err) {
+      console.error("Profit fetch error:", err);
+    }
+  };
+
+  // 🔹 Fetch All Trades
   const fetchTrades = async () => {
     try {
       setLoading(true);
@@ -16,7 +51,6 @@ const TradeHistory = () => {
 
       if (data.success) {
         setTrades(data.trades);
-        setCount(data.count);
       }
     } catch (error) {
       console.error("Error fetching trades:", error);
@@ -25,33 +59,43 @@ const TradeHistory = () => {
     }
   };
 
-  useEffect(() => {
+  // 🔹 Refresh Action
+  const handleRefresh = () => {
+    fetchAssignedTickets();
+    fetchProfitPercentage();
     fetchTrades();
-  }, []);
+  };
+
+  // 🔹 Initial Load
+  useEffect(() => {
+    if (!currentUser?.userId) return;
+    handleRefresh();
+  }, [currentUser?.userId]);
+
+  // 🔹 Filter Trades (ticket exists in assigned list)
+  const assignedTrades = trades.filter((t) =>
+    allowedTickets.has(String(t.ticket))
+  );
 
   return (
-    <div className="max-w-7xl mx-auto">
-
+    <div className="max-w-7xl mx-auto p-4">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
-       <div>
-    <h1 className="text-2xl font-bold text-slate-800">
-      All Trades
-    </h1>
-    <p className="text-slate-500 text-sm">
-      Total Trades: {count} (Open + Closed)
-    </p>
-  </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">
+            My Trade History
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Total Trades: {assignedTrades.length} (Open + Closed)
+          </p>
+        </div>
 
         <button
-          onClick={fetchTrades}
+          onClick={handleRefresh}
           disabled={loading}
           className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2 disabled:opacity-50"
         >
-          <RefreshCw
-            size={18}
-            className={loading ? "animate-spin" : ""}
-          />
+          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
@@ -60,7 +104,6 @@ const TradeHistory = () => {
       <div className="bg-white rounded-2xl shadow-xl shadow-cyan-900/5 border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-
             {/* HEADER */}
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
@@ -83,7 +126,7 @@ const TradeHistory = () => {
                   Price
                 </th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
-                  Profit
+                  Your Profit
                 </th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">
                   Status
@@ -93,27 +136,39 @@ const TradeHistory = () => {
 
             {/* BODY */}
             <tbody className="divide-y divide-slate-100">
-              {loading ? (
+              {loading && assignedTrades.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-slate-500"
+                  >
                     <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
                     Loading trades...
                   </td>
                 </tr>
-              ) : trades.length === 0 ? (
+              ) : assignedTrades.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                    No open trades
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-slate-500"
+                  >
+                    No assigned trades found
                   </td>
                 </tr>
               ) : (
-                trades.map((trade, index) => {
-                  const isProfit = trade.profit >= 0;
+                assignedTrades.map((trade, index) => {
+                  const rawProfit = Number(trade.profit || 0);
+                  const isProfit = rawProfit >= 0;
 
+                  // Apply the percentage cut
+                  const yourShare =
+                    profitPercentage != null
+                      ? (rawProfit * profitPercentage) / 100
+                      : rawProfit;
 
                   return (
                     <tr
-                      key={index}
+                      key={trade.ticket || index}
                       className="hover:bg-cyan-50/30 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">
@@ -131,10 +186,11 @@ const TradeHistory = () => {
                       {/* TYPE */}
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${trade?.type === "ORDER_TYPE_BUY"
+                          className={`px-2 py-1 rounded text-xs font-bold ${
+                            trade?.type === "ORDER_TYPE_BUY"
                               ? "bg-green-50 text-green-600"
                               : "bg-red-50 text-red-600"
-                            }`}
+                          }`}
                         >
                           {trade?.type}
                         </span>
@@ -148,21 +204,22 @@ const TradeHistory = () => {
                         {Number(trade.price).toFixed(2)}
                       </td>
 
-
-                      {/* PROFIT */}
+                      {/* CALCULATED PROFIT */}
                       <td
-                        className={`px-6 py-4 text-sm font-bold ${isProfit ? "text-green-600" : "text-red-600"
-                          }`}
+                        className={`px-6 py-4 text-sm font-bold ${
+                          isProfit ? "text-green-600" : "text-red-600"
+                        }`}
                       >
-                        {trade.profit}
+                        {yourShare.toFixed(2)}
                       </td>
 
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold
-      ${trade.status === "OPEN"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
+                            ${
+                              trade.status === "OPEN"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
                             }`}
                         >
                           {trade.status}
@@ -173,7 +230,6 @@ const TradeHistory = () => {
                 })
               )}
             </tbody>
-
           </table>
         </div>
       </div>
