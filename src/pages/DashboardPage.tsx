@@ -1,69 +1,100 @@
 import React, { useEffect, useState, useRef, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { 
-  Plane, Globe, Video, User, LogOut, 
+import {
+  Plane, Globe, Video, User, LogOut,
   Loader2, CheckCircle2, Clock, Plus, TrendingUp,
   Wallet, Percent,
 } from 'lucide-react';
-import {
-  aggregateUserProfitShare,
-  formatMoneyAmount,
-} from '@/utils/userProfitShare';
+import { formatMoneyAmount } from '@/utils/userProfitShare';
 
 // --- TradingView Component (Memoized for performance) ---
 const TradingViewChart = memo(() => {
-  const container = useRef();
+  const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+
     const scriptId = 'tradingview-widget-script';
-    
+
+
     // Clean up any existing script/iframe to force a fresh render with new height
+
     if (container.current) {
-        container.current.innerHTML = "";
+
+      container.current.innerHTML = "";
+
     }
+
+
 
     const script = document.createElement("script");
+
     script.id = scriptId;
+
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+
     script.type = "text/javascript";
+
     script.async = true;
+
     script.innerHTML = JSON.stringify({
+
       "width": "100%",
-      "height": 400, 
+
+      "height": 400,
+
       "symbol": "BINANCE:BTCUSDT",
+
       "interval": "D",
+
       "timezone": "Etc/UTC",
+
       "theme": "light",
+
       "style": "1",
+
       "locale": "en",
+
       "enable_publishing": false,
+
       "allow_symbol_change": true,
+
       "calendar": false,
+
       "support_host": "https://www.tradingview.com"
+
     });
-    
+
+
     if (container.current) {
+
       container.current.appendChild(script);
+
     }
 
+
+
     return () => {
+
       if (container.current) {
+
         container.current.innerHTML = "";
+
       }
+
     };
+
   }, []);
 
   return (
-    /* We use a wrapper with a hard-coded height to force the iframe to expand */
-    <div 
-      className="tradingview-widget-container" 
-      ref={container} 
-      style={{ height: "800px", width: "100%", overflow: "hidden" }}
+    <div
+      className="tradingview-widget-container"
+      ref={container}
+      style={{ height: "600px", width: "100%", overflow: "hidden" }}
     >
-      <div 
-        className="tradingview-widget-container__widget" 
-        style={{ height: "800px", width: "100%" }}
+      <div
+        className="tradingview-widget-container__widget"
+        style={{ height: "100%", width: "100%" }}
       ></div>
     </div>
   );
@@ -80,8 +111,7 @@ const getPackageIcon = (name: string) => {
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, updateUser } = useApp();
-  console.log("CURRENT USER:", currentUser);
-  
+
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -100,10 +130,37 @@ const DashboardPage = () => {
     return Number.isFinite(ms) ? ms : null;
   }, [currentUser?.createdAt]);
 
-  const yourShareSinceJoin = useMemo(
-    () => aggregateUserProfitShare(tradesFeed, joinMs, profitPct),
-    [tradesFeed, joinMs, profitPct]
-  );
+  // 🔥 NEW PAMM MATHEMATICAL CALCULATION 🔥
+  const yourShareSinceJoin = useMemo(() => {
+    if (profitPct == null || tradesFeed.length === 0) return 0;
+
+    const currentWallet = wallet?.balance ? Number(wallet.balance) : 0;
+    if (currentWallet === 0) return 0;
+
+    // 1. Sum up (Volume * Price) for every assigned trade
+    const totalInvested = tradesFeed.reduce((sum, trade) => {
+      const vol = Number(trade.volume || 0);
+      const price = Number(trade.price || 0);
+      return sum + (vol * price);
+    }, 0);
+
+    // Prevent divide by zero error
+    if (totalInvested === 0) return 0;
+
+    // 2. Find the Wallet Balance Percentage of the Invested Amount
+    const walletRatio = currentWallet / totalInvested;
+
+    // 3. Sum up the real total profit from all assigned trades
+    const totalRawProfit = tradesFeed.reduce((sum, trade) => {
+      return sum + Number(trade.profit || 0);
+    }, 0);
+
+    // 4. Calculate Final User Cut: (Total Profit × Wallet Ratio) × (Admin Percentage)
+    const userProportionalProfit = totalRawProfit * walletRatio;
+    const finalUserCut = userProportionalProfit * (profitPct / 100);
+
+    return finalUserCut;
+  }, [tradesFeed, profitPct, wallet?.balance]);
 
   const shareIncludesAllTrades = joinMs == null && tradesFeed.length > 0;
 
@@ -145,33 +202,46 @@ const DashboardPage = () => {
       setLoadingFinance(true);
       try {
         const uid = currentUser.userId;
-        const [wRes, pRes, tRes] = await Promise.all([
+
+        const [wRes, pRes, tRes, assignRes] = await Promise.all([
           fetch(`${API_BASE}/user/wallet/${uid}`),
           fetch(`${API_BASE}/user/profit/${uid}`),
           fetch(`${API_BASE}/mt5-trades`),
+          fetch(`${API_BASE}/user/trade-assign/${uid}`)
         ]);
+
         const wData = await wRes.json();
         const pData = await pRes.json();
         const tData = await tRes.json();
+        const assignData = await assignRes.json();
+
         if (cancelled) return;
 
         if (wData.success && wData.wallet) {
           setWallet(wData.wallet);
         }
+
         if (pData.success) {
           const pct = Number(pData.profit_percentage);
           setProfitPct(Number.isFinite(pct) ? pct : null);
-          const joinFromApi =
-            pData.created_at || pData.joined_at || pData.signup_date;
+          const joinFromApi = pData.created_at || pData.joined_at || pData.signup_date;
           if (joinFromApi && !currentUser.createdAt) {
             updateUser({ createdAt: String(joinFromApi) });
           }
         }
-        if (tData.success && Array.isArray(tData.trades)) {
-          setTradesFeed(tData.trades);
+
+        let allowedTickets = new Set();
+        if (assignData && assignData.tickets) {
+          allowedTickets = new Set(assignData.tickets.map(String));
         }
-      } catch {
-        /* ignore */
+
+        if (tData.success && Array.isArray(tData.trades)) {
+          // 🔥 FILTERS TO ONLY ASSIGNED TICKETS 🔥
+          const userTrades = tData.trades.filter(t => allowedTickets.has(String(t.ticket)));
+          setTradesFeed(userTrades);
+        }
+      } catch (err) {
+        console.error("Finance load error:", err);
       } finally {
         if (!cancelled) setLoadingFinance(false);
       }
@@ -181,10 +251,8 @@ const DashboardPage = () => {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- updateUser identity changes each render
   }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt]);
 
-  // Location tracking logic
   useEffect(() => {
     if (!currentUser?.userId) return;
     if (!navigator.geolocation) return;
@@ -212,31 +280,30 @@ const DashboardPage = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('mt5_user');
-    localStorage.removeItem('mt5_packages'); 
+    localStorage.removeItem('mt5_packages');
     navigate('/login');
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* Header Profile Card */}  
+
+        {/* Header Profile Card */}
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-cyan-900/5 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 rounded-full bg-cyan-50 flex items-center justify-center border border-cyan-100 text-cyan-600">
               <User size={32} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">  
+              <h1 className="text-2xl font-bold text-slate-800">
                 Welcome back, {currentUser?.telegram || 'Trader'}
               </h1>
-              {/* <p className="text-slate-500 text-sm mt-1">{currentUser?.email || 'No email provided'}</p> */}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <button 
-              onClick={handleLogout} 
+            <button
+              onClick={handleLogout}
               className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
             >
               <LogOut size={18} /> Logout
@@ -246,7 +313,7 @@ const DashboardPage = () => {
 
         {/* Wallet & profit share (user only) */}
         {currentUser?.role !== 'admin' && (
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <Wallet className="h-5 w-5 text-cyan-600" />
@@ -273,46 +340,28 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5 md:col-span-1">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
-                <span className="text-xs font-bold uppercase tracking-wide">Your share of trade P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Your share of Trade P/L</span>
               </div>
               {loadingFinance && tradesFeed.length === 0 ? (
                 <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
               ) : profitPct != null ? (
                 <>
-                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+                  {/* 🔥 DYNAMIC COLOR APPLIED HERE 🔥 */}
+                  <p className={`text-2xl font-extrabold tabular-nums ${yourShareSinceJoin >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                    }`}>
+                    {yourShareSinceJoin > 0 ? "+" : ""}
                     {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || 'USD')}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {joinMs
-                      ? `After your join date (${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(joinMs)}). Each trade’s P/L × ${profitPct}%.`
-                      : shareIncludesAllTrades
-                        ? `Estimated: join date not stored yet — includes every trade in the feed × ${profitPct}%. Log in again after your API sends created_at, or contact support.`
-                        : `Each trade’s P/L × ${profitPct}% (no trades loaded).`}
+                    Calculated by wallet proportion of total master investment.
                   </p>
                 </>
               ) : (
                 <p className="text-slate-500 text-sm">Profit % not assigned yet</p>
               )}
             </div>
-
-            {/* <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
-              <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <Percent className="h-5 w-5 text-violet-600" />
-                <span className="text-xs font-bold uppercase tracking-wide">Your profit split</span>
-              </div>
-              {loadingFinance && profitPct == null ? (
-                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
-              ) : profitPct != null ? (
-                <>
-                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">{profitPct}%</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Assigned by admin — applied to pooled MT5 trade results.
-                  </p>
-                </>
-              ) : (
-                <p className="text-slate-500 text-sm">Not set</p>
-              )}
-            </div> */}
           </section>
         )}
 
@@ -331,11 +380,11 @@ const DashboardPage = () => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-800">Your Active Packages</h2>
-            <button 
+            <button
               onClick={() => navigate('/packages')}
               className="text-cyan-600 text-sm font-bold hover:text-cyan-700 flex items-center gap-1"
             >
-              <Plus size={16} /> Add New 
+              <Plus size={16} /> Add New
             </button>
           </div>
 
@@ -355,8 +404,8 @@ const DashboardPage = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-2">No Packages Yet</h3>
               <p className="text-slate-500 mb-6 max-w-sm mx-auto">You haven't purchased any trading packages yet.</p>
-              <button 
-                onClick={() => navigate('/packages')} 
+              <button
+                onClick={() => navigate('/packages')}
                 className="px-8 py-3.5 bg-cyan-600 text-white rounded-xl font-bold shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 transition-all hover:-translate-y-0.5"
               >
                 Browse Packages
@@ -365,45 +414,45 @@ const DashboardPage = () => {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {transactions
-              .filter((txn) => txn.package_id !== "recharge") 
-              .map((txn, i) => (
-                <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center border border-cyan-100">
-                      {getPackageIcon(txn.package_name)}
+                .filter((txn) => txn.package_id !== "recharge")
+                .map((txn, i) => (
+                  <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center border border-cyan-100">
+                        {getPackageIcon(txn.package_name)}
+                      </div>
+                      {txn.status === 'success' ? (
+                        <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200">
+                          <CheckCircle2 size={14} /> Active
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                          <Clock size={14} /> Pending
+                        </span>
+                      )}
                     </div>
-                    {txn.status === 'success' ? (
-                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200">
-                        <CheckCircle2 size={14} /> Active
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-                        <Clock size={14} /> Pending
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{txn.package_name}</h3>
-                    {txn.payment_method !== "INR" && (
-                      <p className="text-slate-400 text-xs font-mono mb-4">
-                        TXN: {txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "Processing..."}
-                      </p>
-                    )}
-                    <div className="flex items-end justify-between mt-auto">
-                      <p className="text-3xl font-extrabold text-slate-900">
-                        {txn.payment_method === "INR" ? "₹" : "$"}
-                        {txn.payment_method === "USD"
-                          ? Number(txn.amount).toFixed(0)
-                          : Number(txn.amount).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium uppercase">{txn.payment_method}</p>
+
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{txn.package_name}</h3>
+                      {txn.payment_method !== "INR" && (
+                        <p className="text-slate-400 text-xs font-mono mb-4">
+                          TXN: {txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "Processing..."}
+                        </p>
+                      )}
+                      <div className="flex items-end justify-between mt-auto">
+                        <p className="text-3xl font-extrabold text-slate-900">
+                          {txn.payment_method === "INR" ? "₹" : "$"}
+                          {txn.payment_method === "USD"
+                            ? Number(txn.amount).toFixed(0)
+                            : Number(txn.amount).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500 font-medium uppercase">{txn.payment_method}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </section>
