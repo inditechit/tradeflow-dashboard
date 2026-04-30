@@ -1,26 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MapPin, ArrowLeft, RefreshCw, AlertTriangle
+  MapPin, ArrowLeft, RefreshCw, AlertTriangle, UserPlus, Wallet
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from '@/context/AppContext'; // Imported from your context
 
 import EditUserModal from '../components/admin/EditUserModal';
-import { log } from 'console';
+import AddUserModal from '../components/admin/AddUserModal';
+import WalletModal from '../components/admin/WalletModal'; 
 
 const API_BASE = 'https://mt5api.inditechit.com/api';
 
 const AdminPage = () => {
   const navigate = useNavigate();
+  const { currentUser } = useApp(); // Accessing context if needed
 
   const [locations, setLocations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-
-  // NEW STATES 
+  // USER MODAL STATES 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // ✅ WALLET MODAL STATES
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [walletUser, setWalletUser] = useState<any>(null);
+  const [walletBalance, setWalletBalance] = useState<number | string>("");
+  const [isWalletLoading, setIsWalletLoading] = useState(false);
+
   const { toast } = useToast();
 
   const fetchLocations = async () => {
@@ -52,80 +62,117 @@ const AdminPage = () => {
     return new Date(dateString).toLocaleString();
   };
 
+  // ADD USER LOGIC
+  const handleAddUser = async (newUser: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/add-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newUser),
+      });
 
-  // update user 
+      const data = await res.json();
+      if (data.success) {
+        setIsAddModalOpen(false);
+        fetchLocations(); 
+        toast({ title: "User Added ✅", description: "New user created successfully" });
+      } else {
+        toast({ title: "Add Failed ❌", description: data.error || "Failed to add user" });
+      }
+    } catch (err) {
+      toast({ title: "Add Failed ❌", description: "Something went wrong" });
+    }
+  };
+
+  // UPDATE USER LOGIC
   const handleUpdate = async (updatedUser: any) => {
     try {
-      if (!updatedUser?.id) {
-        alert("User ID missing ❌");
-        return;
-      }
+      if (!updatedUser?.id) return alert("User ID missing ❌");
       const payload: any = {};
-
       const allowedFields = [
-        "password",
-        "email",
-        "photo",
-        "name",
-        "mobile",
-        "telegram",
-        "country",
-        "state",
-        "city",
-        "pincode",
-        "profit_percentage"
+        "password", "email", "photo", "name", "mobile", "telegram", 
+        "country", "state", "city", "pincode", "profit_percentage"
       ];
 
       allowedFields.forEach((field) => {
-        if (updatedUser[field] !== undefined) {
-          payload[field] = updatedUser[field];
-        }
+        if (updatedUser[field] !== undefined) payload[field] = updatedUser[field];
       });
 
-      const res = await fetch(
-        `${API_BASE}/admin/update-user/${updatedUser.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${API_BASE}/admin/update-user/${updatedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
-      console.log("✅ Response:", data);
-
       if (data.success) {
         setIsModalOpen(false);
         fetchLocations();
-
-        toast({
-          title: "User Updated ✅",
-          description: "Changes applied successfully",
-        });
-
+        toast({ title: "User Updated ✅", description: "Changes applied successfully" });
       } else {
-        toast({
-          title: "Update Failed ❌",
-          description: data.error || "Update failed",
-        });
+        toast({ title: "Update Failed ❌", description: data.error || "Update failed" });
       }
-
     } catch (err) {
-      toast({
-        title: "Update Failed ❌",
-        description: "Something went wrong",
-      });
-      console.error("❌ Update Error:", err);
-
+      toast({ title: "Update Failed ❌", description: "Something went wrong" });
     }
   };
+
+  // ✅ OPEN WALLET MODAL & FETCH CURRENT BALANCE
+  const handleOpenWalletModal = async (user: any) => {
+    setWalletUser(user);
+    setIsWalletModalOpen(true);
+    setIsWalletLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/wallet/${user.id}`);
+      const data = await res.json();
+      
+      if (data.success && data.wallet) {
+        setWalletBalance(data.wallet.balance);
+      } else {
+        setWalletBalance(""); // Default to empty/0 if no wallet found
+      }
+    } catch (err) {
+      console.error("Fetch Wallet Error:", err);
+      setWalletBalance("");
+    } finally {
+      setIsWalletLoading(false);
+    }
+  };
+
+  // ✅ SAVE WALLET BALANCE
+  const handleUpdateWallet = async (newBalance: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/wallet/${walletUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ balance: newBalance }),
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        toast({ 
+          title: "Wallet Updated ✅", 
+          description: `Balance set to $${data.newBalance}` 
+        });
+        setIsWalletModalOpen(false);
+        // Optionally fetchLocations() if you want to display balances in the table later
+      } else {
+        toast({ title: "Update Failed ❌", description: data.error || "Failed to update wallet" });
+      }
+    } catch (err) {
+      toast({ title: "Update Failed ❌", description: "Something went wrong" });
+    }
+  };
+
   return (
     <>
       <div className="max-w-7xl mx-auto">
 
-        {/* Header (UNCHANGED) */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -136,14 +183,24 @@ const AdminPage = () => {
             </p>
           </div>
 
-          <button
-            onClick={fetchLocations}
-            disabled={isLoading}
-            className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
-          >
-            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-            Refresh
-          </button>
+          <div className="flex gap-3 items-center">
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900 transition flex items-center gap-2"
+            >
+              <UserPlus size={18} />
+              Add User
+            </button>
+
+            <button
+              onClick={fetchLocations}
+              disabled={isLoading}
+              className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+            >
+              <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Error */}
@@ -153,7 +210,7 @@ const AdminPage = () => {
           </div>
         )}
 
-        {/* TABLE (YOUR ORIGINAL UI PRESERVED) */}
+        {/* TABLE */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -208,18 +265,30 @@ const AdminPage = () => {
                       {loc.profit_percentage ? `${loc.profit_percentage}%` : "-"}
                     </td>
 
-                    {/* ✅ EDIT BUTTON (ONLY CHANGE) */}
+                    {/* ✅ ACTION BUTTONS (Wallet & Edit side-by-side) */}
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => {
-                          console.log("Selected user:", loc); // ✅ DEBUG
-                          setSelectedUser(loc);   // ✅ store user 
-                          setIsModalOpen(true);   // ✅ open modal
-                        }}
-                        className="px-3 py-2 bg-amber-50 text-amber-600 text-sm font-bold rounded-lg hover:bg-amber-100"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {/* WALLET BUTTON */}
+                        <button
+                          onClick={() => handleOpenWalletModal(loc)}
+                          className="px-3 py-2 flex items-center gap-1 bg-emerald-50 text-emerald-600 text-sm font-bold rounded-lg hover:bg-emerald-100 transition"
+                          title="Manage Wallet Balance"
+                        >
+                          <Wallet size={16} />
+                          Wallet
+                        </button>
+
+                        {/* EDIT BUTTON */}
+                        <button
+                          onClick={() => {
+                            setSelectedUser(loc);   
+                            setIsModalOpen(true);   
+                          }}
+                          className="px-3 py-2 bg-amber-50 text-amber-600 text-sm font-bold rounded-lg hover:bg-amber-100 transition"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
@@ -230,12 +299,28 @@ const AdminPage = () => {
           </div>
         </div>
 
-        {/* ✅ MODAL (ONLY ADDITION) */}
+        {/* MODALS */}
         <EditUserModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           user={selectedUser}
           onUpdate={handleUpdate}
+        />
+
+        <AddUserModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onAdd={handleAddUser}
+        />
+
+        {/* ✅ WALLET MODAL */}
+        <WalletModal
+          isOpen={isWalletModalOpen}
+          onClose={() => setIsWalletModalOpen(false)}
+          user={walletUser}
+          initialBalance={walletBalance}
+          onUpdate={handleUpdateWallet}
+          isLoading={isWalletLoading}
         />
 
       </div>
