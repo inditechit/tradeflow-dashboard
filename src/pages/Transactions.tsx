@@ -97,6 +97,7 @@ const Transactions = () => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Payment ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">User</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Email</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500">phone Number</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Amount</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Method</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Package</th>
@@ -122,6 +123,15 @@ const Transactions = () => {
                   {/* Email */}
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {p.email}
+                  </td>
+
+                  {/* Phone Number */}
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">+91</span>
+                      <span>-</span>
+                      <span>{p.mobile ? p.mobile.slice(2) : ''}</span>
+                    </div>
                   </td>
 
                   {/* Amount */}
