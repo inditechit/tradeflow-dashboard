@@ -110,7 +110,6 @@ const Mytrades = () => {
         if (prev.some((t) => String(t.ticket) === String(trade.ticket))) return prev;
         return [trade, ...prev];
       });
-      // console.log("Socket trade_update:", trade);
     });
 
     return () => {
@@ -160,26 +159,6 @@ const Mytrades = () => {
         </button>
       </div>
 
-      {/* 🔥 Profit Percentage Card */}
-      {/* {profitPercentage !== null && (
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl px-6 py-4 shadow-lg flex justify-between items-center">
-            
-            <div>
-              <p className="text-sm opacity-80">Your Profit Share</p>
-              <h2 className="text-2xl font-bold">
-                {profitPercentage}%
-              </h2>
-            </div>
-
-            <div className="text-sm bg-white/20 px-4 py-2 rounded-xl">
-              Applied on Live Trades
-            </div>
-
-          </div>
-        </div>
-      )} */}
-
       {/* Trades Card */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="min-h-[300px]">
@@ -194,12 +173,18 @@ const Mytrades = () => {
             </div>
           ) : (
             openTrades.map((trade, i) => {
-              const isProfit = parseFloat(trade.profit || 0) >= 0;
               const raw = Number(trade.profit || 0);
-              const yourShare =
-                profitPercentage != null
-                  ? (raw * profitPercentage) / 100
-                  : null;
+              const isProfit = raw >= 0;
+              
+              // 🔥 UPDATED LOGIC: Cut profit, show full loss
+              let yourShare = null;
+              if (profitPercentage != null) {
+                if (isProfit) {
+                  yourShare = (raw * profitPercentage) / 100; // Admin takes a cut
+                } else {
+                  yourShare = raw; // User takes the full loss
+                }
+              }
 
               return (
                 <div
@@ -245,7 +230,6 @@ const Mytrades = () => {
                       {yourShare != null
                         ? yourShare.toFixed(2)
                         : "—"}{" "}
-                      {/* <span className="text-xs font-normal opacity-80">(your {profitPercentage ?? "—"}%)</span> */}
                     </div>
                   </div>
                 </div>
