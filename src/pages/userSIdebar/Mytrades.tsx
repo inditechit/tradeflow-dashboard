@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
@@ -11,11 +12,13 @@ const socket = io(SOCKET_URL, {
 });
 
 const Mytrades = () => {
+  const navigate = useNavigate();
   const { currentUser } = useApp();
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
   const [allowedTickets, setAllowedTickets] = useState(new Set());
+  const [assignFunded, setAssignFunded] = useState(true);
 
   // 🔹 Fetch Assigned Tickets
   useEffect(() => {
@@ -27,6 +30,7 @@ const Mytrades = () => {
         if (data && data.tickets) {
           setAllowedTickets(new Set(data.tickets.map(String)));
         }
+        setAssignFunded(data?.funded !== false);
       })
       .catch((err) => console.error("Error fetching assigned tickets:", err));
   }, [currentUser?.userId]);
@@ -126,6 +130,18 @@ const Mytrades = () => {
 
   return (
     <div className="max-w-8xl mx-auto p-4">
+      {assignFunded === false && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm">
+          No wallet balance — trades are not assigned.{' '}
+          <button
+            type="button"
+            className="font-semibold text-cyan-700 underline"
+            onClick={() => navigate('/user/recharge')}
+          >
+            Add funds
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

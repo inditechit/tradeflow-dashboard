@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 
 const TradeHistory = () => {
+  const navigate = useNavigate();
   const { currentUser } = useApp();
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [allowedTickets, setAllowedTickets] = useState(new Set());
   const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
+  const [assignFunded, setAssignFunded] = useState(true);
 
   // 🔹 Fetch Assigned Tickets
   const fetchAssignedTickets = async () => {
@@ -22,6 +25,7 @@ const TradeHistory = () => {
       if (data && data.tickets) {
         setAllowedTickets(new Set(data.tickets.map(String)));
       }
+      setAssignFunded(data?.funded !== false);
     } catch (err) {
       console.error("Error fetching assigned tickets:", err);
     }
@@ -79,6 +83,18 @@ const TradeHistory = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-4">
+      {assignFunded === false && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm">
+          No wallet balance — trade history is hidden until you add funds.{' '}
+          <button
+            type="button"
+            className="font-semibold text-cyan-700 underline"
+            onClick={() => navigate('/user/recharge')}
+          >
+            Recharge wallet
+          </button>
+        </div>
+      )}
       {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <div>

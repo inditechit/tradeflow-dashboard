@@ -5,7 +5,8 @@ import {
   TrendingUp,
   ArrowLeftRight,
   Wallet,
-  LogOut
+  LogOut,
+  Percent,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
@@ -26,6 +27,7 @@ const AdminSidebar = () => {
     { name: "Users", icon: Users, path: "/admin/users" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
     { name: "Recharge", icon: Wallet, path: "/admin/recharge" },
+    { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
   ];
 
   return (

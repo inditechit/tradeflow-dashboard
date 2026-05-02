@@ -31,6 +31,8 @@ import ProfitLoss from "./pages/userSIdebar/ProfitLoss";
 import Transactionspage from "./pages/userSIdebar/Transactionspage";
 import RechargePage from "./pages/userSIdebar/RechargePage";
 import TradeHistory from "./pages/userSIdebar/TradeHistory";
+import AffiliateProgramPage from "./pages/userSIdebar/AffiliateProgramPage";
+import AffiliateRulesAdminPage from "./pages/AffiliateRulesAdminPage";
 import AdminRoute from "./components/admin/AdminRoute";
 
 const queryClient = new QueryClient();
@@ -68,6 +70,7 @@ const App = () => (
               <Route path="transactions" element={<Transactionspage />} />
               <Route path="trade-history" element={<TradeHistory />} />
               <Route path="recharge" element={<RechargePage />} />
+              <Route path="affiliate" element={<AffiliateProgramPage />} />
 
             </Route>
 
@@ -86,6 +89,7 @@ const App = () => (
               <Route path="users" element={<AdminPage />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<Recharge />} />
+              <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />
 
             </Route>
 

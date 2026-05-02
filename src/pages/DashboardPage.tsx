@@ -120,6 +120,7 @@ const DashboardPage = () => {
   const [profitPct, setProfitPct] = useState<number | null>(null);
   const [tradesFeed, setTradesFeed] = useState<Record<string, unknown>[]>([]);
   const [loadingFinance, setLoadingFinance] = useState(true);
+  const [assignFunded, setAssignFunded] = useState(true);
 
   const API_BASE = 'https://mt5api.inditechit.com/api';
 
@@ -234,6 +235,7 @@ const DashboardPage = () => {
         if (assignData && assignData.tickets) {
           allowedTickets = new Set(assignData.tickets.map(String));
         }
+        setAssignFunded(assignData?.funded !== false);
 
         if (tData.success && Array.isArray(tData.trades)) {
           // 🔥 FILTERS TO ONLY ASSIGNED TICKETS 🔥
@@ -310,6 +312,19 @@ const DashboardPage = () => {
             </button>
           </div>
         </div>
+
+        {currentUser?.role !== 'admin' && assignFunded === false && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm">
+            Your wallet has no funds. No trades are assigned until you add balance.{' '}
+            <button
+              type="button"
+              className="font-semibold text-cyan-700 underline decoration-cyan-600"
+              onClick={() => navigate('/user/recharge')}
+            >
+              Recharge wallet
+            </button>
+          </div>
+        )}
 
         {/* Wallet & profit share (user only) */}
         {currentUser?.role !== 'admin' && (

@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Wallet,
   ClipboardList,
+  Share2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -57,6 +58,7 @@ const UserSidebar = () => {
     { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
     { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
+    { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
   ];
 
   return (

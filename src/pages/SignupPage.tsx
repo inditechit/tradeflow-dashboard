@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
@@ -87,6 +87,8 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referrerFromLink = searchParams.get('ref');
   const { setCurrentUser } = useApp();
 
   const API_BASE = 'https://mt5api.inditechit.com/api'; // Your backend URL
@@ -183,7 +185,8 @@ const SignupPage = () => {
         country: '', 
         state: '',
         city: '',
-        pincode: ''
+        pincode: '',
+        ...(referrerFromLink ? { ref: referrerFromLink } : {}),
       };
 
       const response = await fetch(`${API_BASE}/signup`, {
