@@ -17,6 +17,11 @@ const AdminPage = () => {
   const { currentUser } = useApp(); // Accessing context if needed
 
   const [locations, setLocations] = useState<any[]>([]);
+  const [totals, setTotals] = useState<{
+    sum_wallet_balances_usd: number;
+    sum_successful_payments_usd: number;
+    sum_successful_recharges_usd: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,6 +48,15 @@ const AdminPage = () => {
       console.log(data.users)
       if (data.success) {
         setLocations(data.users);
+        if (data.totals) {
+          setTotals({
+            sum_wallet_balances_usd: Number(data.totals.sum_wallet_balances_usd ?? 0),
+            sum_successful_payments_usd: Number(data.totals.sum_successful_payments_usd ?? 0),
+            sum_successful_recharges_usd: Number(data.totals.sum_successful_recharges_usd ?? 0),
+          });
+        } else {
+          setTotals(null);
+        }
       } else {
         setError(data.error || 'Failed to fetch data.');
       }
@@ -159,7 +173,7 @@ const AdminPage = () => {
           description: `Balance set to $${data.newBalance}` 
         });
         setIsWalletModalOpen(false);
-        // Optionally fetchLocations() if you want to display balances in the table later
+        fetchLocations();
       } else {
         toast({ title: "Update Failed ❌", description: data.error || "Failed to update wallet" });
       }
@@ -210,6 +224,45 @@ const AdminPage = () => {
           </div>
         )}
 
+        {/* Totals */}
+        {totals && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Total received (successful payments)
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                USD {totals.sum_successful_payments_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                All completed payment rows (recharges, packages, tours).
+              </p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                Wallet recharges only
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-900">
+                USD {totals.sum_successful_recharges_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="mt-1 text-xs text-emerald-800/80">
+                Successful top-ups to user wallets.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                Total in user wallets now
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-cyan-900">
+                USD {totals.sum_wallet_balances_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="mt-1 text-xs text-cyan-800/80">
+                Sum of current balances across all users.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* TABLE */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -219,6 +272,7 @@ const AdminPage = () => {
                 <tr className="bg-slate-50 border-b">
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Username</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Contact</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Wallet</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Location</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Created</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Profit %</th>
@@ -240,6 +294,20 @@ const AdminPage = () => {
                     <td className="px-6 py-4 text-sm text-slate-600">
                       <div>{loc.mobile}</div>
                       <div className="text-xs text-cyan-600">@{loc.telegram}</div>
+                    </td>
+
+                    {/* Wallet balance */}
+                    <td className="px-6 py-4">
+                      <div className="font-semibold tabular-nums text-slate-900">
+                        {loc.wallet_currency ?? "USD"}{" "}
+                        {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                      {Number(loc.has_wallet) === 0 && (
+                        <span className="text-xs text-slate-400">No wallet</span>
+                      )}
                     </td>
 
                     {/* Location */}

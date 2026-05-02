@@ -7,6 +7,8 @@ import {
   Wallet,
   LogOut,
   Percent,
+  Share2,
+  ScrollText,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
@@ -28,6 +30,8 @@ const AdminSidebar = () => {
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
     { name: "Recharge", icon: Wallet, path: "/admin/recharge" },
     { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
+    { name: "Referrals", icon: Share2, path: "/admin/referrals" },
+    { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
   ];
 
   return (

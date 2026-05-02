@@ -33,6 +33,8 @@ import RechargePage from "./pages/userSIdebar/RechargePage";
 import TradeHistory from "./pages/userSIdebar/TradeHistory";
 import AffiliateProgramPage from "./pages/userSIdebar/AffiliateProgramPage";
 import AffiliateRulesAdminPage from "./pages/AffiliateRulesAdminPage";
+import AdminReferralsPage from "./pages/AdminReferralsPage";
+import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
 import AdminRoute from "./components/admin/AdminRoute";
 
 const queryClient = new QueryClient();
@@ -90,6 +92,8 @@ const App = () => (
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<Recharge />} />
               <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />
+              <Route path="referrals" element={<AdminReferralsPage />} />
+              <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
 
             </Route>
 
