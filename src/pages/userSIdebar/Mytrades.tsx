@@ -184,6 +184,8 @@ const Mytrades = () => {
                 } else {
                   yourShare = raw; // User takes the full loss
                 }
+              } else {
+                 yourShare = raw; // Fallback if no percentage is set yet
               }
 
               return (

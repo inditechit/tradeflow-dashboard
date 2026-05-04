@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
@@ -11,6 +11,8 @@ const TradeHistory = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [allowedTickets, setAllowedTickets] = useState(new Set());
+  
+  // Finance States
   const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
   const [assignFunded, setAssignFunded] = useState(true);
 
@@ -31,18 +33,18 @@ const TradeHistory = () => {
     }
   };
 
-  // 🔹 Fetch Profit Percentage
-  const fetchProfitPercentage = async () => {
+  // 🔹 Fetch Finance Data (Profit %)
+  const fetchFinanceData = async () => {
     if (!currentUser?.userId) return;
     try {
-      const res = await fetch(`${API_BASE}/user/profit/${currentUser.userId}`);
-      const data = await res.json();
+      const profRes = await fetch(`${API_BASE}/user/profit/${currentUser.userId}`);
+      const profData = await profRes.json();
 
-      if (data.success && data.profit_percentage != null) {
-        setProfitPercentage(Number(data.profit_percentage));
+      if (profData.success && profData.profit_percentage != null) {
+        setProfitPercentage(Number(profData.profit_percentage));
       }
     } catch (err) {
-      console.error("Profit fetch error:", err);
+      console.error("Finance fetch error:", err);
     }
   };
 
@@ -66,7 +68,7 @@ const TradeHistory = () => {
   // 🔹 Refresh Action
   const handleRefresh = () => {
     fetchAssignedTickets();
-    fetchProfitPercentage();
+    fetchFinanceData();
     fetchTrades();
   };
 
@@ -77,9 +79,9 @@ const TradeHistory = () => {
   }, [currentUser?.userId]);
 
   // 🔹 Filter Trades (ticket exists in assigned list)
-  const assignedTrades = trades.filter((t) =>
-    allowedTickets.has(String(t.ticket))
-  );
+  const assignedTrades = useMemo(() => {
+    return trades.filter((t) => allowedTickets.has(String(t.ticket)));
+  }, [trades, allowedTickets]);
 
   return (
     <div className="max-w-7xl mx-auto p-4">
@@ -176,11 +178,17 @@ const TradeHistory = () => {
                   const rawProfit = Number(trade.profit || 0);
                   const isProfit = rawProfit >= 0;
 
-                  // Apply the percentage cut
-                  const yourShare =
-                    profitPercentage != null
-                      ? (rawProfit * profitPercentage) / 100
-                      : rawProfit;
+                  // 🔥 EXACT ADMIN NUMBER FOR LOSS, PERCENTAGE CUT FOR PROFIT
+                  let yourShare = 0;
+                  if (profitPercentage != null) {
+                    if (isProfit) {
+                      yourShare = rawProfit * (profitPercentage / 100); // Admin takes a cut
+                    } else {
+                      yourShare = rawProfit; // User sees exact Admin loss
+                    }
+                  } else {
+                     yourShare = rawProfit; // Fallback if no percentage is set
+                  }
 
                   return (
                     <tr
