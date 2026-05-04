@@ -71,9 +71,23 @@ const AffiliateRulesAdminPage = () => {
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-2">Affiliate commission rules</h1>
-      <p className="text-sm text-slate-500 mb-6">
-        Set percentage of each referral wallet recharge by level (1 = direct referrer, up to 4). You can add amount brackets (min/max USD) later via API or new rows — narrowest matching bracket wins.
+      <p className="text-sm text-slate-500 mb-4">
+        Set percentage <strong>per level</strong> (1 = direct upline … 4).{" "}
+        <strong>Min / Max USD</strong> are optional brackets: they match the <em>gross</em> recharge amount (e.g. only pay these % if recharge is between min and max).
       </p>
+      <div className="mb-6 rounded-xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm text-slate-800">
+        <p className="font-semibold text-cyan-900 mb-1">How payouts are calculated</p>
+        <ul className="list-disc list-inside space-y-1 text-slate-700">
+          <li>
+            A flat <strong>10% platform fee</strong> is taken from each recharge first (configurable on server:{" "}
+            <code className="text-xs bg-white px-1 rounded">AFFILIATE_PLATFORM_FEE_PERCENT</code>).
+          </li>
+          <li>
+            Commissions use the <strong>remaining 90%</strong> as the base. Level 1 pays{" "}
+            <strong>(commission % ÷ 100) × that base</strong>, using the % you set below for levels 1–4 (e.g. 10%, 13.33%, 23.33%, 53.33%).
+          </li>
+        </ul>
+      </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
