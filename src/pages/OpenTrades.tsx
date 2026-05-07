@@ -29,6 +29,11 @@ const OpenTrades = () => {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // 🔥 NEW: State for Inline Volume Editing
+  const [editingTicket, setEditingTicket] = useState<string | number | null>(null);
+  const [editVolume, setEditVolume] = useState("");
+  const [savingTicket, setSavingTicket] = useState<string | number | null>(null);
+
   const [symbolFilter, setSymbolFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "buy" | "sell">("all");
   const [volumeFilter, setVolumeFilter] = useState("");
@@ -59,6 +64,36 @@ const OpenTrades = () => {
   useEffect(() => {
     fetchTrades();
   }, []);
+
+  // 🔥 NEW: Function to save the edited volume to the API
+ const handleSaveVolume = async (ticket: string | number) => {
+    try {
+      setSavingTicket(ticket);
+      const res = await fetch(`${API_BASE}/admin/update-volume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket, volume: editVolume }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Update the specific trade's volume locally so the UI updates instantly
+        setTrades((prevTrades) =>
+          prevTrades.map((t) =>
+            t.ticket === ticket ? { ...t, volume: editVolume } : t
+          )
+        );
+        setEditingTicket(null); // Close the edit box
+      } else {
+        alert(data.message || "Failed to update volume.");
+      }
+    } catch (err) {
+      console.error("Error updating volume:", err);
+      alert("Server error while updating volume.");
+    } finally {
+      setSavingTicket(null);
+    }
+  };
 
   const statusOptions = useMemo(() => {
     const set = new Set<string>();
@@ -334,7 +369,7 @@ const OpenTrades = () => {
                   return (
                     <tr
                       key={`${trade.ticket}-${index}`}
-                      className="hover:bg-cyan-50/30 transition-colors"
+                      className="hover:bg-cyan-50/30 transition-colors group"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">
                         {trade.ticket}
@@ -360,8 +395,45 @@ const OpenTrades = () => {
                         </span>
                       </td>
 
+                      {/* 🔥 UPDATED VOLUME CELL WITH INLINE EDIT */}
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {trade.volume}
+                        {editingTicket === trade.ticket ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="any"
+                              value={editVolume}
+                              onChange={(e) => setEditVolume(e.target.value)}
+                              className="w-20 rounded border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none"
+                            />
+                            <button
+                              onClick={() => handleSaveVolume(trade.ticket!)}
+                              disabled={savingTicket === trade.ticket}
+                              className="text-green-600 font-bold hover:underline"
+                            >
+                              {savingTicket === trade.ticket ? "..." : "Save"}
+                            </button>
+                            <button
+                              onClick={() => setEditingTicket(null)}
+                              className="text-slate-400 hover:text-slate-600 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span>{trade.volume}</span>
+                            <button
+                              onClick={() => {
+                                setEditingTicket(trade.ticket!);
+                                setEditVolume(String(trade.volume));
+                              }}
+                              className="text-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold hover:underline"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-6 py-4 text-sm text-slate-600">
