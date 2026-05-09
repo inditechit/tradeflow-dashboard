@@ -36,6 +36,7 @@ import AffiliateRulesAdminPage from "./pages/AffiliateRulesAdminPage";
 import AdminReferralsPage from "./pages/AdminReferralsPage";
 import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
 import AdminRoute from "./components/admin/AdminRoute";
+import My_Profile from "./pages/userSIdebar/My_Profile";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="trade-history" element={<TradeHistory />} />
               <Route path="recharge" element={<RechargePage />} />
               <Route path="affiliate" element={<AffiliateProgramPage />} />
+              <Route path="profile" element={<My_Profile />} />
 
             </Route>
 

@@ -107,7 +107,7 @@ const AdminPage = () => {
       const payload: any = {};
       const allowedFields = [
         "password", "email", "photo", "name", "mobile", "telegram", 
-        "country", "state", "city", "pincode", "profit_percentage"
+        "country", "state", "city", "pincode", "profit_percentage" , "dollar_amount"
       ];
 
       allowedFields.forEach((field) => {
@@ -278,6 +278,7 @@ const AdminPage = () => {
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Location</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Created</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Profit %</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 text-nowrap">Dollar Cut</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 text-right">Action</th>
                 </tr>
               </thead>
@@ -335,7 +336,12 @@ const AdminPage = () => {
                       {loc.profit_percentage ? `${loc.profit_percentage}%` : "-"}
                     </td>
 
-                    {/* ✅ ACTION BUTTONS (Wallet & Edit side-by-side) */}
+                    {/* Dollar Cut */}
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {loc.dollar_amount ? `$${loc.dollar_amount}` : "-"}
+                    </td>
+
+                    {/* ACTION BUTTONS (Wallet & Edit side-by-side) */}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {/* WALLET BUTTON */}
@@ -383,7 +389,7 @@ const AdminPage = () => {
           onAdd={handleAddUser}
         />
 
-        {/* ✅ WALLET MODAL */}
+        {/* WALLET MODAL */}
         <WalletModal
           isOpen={isWalletModalOpen}
           onClose={() => setIsWalletModalOpen(false)}

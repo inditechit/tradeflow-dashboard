@@ -12,6 +12,7 @@ interface User {
   city?: string;
   pincode?: string;
   profit_percentage?: number;
+  dollar_amount?: number;
 }
 
 interface Props {
@@ -40,7 +41,7 @@ const EditUserModal: React.FC<Props> = ({
 
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "profit_percentage" ? Number(value) : value,
+      [name]: (name === "profit_percentage" || name === "dollar_amount") ? Number(value) : value,
     }));
   };
 
@@ -124,13 +125,26 @@ const EditUserModal: React.FC<Props> = ({
             <input name="password" value={formData.password ?? ""} onChange={handleChange} className="input" />
           </div>
 
-          {/* Profit */}
-          <div className="col-span-2">
+          {/* Profit Percentage */}
+          <div className="col-span-1">
             <label className="label">Profit Percentage (%)</label>
             <input
-              type="text"
+              type="number"
+              step="any"
               name="profit_percentage"
               value={formData.profit_percentage ?? ""}
+              onChange={handleChange}
+              className="input"
+            />
+          </div>
+
+          <div className="col-span-1">
+            <label className="label">Fixed Dollar Cut ($)</label>
+            <input
+              type="number"
+              step="any"
+              name="dollar_amount"
+              value={formData.dollar_amount ?? ""}
               onChange={handleChange}
               className="input"
             />

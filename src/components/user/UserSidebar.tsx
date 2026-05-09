@@ -6,6 +6,7 @@ import {
   Wallet,
   ClipboardList,
   Share2,
+  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -59,6 +60,7 @@ const UserSidebar = () => {
     { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
+    { name: "Profile", icon: User, path: "/user/profile" },
   ];
 
   return (
@@ -67,7 +69,7 @@ const UserSidebar = () => {
         {/* Logo */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-cyan-600">User Panel</h1>
-          <p className="text-xs text-slate-400">MT5 Control</p>
+          {/* <p className="text-xs text-slate-400">MT5 Control</p> */}
         </div>
 
         {/* 💰 Wallet Card */}

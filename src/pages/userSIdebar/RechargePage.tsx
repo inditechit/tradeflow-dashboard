@@ -80,7 +80,7 @@ const Recharge = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Recharge Wallet</h1>
         <p className="text-gray-600 text-sm">
-          Add funds securely using USD (Crypto)
+          Add funds securely using USDT (TRC 20 network)
         </p>
       </div>
 
@@ -110,7 +110,7 @@ const Recharge = () => {
               Payment Method
             </label>
             <div className="w-full py-3 rounded-lg border font-semibold bg-black text-white text-center">
-              USD (Crypto)
+              Usdt (TRC 20 network)
             </div>
           </div>
 
