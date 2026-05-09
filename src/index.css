@@ -53,6 +53,11 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   * {
     @apply border-border;
   }

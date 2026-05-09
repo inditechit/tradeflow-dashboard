@@ -1,20 +1,52 @@
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { AppHeader } from "@/components/layout/AppHeader";
 
 const AdminLayout = () => {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (mobileNavOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (mq.matches) setMobileNavOpen(false);
+    };
+    mq.addEventListener("change", closeOnDesktop);
+    return () => mq.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      
-      {/* Sidebar (STATIC) */}
-      <AdminSidebar />
+    <div className="flex min-h-screen min-h-[100dvh] bg-slate-50">
+      <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-      {/* Page Content (CHANGES) */}
-      <div className="flex-1 ml-64 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <Outlet />
-        </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:ml-64">
+        <AppHeader variant="admin" onMenuClick={() => setMobileNavOpen(true)} />
+        <main className="flex-1 overflow-x-auto px-3 py-4 sm:px-4 md:p-8">
+          <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
+            <Outlet />
+          </div>
+        </main>
       </div>
-
     </div>
   );
 };

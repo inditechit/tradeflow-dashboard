@@ -1,20 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MapPin, ArrowLeft, RefreshCw, AlertTriangle, UserPlus, Wallet, User,
+  RefreshCw,
+  UserPlus,
+  Wallet,
+  User,
+  Pencil,
+  MapPin,
+  History,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useApp } from '@/context/AppContext'; // Imported from your context
 
 import EditUserModal from '../components/admin/EditUserModal';
 import AddUserModal from '../components/admin/AddUserModal';
-import WalletModal from '../components/admin/WalletModal'; 
+import WalletModal from '../components/admin/WalletModal';
+import { Button } from "@/components/ui/button";
 
 const API_BASE = 'https://mt5api.inditechit.com/api';
 
+function kycBadgeStyles(status: string | undefined | null) {
+  const s = String(status ?? "pending").toLowerCase();
+  if (s === "verified") return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  if (s === "submitted") return "border-amber-200 bg-amber-50 text-amber-900";
+  if (s === "rejected") return "border-red-200 bg-red-50 text-red-900";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function parseCoord(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function userHasMapLink(loc: { latitude?: unknown; longitude?: unknown; address?: unknown }): boolean {
+  const lat = parseCoord(loc.latitude);
+  const lng = parseCoord(loc.longitude);
+  if (lat != null && lng != null) return true;
+  const addr = loc.address != null ? String(loc.address).trim() : "";
+  return addr.length > 0;
+}
+
 const AdminPage = () => {
   const navigate = useNavigate();
-  const { currentUser } = useApp(); // Accessing context if needed
 
   const [locations, setLocations] = useState<any[]>([]);
   const [totals, setTotals] = useState<{
@@ -45,7 +72,6 @@ const AdminPage = () => {
     try {
       const response = await fetch(`${API_BASE}/admin/users`);
       const data = await response.json();
-      console.log(data.users)
       if (data.success) {
         setLocations(data.users);
         if (data.totals) {
@@ -74,6 +100,33 @@ const AdminPage = () => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleString();
+  };
+
+  const openUserLocationOnMap = (loc: Record<string, unknown>) => {
+    const lat = parseCoord(loc.latitude);
+    const lng = parseCoord(loc.longitude);
+    if (lat != null && lng != null) {
+      window.open(
+        `https://www.google.com/maps?q=${lat},${lng}&z=16`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+    const addr = loc.address != null ? String(loc.address).trim() : "";
+    if (addr) {
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+    toast({
+      title: "No location",
+      description: "This user has no coordinates or address on file.",
+      variant: "destructive",
+    });
   };
 
   // ADD USER LOGIC
@@ -185,37 +238,38 @@ const AdminPage = () => {
   
 
   return (
-    <>
-      <div className="max-w-7xl mx-auto">
-
+    <div className="w-full min-w-0 font-sans">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-              Admin Panel
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Users
             </h1>
-            <p className="text-slate-500 text-sm">
-              Manage system data & monitoring
+            <p className="mt-1 text-sm text-slate-600">
+              Manage accounts, wallets, addresses &amp; KYC
             </p>
           </div>
 
-          <div className="flex gap-3 items-center">
-            <button
+          <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+            <Button
+              type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-900 transition flex items-center gap-2"
+              className="gap-2 rounded-xl bg-slate-800 text-white hover:bg-slate-900"
             >
               <UserPlus size={18} />
               Add User
-            </button>
+            </Button>
 
-            <button
+            <Button
+              type="button"
+              variant="secondary"
               onClick={fetchLocations}
               disabled={isLoading}
-              className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+              className="gap-2 rounded-xl bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-70"
             >
               <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -271,37 +325,58 @@ const AdminPage = () => {
             <table className="w-full text-left">
 
               <thead>
-                <tr className="bg-slate-50 border-b">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Username</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Contact</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Wallet</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Location</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Created</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">KYC</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500">Profit %</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 text-nowrap">Dollar Cut</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 text-right">Action</th>
+                <tr className="border-b border-slate-200 bg-slate-50/95">
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Contact
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Wallet
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Recharges
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Location
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Created
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    KYC
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Profit %
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Dollar cut
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {locations.map((loc, i) => (
-                  <tr key={i} className="hover:bg-cyan-50/30 transition">
+                  <tr key={i} className="border-b border-slate-100 transition hover:bg-cyan-50/40">
 
                     {/* Username */}
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-800">{loc.name}</div>
-                      <div className="text-xs text-slate-500">{loc.email}</div>
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="font-semibold text-slate-900">{loc.name}</div>
+                      <div className="break-all text-xs text-slate-500">{loc.email}</div>
                     </td>
 
                     {/* Contact */}
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      <div>{loc.mobile}</div>
-                      <div className="text-xs text-cyan-600">@{loc.telegram}</div>
+                    <td className="align-top px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
+                      <div className="text-slate-800">{loc.mobile}</div>
+                      <div className="text-xs text-cyan-700">@{loc.telegram}</div>
                     </td>
 
                     {/* Wallet balance */}
-                    <td className="px-6 py-4">
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                       <div className="font-semibold tabular-nums text-slate-900">
                         {loc.wallet_currency ?? "USD"}{" "}
                         {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
@@ -314,71 +389,143 @@ const AdminPage = () => {
                       )}
                     </td>
 
-                    {/* Location */}
-                    <td className="px-6 py-4">
-                      {loc.address ? (
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 max-w-xs">
-                          <p className="text-xs text-slate-800 leading-relaxed break-words">
-                            {loc.address}
-                          </p>
+                    {/* Recharge stats (successful wallet top-ups) */}
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="space-y-1.5">
+                        <div className="font-semibold tabular-nums text-slate-900">
+                          {Number(loc.recharge_success_count ?? 0)}×{" "}
+                          <span className="font-normal text-slate-600">success</span>
                         </div>
+                        <div className="text-xs tabular-nums font-medium text-emerald-800">
+                          USD{" "}
+                          {Number(loc.recharge_total_usd ?? 0).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          <span className="font-normal text-slate-500">total</span>
+                        </div>
+                        {Number(loc.recharge_pending_count ?? 0) > 0 && (
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                            {Number(loc.recharge_pending_count)} pending
+                          </span>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 hover:text-cyan-900"
+                          title="Open recharge history for this user"
+                          onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          History
+                        </Button>
+                      </div>
+                    </td>
+
+                    {/* Location — click opens Google Maps (pin from lat/lng, else search by address) */}
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      {userHasMapLink(loc) ? (
+                        <button
+                          type="button"
+                          onClick={() => openUserLocationOnMap(loc)}
+                          className="group w-full max-w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-cyan-400 hover:bg-cyan-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-1 sm:max-w-[260px]"
+                          title="Open Google Maps with this location marked"
+                        >
+                          <div className="flex gap-2">
+                            <MapPin
+                              className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600 group-hover:text-cyan-700"
+                              aria-hidden
+                            />
+                            <div className="min-w-0 flex-1">
+                              {loc.address ? (
+                                <div className="max-h-24 overflow-y-auto text-xs leading-snug text-slate-800">
+                                  {loc.address}
+                                </div>
+                              ) : (
+                                <div className="text-xs">
+                                  <span className="font-medium text-cyan-900">Saved coordinates</span>
+                                  <span className="mt-0.5 block font-mono text-[11px] text-slate-600">
+                                    {parseCoord(loc.latitude)?.toFixed(5)},{" "}
+                                    {parseCoord(loc.longitude)?.toFixed(5)}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wide text-cyan-600">
+                                Open map
+                              </span>
+                            </div>
+                          </div>
+                        </button>
                       ) : (
-                        <span className="text-xs text-slate-400">No address</span>
+                        <span className="text-xs text-slate-400">No location</span>
                       )}
                     </td>
 
                     {/* Created */}
-                    <td className="px-6 py-4 text-sm text-slate-600">
+                    <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
                       {formatDate(loc.created_at)}
                     </td>
 
                     {/* KYC */}
-                    <td className="px-6 py-4 text-xs font-medium text-slate-600 capitalize">
-                      {loc.kyc_status ?? "—"}
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${kycBadgeStyles(loc.kyc_status)}`}
+                      >
+                        {loc.kyc_status ?? "pending"}
+                      </span>
                     </td>
 
                     {/* Profit % */}
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {loc.profit_percentage ? `${loc.profit_percentage}%` : "-"}
+                    <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                      {loc.profit_percentage != null && loc.profit_percentage !== ""
+                        ? `${loc.profit_percentage}%`
+                        : "—"}
                     </td>
 
                     {/* Dollar Cut */}
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {loc.dollar_amount ? `$${loc.dollar_amount}` : "-"}
+                    <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                      {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
                     </td>
 
-                    {/* ACTION BUTTONS (Wallet & Edit side-by-side) */}
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button
+                    {/* Actions */}
+                    <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
+                      <div className="flex flex-col items-stretch justify-end gap-1.5 sm:flex-row sm:flex-wrap sm:justify-end">
+                        <Button
                           type="button"
-                          onClick={() => navigate(`/admin/user-profile/${loc.id}`)}
-                          className="px-3 py-2 flex items-center gap-1 bg-slate-50 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-100 transition"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 gap-1.5 border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50"
                           title="Profile & KYC"
+                          onClick={() => navigate(`/admin/user-profile/${loc.id}`)}
                         >
-                          <User size={16} />
+                          <User className="h-4 w-4" />
                           Profile
-                        </button>
-                        {/* WALLET BUTTON */}
-                        <button
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 gap-1.5 border-emerald-200 bg-emerald-50 font-semibold text-emerald-800 hover:bg-emerald-100"
+                          title="Manage wallet balance"
                           onClick={() => handleOpenWalletModal(loc)}
-                          className="px-3 py-2 flex items-center gap-1 bg-emerald-50 text-emerald-600 text-sm font-bold rounded-lg hover:bg-emerald-100 transition"
-                          title="Manage Wallet Balance"
                         >
-                          <Wallet size={16} />
+                          <Wallet className="h-4 w-4" />
                           Wallet
-                        </button>
-
-                        {/* EDIT BUTTON */}
-                        <button
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 gap-1.5 border-amber-200 bg-amber-50 font-semibold text-amber-900 hover:bg-amber-100"
                           onClick={() => {
-                            setSelectedUser(loc);   
-                            setIsModalOpen(true);   
+                            setSelectedUser(loc);
+                            setIsModalOpen(true);
                           }}
-                          className="px-3 py-2 bg-amber-50 text-amber-600 text-sm font-bold rounded-lg hover:bg-amber-100 transition"
                         >
+                          <Pencil className="h-4 w-4" />
                           Edit
-                        </button>
+                        </Button>
                       </div>
                     </td>
 
@@ -414,8 +561,7 @@ const AdminPage = () => {
           isLoading={isWalletLoading}
         />
 
-      </div>
-    </>
+    </div>
   );
 };
 

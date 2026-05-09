@@ -14,7 +14,7 @@ import PaymentPage from "./pages/PaymentPage";
 // User Pages
 import DashboardPage from "./pages/DashboardPage";
 import Transactions from "./pages/Transactions";
-import Recharge from "./pages/Recharge";
+import AdminRechargesPage from "./pages/AdminRechargesPage";
 
 // Admin Pages
 import Dashboard from "./pages/Dashboard";
@@ -37,8 +37,10 @@ import AdminReferralsPage from "./pages/AdminReferralsPage";
 import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
 import AdminRoute from "./components/admin/AdminRoute";
 import My_Profile from "./pages/userSIdebar/My_Profile";
+import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
 import AdminProfilePage from "./pages/AdminProfilePage";
 import AdminUserProfilePage from "./pages/AdminUserProfilePage";
+import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +77,7 @@ const App = () => (
               <Route path="transactions" element={<Transactionspage />} />
               <Route path="trade-history" element={<TradeHistory />} />
               <Route path="recharge" element={<RechargePage />} />
+              <Route path="withdraw" element={<WithdrawPage />} />
               <Route path="affiliate" element={<AffiliateProgramPage />} />
               <Route path="profile" element={<My_Profile />} />
 
@@ -96,10 +99,11 @@ const App = () => (
               <Route path="users" element={<AdminPage />} />
               <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />
-              <Route path="recharge" element={<Recharge />} />
+              <Route path="recharge" element={<AdminRechargesPage />} />
               <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />
               <Route path="referrals" element={<AdminReferralsPage />} />
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
+              <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
 
             </Route>
 

@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -6,83 +6,96 @@ import {
   TrendingUp,
   ArrowLeftRight,
   Wallet,
-  LogOut,
   Percent,
   Share2,
   ScrollText,
+  X,
+  ArrowDownToLine,
 } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import { cn } from "@/lib/utils";
 
-const AdminSidebar = () => {
-  const { setCurrentUser } = useApp();
-  const navigate = useNavigate();
+type AdminSidebarProps = {
+  mobileOpen: boolean;
+  onClose: () => void;
+};
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem("mt5_user");
-    localStorage.removeItem("mt5_packages");
-    navigate("/login");
-  };
-
+const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { name: "Profile", icon: User, path: "/admin/profile" },
     { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
     { name: "Users", icon: Users, path: "/admin/users" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
-    { name: "Recharge", icon: Wallet, path: "/admin/recharge" },
+    { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
+    { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
     { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
     { name: "Referrals", icon: Share2, path: "/admin/referrals" },
     { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
   ];
 
   return (
-    <div className="h-screen w-64 bg-white border-r border-slate-200 shadow-sm fixed left-0 top-0 p-5 flex flex-col justify-between">
+    <>
+      <button
+        type="button"
+        aria-label="Close menu"
+        className={cn(
+          "fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[1px] transition-opacity md:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        tabIndex={mobileOpen ? 0 : -1}
+        onClick={onClose}
+      />
 
-      {/* Top Section */}
-      <div>
-        {/* Logo */}
-        <div className="mb-10">
-          <h1 className="text-xl font-bold text-cyan-600">Admin Panel</h1>
-          <p className="text-xs text-slate-400">MT5 Control</p>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl transition-transform duration-300 ease-out sm:p-5 md:z-30 md:h-screen md:w-64 md:max-h-none md:translate-x-0 md:overflow-visible md:shadow-sm",
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        )}
+      >
+        <div className="relative min-h-0 flex-1">
+          <button
+            type="button"
+            className="absolute right-0 top-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+            aria-label="Close menu"
+            onClick={onClose}
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="mb-8 pr-10 md:pr-0">
+            <h1 className="font-sans text-lg font-bold text-cyan-600 sm:text-xl">Admin Panel</h1>
+          </div>
+
+          <nav className="flex flex-col gap-1 sm:gap-2" aria-label="Admin navigation">
+            {menu.map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={i}
+                  to={item.path}
+                  onClick={() => onClose()}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
+                      isActive
+                        ? "bg-cyan-50 text-cyan-600"
+                        : "text-slate-600 hover:bg-slate-100 active:bg-slate-100",
+                    )
+                  }
+                >
+                  <Icon size={18} className="shrink-0" />
+                  {item.name}
+                </NavLink>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Menu */}
-        <div className="flex flex-col gap-2">
-          {menu.map((item, i) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={i}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
-                  ${
-                    isActive
-                      ? "bg-cyan-50 text-cyan-600"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`
-                }
-              >
-                <Icon size={18} />
-                {item.name}
-              </NavLink>
-            );
-          })}
+        <div className="mt-6 shrink-0 pb-2 text-center text-[10px] text-slate-400 sm:text-xs">
+          © 2026 MT5 Panel
         </div>
-      </div>
-
-      {/* 🔥 Logout Button */}
-      <div>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };
 

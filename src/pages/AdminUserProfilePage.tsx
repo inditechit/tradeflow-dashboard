@@ -12,13 +12,19 @@ const AdminUserProfilePage = () => {
   }
 
   return (
-    <div className="p-6 md:p-10 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <Button type="button" variant="outline" size="sm" onClick={() => navigate("/admin/users")}>
-          <ArrowLeft className="h-4 w-4 mr-1" />
+    <div className="mx-auto max-w-5xl px-0 py-4 sm:px-2 md:px-6 md:py-10">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit touch-manipulation"
+          onClick={() => navigate("/admin/users")}
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
           Users
         </Button>
-        <h1 className="text-2xl font-bold text-slate-900">User profile & KYC</h1>
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">User profile & KYC</h1>
       </div>
       <ProfilePanel targetUserId={userId} showAdminExtras />
     </div>

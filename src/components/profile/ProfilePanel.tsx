@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, Upload, User, MapPin, Shield, Camera } from "lucide-react";
+import { Loader2, Save, User, MapPin, Shield, Camera, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 
@@ -28,15 +29,6 @@ export function proofImageSrc(raw: string | null | undefined): string | null {
   if (raw.length < 40) return null;
   if (raw.startsWith("data:")) return raw;
   return `data:image/jpeg;base64,${raw}`;
-}
-
-async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result ?? ""));
-    r.onerror = () => reject(new Error("read failed"));
-    r.readAsDataURL(file);
-  });
 }
 
 export type ProfilePanelProps = {
@@ -61,6 +53,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
     city: "",
     pincode: "",
     address: "",
+    trc20WithdrawAddress: "",
   });
 
   const load = useCallback(async () => {
@@ -83,6 +76,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         city: String(p.city ?? ""),
         pincode: String(p.pincode ?? ""),
         address: String(p.address ?? ""),
+        trc20WithdrawAddress: String(p.trc20WithdrawAddress ?? ""),
       });
     } catch {
       toast({ title: "Network error", variant: "destructive" });
@@ -101,7 +95,16 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       const res = await fetch(`${API_BASE}/user/profile/${targetUserId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          mobile: form.mobile,
+          country: form.country,
+          state: form.state,
+          city: form.city,
+          pincode: form.pincode,
+          address: form.address,
+          trc20_withdraw_address: form.trc20WithdrawAddress.trim(),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -119,9 +122,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
 
   const uploadDoc = async (
     field: "livePhotoBase64" | "idProofBase64" | "addressProofBase64",
-    file: File,
+    dataUrl: string,
   ) => {
-    const dataUrl = await fileToDataUrl(file);
     setSaving(true);
     try {
       const body: Record<string, string> = { [field]: dataUrl };
@@ -189,7 +191,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const kycStatus = String(profile.kycStatus ?? "pending");
 
   return (
-    <div className="font-sans space-y-8 max-w-4xl text-slate-800">
+    <div className="font-sans w-full min-w-0 max-w-4xl space-y-6 text-slate-800 sm:space-y-8">
       {/* Summary */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -355,6 +357,33 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             className={fieldInputClass}
           />
         </div>
+
+        <div className="mt-8 border-t border-slate-100 pt-8">
+          <h4 className="mb-2 flex items-center gap-2 font-sans text-base font-semibold text-slate-900">
+            <Wallet className="h-5 w-5 shrink-0 text-cyan-600" aria-hidden />
+            USDT TRC20 payout address
+          </h4>
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
+            Withdrawals are paid in <strong className="font-medium text-slate-800">USDT on the TRON network (TRC20)</strong>.
+            Enter the wallet address where you want to receive funds. Verify it carefully—wrong addresses cannot be reversed.
+          </p>
+          <div className="space-y-0">
+            <Label htmlFor="pf-trc20" className={fieldLabelClass}>
+              TRC20 address (starts with T…)
+            </Label>
+            <Input
+              id="pf-trc20"
+              placeholder="TXyz…"
+              autoComplete="off"
+              spellCheck={false}
+              value={form.trc20WithdrawAddress}
+              disabled={!canEdit}
+              onChange={(e) => setForm((f) => ({ ...f, trc20WithdrawAddress: e.target.value }))}
+              className={`${fieldInputClass} font-mono text-sm`}
+            />
+          </div>
+        </div>
+
         {canEdit && (
           <div className="mt-8 pt-2">
             <Button
@@ -379,32 +408,32 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
 
         <DocBlock
           title="Live photo"
-          subtitle="Captured at registration; you can replace it here."
+          subtitle="Take a selfie with your camera only — picking from the gallery is not allowed."
           src={liveSrc}
           canUpload={canEdit}
           disabled={saving}
-          inputId="live-photo"
-          onFile={(f) => uploadDoc("livePhotoBase64", f)}
+          facingMode="user"
+          onCaptured={(dataUrl) => uploadDoc("livePhotoBase64", dataUrl)}
         />
 
         <DocBlock
           title="ID proof"
-          subtitle="Government ID (image)."
+          subtitle="Photograph your government ID with the camera — gallery upload is not used."
           src={idSrc}
           canUpload={canEdit}
           disabled={saving}
-          inputId="id-proof"
-          onFile={(f) => uploadDoc("idProofBase64", f)}
+          facingMode="environment"
+          onCaptured={(dataUrl) => uploadDoc("idProofBase64", dataUrl)}
         />
 
         <DocBlock
           title="Address proof"
-          subtitle="Utility bill / bank statement (image)."
+          subtitle="Photograph your document with the camera — gallery upload is not used."
           src={addrSrc}
           canUpload={canEdit}
           disabled={saving}
-          inputId="addr-proof"
-          onFile={(f) => uploadDoc("addressProofBase64", f)}
+          facingMode="environment"
+          onCaptured={(dataUrl) => uploadDoc("addressProofBase64", dataUrl)}
         />
       </div>
     </div>
@@ -417,17 +446,19 @@ function DocBlock({
   src,
   canUpload,
   disabled,
-  inputId,
-  onFile,
+  facingMode,
+  onCaptured,
 }: {
   title: string;
   subtitle: string;
   src: string | null;
   canUpload: boolean;
   disabled: boolean;
-  inputId: string;
-  onFile: (f: File) => void;
+  facingMode: "user" | "environment";
+  onCaptured: (dataUrl: string) => void;
 }) {
+  const [cameraOpen, setCameraOpen] = useState(false);
+
   return (
     <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/60">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -436,31 +467,26 @@ function DocBlock({
           <p className="text-xs leading-relaxed text-slate-600">{subtitle}</p>
         </div>
         {canUpload && (
-          <div>
-            <input
-              id={inputId}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={disabled}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onFile(f);
-                e.target.value = "";
-              }}
-            />
+          <>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2 border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              className="gap-2 touch-manipulation border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
               disabled={disabled}
-              onClick={() => document.getElementById(inputId)?.click()}
+              onClick={() => setCameraOpen(true)}
             >
-              <Upload className="h-4 w-4" />
-              Upload / replace
+              <Camera className="h-4 w-4" />
+              {src ? "Replace (camera)" : "Take with camera"}
             </Button>
-          </div>
+            <LiveCameraCaptureDialog
+              open={cameraOpen}
+              onOpenChange={setCameraOpen}
+              facingMode={facingMode}
+              title={title}
+              onCaptured={onCaptured}
+            />
+          </>
         )}
       </div>
       <div className="rounded-lg overflow-hidden bg-slate-100 ring-1 ring-inset ring-slate-200/80 min-h-[160px] flex items-center justify-center">

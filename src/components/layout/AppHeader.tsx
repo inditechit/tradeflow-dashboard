@@ -1,0 +1,147 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { LogOut, User, Menu } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { proofImageSrc } from "@/components/profile/ProfilePanel";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const API_BASE = "https://mt5api.inditechit.com/api";
+
+function getInitials(name?: string, telegram?: string) {
+  const raw = (name || telegram || "?").trim();
+  if (!raw) return "?";
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return raw.slice(0, 2).toUpperCase();
+}
+
+type AppHeaderProps = {
+  variant: "user" | "admin";
+  /** Opens the mobile navigation drawer (shown as hamburger on &lt; md) */
+  onMenuClick?: () => void;
+};
+
+export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
+  const { currentUser, setCurrentUser } = useApp();
+  const navigate = useNavigate();
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser?.userId) {
+      setPhotoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/profile/${currentUser.userId}`);
+        const data = await res.json();
+        if (cancelled || !data.success || !data.profile) return;
+        setPhotoUrl(proofImageSrc(data.profile.livePhotoData as string));
+      } catch {
+        if (!cancelled) setPhotoUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.userId]);
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const profilePath = variant === "admin" ? "/admin/profile" : "/user/profile";
+  const displayName = currentUser.name?.trim() || currentUser.telegram || "Account";
+  const initials = getInitials(currentUser.name, currentUser.telegram);
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem("mt5_user");
+    localStorage.removeItem("mt5_packages");
+    navigate("/login");
+  };
+
+  return (
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur-md sm:gap-4 sm:px-4 md:px-8">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        {onMenuClick ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0 touch-manipulation md:hidden"
+            aria-label="Open navigation menu"
+            onClick={onMenuClick}
+          >
+            <Menu className="h-6 w-6 text-slate-700" />
+          </Button>
+        ) : null}
+        <div className="font-sans min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
+            {variant === "admin" ? "Admin" : "User"}
+          </p>
+          <p className="truncate text-xs font-semibold text-slate-800 sm:text-sm">
+            {variant === "admin" ? "Control center" : "Trading dashboard"}
+          </p>
+        </div>
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-10 touch-manipulation gap-1 rounded-full px-1.5 hover:bg-slate-100 sm:gap-2 sm:px-2"
+          >
+            <Avatar className="h-9 w-9 border border-slate-200 shadow-sm">
+              {photoUrl ? <AvatarImage src={photoUrl} alt="" className="object-cover" /> : null}
+              <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-600 text-sm font-bold text-white">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="hidden max-w-[160px] truncate text-sm font-medium text-slate-800 sm:inline">
+              {displayName}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 border-slate-200 bg-white p-1 shadow-lg">
+          <div className="px-2 py-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+            {currentUser.email ? (
+              <p className="truncate text-xs text-slate-500">{currentUser.email}</p>
+            ) : null}
+            {currentUser.telegram ? (
+              <p className="truncate text-xs text-cyan-700">@{currentUser.telegram}</p>
+            ) : null}
+          </div>
+          <DropdownMenuSeparator className="bg-slate-200" />
+          <DropdownMenuItem
+            className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+            onClick={() => navigate(profilePath)}
+          >
+            <User className="mr-2 h-4 w-4 text-slate-600" />
+            Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+  );
+}
