@@ -19,6 +19,8 @@ export interface UserData {
   createdAt?: string;
   depositMethod?: string;
   role?: "admin" | "user";
+  /** KYC / proofs — hydrated when loading profile */
+  kycStatus?: string;
 }
 
 export interface PurchasedPackage {

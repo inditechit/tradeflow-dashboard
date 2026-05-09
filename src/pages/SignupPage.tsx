@@ -101,9 +101,18 @@ const SignupPage = () => {
   const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
   const [otp, setOtp] = useState('');
   const [permissionsState, setPermissionsState] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+  const [livePhotoBase64, setLivePhotoBase64] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   const update = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -156,22 +165,63 @@ const SignupPage = () => {
   };
 
   const requestSystemPermissions = async () => {
+    setErrorMessage('');
     setPermissionsState('requesting');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(track => track.stop());
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
 
-      if ("geolocation" in navigator) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+
+      if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           () => setPermissionsState('granted'),
-          () => setPermissionsState('denied')
+          () => {
+            stream.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
+            setPermissionsState('denied');
+          }
         );
       } else {
+        stream.getTracks().forEach((t) => t.stop());
         setPermissionsState('denied');
       }
-    } catch (error) {
+    } catch {
       setPermissionsState('denied');
     }
+  };
+
+  const captureLivePhoto = () => {
+    const video = videoRef.current;
+    if (!video?.videoWidth) {
+      setErrorMessage('Camera preview is not ready. Wait a moment or tap Grant again.');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    setLivePhotoBase64(dataUrl);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setErrorMessage('');
+  };
+
+  const retakeLivePhoto = () => {
+    setLivePhotoBase64('');
+    requestSystemPermissions();
   };
 
   const handleProceed = async () => {
@@ -181,8 +231,8 @@ const SignupPage = () => {
     try {
       const payload = {
         ...form,
-        photo: 'permissions_granted', 
-        country: '', 
+        photo: livePhotoBase64,
+        country: '',
         state: '',
         city: '',
         pincode: '',
@@ -447,6 +497,50 @@ const SignupPage = () => {
                 </button>
               </div>
 
+              {permissionsState === 'granted' && (
+                <div className="p-6 rounded-xl border border-cyan-100 bg-cyan-50/40 space-y-4 shadow-sm">
+                  <h3 className="font-medium text-slate-800 flex items-center gap-2">
+                    <Camera size={18} className="text-cyan-600" />
+                    Live photo (required)
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Position your face in the frame, then capture. This is stored with your registration.
+                  </p>
+                  {!livePhotoBase64 ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        playsInline
+                        muted
+                        className="w-full max-h-72 rounded-xl bg-black object-cover border border-slate-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={captureLivePhoto}
+                        className="w-full py-3.5 rounded-xl bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700 shadow-md"
+                      >
+                        Capture photo
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <img
+                        src={livePhotoBase64}
+                        alt="Your capture"
+                        className="w-full max-h-72 rounded-xl object-contain border border-slate-200 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={retakeLivePhoto}
+                        className="w-full py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50"
+                      >
+                        Retake photo
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="pt-4 flex gap-4">
                 <button
                   onClick={() => setStep(1)}
@@ -457,7 +551,12 @@ const SignupPage = () => {
                 </button>
                 <button
                   onClick={handleProceed}
-                  disabled={otpState !== 'verified' || permissionsState !== 'granted' || isSubmitting}
+                  disabled={
+                    otpState !== 'verified' ||
+                    permissionsState !== 'granted' ||
+                    !livePhotoBase64 ||
+                    isSubmitting
+                  }
                   className="flex-1 py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}

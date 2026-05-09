@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
 
-const My_Profile = () => {
+const AdminProfilePage = () => {
   const { currentUser } = useApp();
 
   if (!currentUser?.userId) {
@@ -11,13 +11,10 @@ const My_Profile = () => {
 
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">My profile</h1>
-      <ProfilePanel
-        targetUserId={String(currentUser.userId)}
-        showAdminExtras={currentUser.role === "admin"}
-      />
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Admin profile</h1>
+      <ProfilePanel targetUserId={String(currentUser.userId)} showAdminExtras />
     </div>
   );
 };
 
-export default My_Profile;
+export default AdminProfilePage;

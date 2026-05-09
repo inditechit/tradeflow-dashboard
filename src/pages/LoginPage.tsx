@@ -117,7 +117,7 @@ const LoginPage = () => {
       if (data.success) {
         setCurrentUser((prev) => ({
           ...(prev || {}),
-          userId: data.userId,
+          userId: String(data.userId),
           telegram: data.telegram ?? prev?.telegram,
           name: data.name ?? prev?.name,
           email: data.email ?? prev?.email,

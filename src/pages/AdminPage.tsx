@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MapPin, ArrowLeft, RefreshCw, AlertTriangle, UserPlus, Wallet
+  MapPin, ArrowLeft, RefreshCw, AlertTriangle, UserPlus, Wallet, User,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from '@/context/AppContext'; // Imported from your context
@@ -277,6 +277,7 @@ const AdminPage = () => {
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Wallet</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Location</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Created</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500">KYC</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500">Profit %</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 text-nowrap">Dollar Cut</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 text-right">Action</th>
@@ -331,6 +332,11 @@ const AdminPage = () => {
                       {formatDate(loc.created_at)}
                     </td>
 
+                    {/* KYC */}
+                    <td className="px-6 py-4 text-xs font-medium text-slate-600 capitalize">
+                      {loc.kyc_status ?? "—"}
+                    </td>
+
                     {/* Profit % */}
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {loc.profit_percentage ? `${loc.profit_percentage}%` : "-"}
@@ -343,7 +349,16 @@ const AdminPage = () => {
 
                     {/* ACTION BUTTONS (Wallet & Edit side-by-side) */}
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/user-profile/${loc.id}`)}
+                          className="px-3 py-2 flex items-center gap-1 bg-slate-50 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-100 transition"
+                          title="Profile & KYC"
+                        >
+                          <User size={16} />
+                          Profile
+                        </button>
                         {/* WALLET BUTTON */}
                         <button
                           onClick={() => handleOpenWalletModal(loc)}

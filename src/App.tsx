@@ -37,6 +37,8 @@ import AdminReferralsPage from "./pages/AdminReferralsPage";
 import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
 import AdminRoute from "./components/admin/AdminRoute";
 import My_Profile from "./pages/userSIdebar/My_Profile";
+import AdminProfilePage from "./pages/AdminProfilePage";
+import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -89,8 +91,10 @@ const App = () => (
               <Route index element={<Navigate to="dashboard" replace />} />
 
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="profile" element={<AdminProfilePage />} />
               <Route path="open-trades" element={<OpenTrades />} />
               <Route path="users" element={<AdminPage />} />
+              <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<Recharge />} />
               <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />

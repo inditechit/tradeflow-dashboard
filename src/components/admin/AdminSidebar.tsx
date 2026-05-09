@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
+  User,
   TrendingUp,
   ArrowLeftRight,
   Wallet,
@@ -25,6 +26,7 @@ const AdminSidebar = () => {
 
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { name: "Profile", icon: User, path: "/admin/profile" },
     { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
     { name: "Users", icon: Users, path: "/admin/users" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
