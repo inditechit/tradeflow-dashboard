@@ -15,6 +15,14 @@ import {
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 
+/** Light fields — global theme uses dark `background`; profile cards are light paper. */
+const fieldInputClass =
+  "mt-2 h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 " +
+  "focus-visible:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-500/20 " +
+  "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600 disabled:opacity-100";
+
+const fieldLabelClass = "text-sm font-medium text-slate-700";
+
 export function proofImageSrc(raw: string | null | undefined): string | null {
   if (!raw || raw === "permissions_granted") return null;
   if (raw.length < 40) return null;
@@ -181,56 +189,68 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const kycStatus = String(profile.kycStatus ?? "pending");
 
   return (
-    <div className="space-y-10 max-w-4xl">
+    <div className="font-sans space-y-8 max-w-4xl text-slate-800">
       {/* Summary */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <User className="text-cyan-600" size={22} />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <h2 className="font-sans text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <User className="shrink-0 text-cyan-600" size={22} aria-hidden />
               Account
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              User ID <span className="font-mono font-semibold">{String(profile.id)}</span>
+            <p className="text-sm text-slate-600">
+              User ID <span className="font-mono font-semibold text-slate-800">{String(profile.id)}</span>
               {profile.telegram ? (
                 <>
                   {" "}
-                  · @{String(profile.telegram)}
+                  · <span className="text-cyan-700">@{String(profile.telegram)}</span>
                 </>
               ) : null}
             </p>
-            <p className="text-sm text-slate-600 mt-2">
-              <span className="text-slate-400">Email:</span> {String(profile.email ?? "—")}
+            <p className="text-sm text-slate-700">
+              <span className="font-medium text-slate-500">Email</span>
+              <span className="mx-2 text-slate-300">·</span>
+              {String(profile.email ?? "—")}
             </p>
-            <p className="text-sm text-slate-600">
-              <span className="text-slate-400">Joined:</span>{" "}
+            <p className="text-sm text-slate-700">
+              <span className="font-medium text-slate-500">Joined</span>
+              <span className="mx-2 text-slate-300">·</span>
               {profile.createdAt
                 ? new Date(String(profile.createdAt)).toLocaleString()
                 : "—"}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span
-              className={`text-xs font-semibold uppercase px-3 py-1 rounded-full ${
-                kycStatus === "verified"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : kycStatus === "submitted"
-                    ? "bg-amber-100 text-amber-800"
-                    : kycStatus === "rejected"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              KYC: {kycStatus}
-            </span>
+
+          <div className="flex w-full flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/90 p-4 lg:max-w-sm lg:shrink-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Verification</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex text-xs font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full ${
+                  kycStatus === "verified"
+                    ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80"
+                    : kycStatus === "submitted"
+                      ? "bg-amber-100 text-amber-900 ring-1 ring-amber-200/80"
+                      : kycStatus === "rejected"
+                        ? "bg-red-100 text-red-900 ring-1 ring-red-200/80"
+                        : "bg-white text-slate-700 ring-1 ring-slate-200"
+                }`}
+              >
+                KYC: {kycStatus}
+              </span>
+            </div>
             {showAdminExtras && isAdmin && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500">Set status</Label>
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                <Label htmlFor="kyc-status" className={`${fieldLabelClass} shrink-0`}>
+                  Set status
+                </Label>
                 <Select value={kycStatus} onValueChange={saveKycStatus} disabled={saving}>
-                  <SelectTrigger className="w-[160px] h-9">
+                  <SelectTrigger
+                    id="kyc-status"
+                    className="h-10 w-full border-slate-200 bg-white text-slate-900 shadow-sm sm:w-[200px]"
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-slate-200 bg-white">
                     <SelectItem value="pending">pending</SelectItem>
                     <SelectItem value="submitted">submitted</SelectItem>
                     <SelectItem value="verified">verified</SelectItem>
@@ -244,95 +264,116 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       </div>
 
       {/* Editable details */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-        <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-          <MapPin className="text-cyan-600" size={20} />
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 mb-6 flex items-center gap-2">
+          <MapPin className="shrink-0 text-cyan-600" size={20} aria-hidden />
           Contact & address
         </h3>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="pf-name">Full name</Label>
+        <div className="grid sm:grid-cols-2 gap-x-5 gap-y-6">
+          <div className="space-y-0">
+            <Label htmlFor="pf-name" className={fieldLabelClass}>
+              Full name
+            </Label>
             <Input
               id="pf-name"
               value={form.name}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
-          <div>
-            <Label htmlFor="pf-mobile">Mobile</Label>
+          <div className="space-y-0">
+            <Label htmlFor="pf-mobile" className={fieldLabelClass}>
+              Mobile
+            </Label>
             <Input
               id="pf-mobile"
               value={form.mobile}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
-          <div>
-            <Label htmlFor="pf-country">Country</Label>
+          <div className="space-y-0">
+            <Label htmlFor="pf-country" className={fieldLabelClass}>
+              Country
+            </Label>
             <Input
               id="pf-country"
               value={form.country}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
-          <div>
-            <Label htmlFor="pf-state">State / region</Label>
+          <div className="space-y-0">
+            <Label htmlFor="pf-state" className={fieldLabelClass}>
+              State / region
+            </Label>
             <Input
               id="pf-state"
               value={form.state}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
-          <div>
-            <Label htmlFor="pf-city">City</Label>
+          <div className="space-y-0">
+            <Label htmlFor="pf-city" className={fieldLabelClass}>
+              City
+            </Label>
             <Input
               id="pf-city"
               value={form.city}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
-          <div>
-            <Label htmlFor="pf-pin">Pincode</Label>
+          <div className="space-y-0">
+            <Label htmlFor="pf-pin" className={fieldLabelClass}>
+              Pincode
+            </Label>
             <Input
               id="pf-pin"
               value={form.pincode}
               disabled={!canEdit}
               onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value }))}
-              className="mt-1"
+              className={fieldInputClass}
             />
           </div>
         </div>
-        <div>
-          <Label htmlFor="pf-addr">Full address</Label>
+        <div className="mt-6 space-y-0">
+          <Label htmlFor="pf-addr" className={fieldLabelClass}>
+            Full address
+          </Label>
           <Input
             id="pf-addr"
             value={form.address}
             disabled={!canEdit}
             onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            className="mt-1"
+            className={fieldInputClass}
           />
         </div>
         {canEdit && (
-          <Button type="button" onClick={handleSaveDetails} disabled={saving} className="gap-2">
-            {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
-            Save details
-          </Button>
+          <div className="mt-8 pt-2">
+            <Button
+              type="button"
+              onClick={handleSaveDetails}
+              disabled={saving}
+              className="gap-2 bg-cyan-600 text-white hover:bg-cyan-700"
+            >
+              {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
+              Save details
+            </Button>
+          </div>
         )}
       </div>
 
       {/* KYC */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-        <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-          <Shield className="text-cyan-600" size={20} />
+        <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+          <Shield className="shrink-0 text-cyan-600" size={20} aria-hidden />
           Identity & proofs
         </h3>
 
@@ -388,11 +429,11 @@ function DocBlock({
   onFile: (f: File) => void;
 }) {
   return (
-    <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div>
-          <p className="font-medium text-slate-800">{title}</p>
-          <p className="text-xs text-slate-500">{subtitle}</p>
+    <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/60">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="space-y-1">
+          <p className="font-sans font-semibold text-slate-900">{title}</p>
+          <p className="text-xs leading-relaxed text-slate-600">{subtitle}</p>
         </div>
         {canUpload && (
           <div>
@@ -412,7 +453,7 @@ function DocBlock({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
               disabled={disabled}
               onClick={() => document.getElementById(inputId)?.click()}
             >
@@ -422,7 +463,7 @@ function DocBlock({
           </div>
         )}
       </div>
-      <div className="rounded-lg overflow-hidden bg-slate-200 min-h-[140px] flex items-center justify-center">
+      <div className="rounded-lg overflow-hidden bg-slate-100 ring-1 ring-inset ring-slate-200/80 min-h-[160px] flex items-center justify-center">
         {src ? (
           <img src={src} alt={title} className="max-h-64 w-full object-contain" />
         ) : (
