@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownToLine, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
 const MIN_WITHDRAW = 10;
@@ -34,6 +42,7 @@ const WithdrawPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -96,6 +105,7 @@ const WithdrawPage = () => {
       const data = await res.json();
       if (data.success) {
         toast({ title: "Saved", description: "Your trc20 payout address is saved." });
+        setAddressDialogOpen(false);
         await load();
       } else {
         toast({
@@ -123,9 +133,10 @@ const WithdrawPage = () => {
       return;
     }
     if (!payoutSaved) {
+      setAddressDialogOpen(true);
       toast({
         title: "Add payout address",
-        description: "Save your trc20 address below before submitting.",
+        description: "Enter your trc20 wallet address in the popup to continue.",
         variant: "destructive",
       });
       return;
@@ -177,7 +188,8 @@ const WithdrawPage = () => {
           Withdraw USDT (trc20)
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Enter how much you want to withdraw. If you haven&apos;t saved a trc20 wallet address yet, you&apos;ll be asked to add one before the request can be sent.
+          Enter how much you want to withdraw. If no trc20 address is saved, use{" "}
+          <strong className="font-medium text-slate-800">Add trc20 address</strong> or submit — a popup will ask for it.
         </p>
       </div>
 
@@ -211,53 +223,18 @@ const WithdrawPage = () => {
             />
           </div>
 
-          {/* 2) Address: only highlight when missing */}
           {!loading && !hasAddress && (
-            <div
-              role="region"
-              aria-label="Add trc20 payout address"
-              className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm"
-            >
-              <div className="flex gap-2 text-amber-950">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-                <div className="min-w-0 space-y-1">
-                  <p className="font-semibold text-amber-950">No trc20 payout address on file</p>
-                  <p className="text-sm leading-relaxed text-amber-900/90">
-                    Add your USDT trc20 wallet address below, or open your profile — we&apos;ll scroll you to the same field.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="wd-trc20" className="text-slate-800">
-                  trc20 address (starts with T…)
-                </Label>
-                <Input
-                  id="wd-trc20"
-                  placeholder="TXyz…"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={addressDraft}
-                  onChange={(e) => setAddressDraft(e.target.value)}
-                  className="font-mono text-sm border-slate-200 bg-white text-slate-900"
-                  disabled={savingAddress}
-                />
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  onClick={handleSaveAddress}
-                  disabled={savingAddress || !addressDraft.trim()}
-                  className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
-                >
-                  {savingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Save address
-                </Button>
-                <Button type="button" variant="outline" className="border-slate-300" asChild>
-                  <Link to="/user/profile#trc20-payout">Add in profile</Link>
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3">
+              <p className="text-sm text-amber-950">No trc20 payout address saved yet.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-amber-400 bg-white font-semibold text-amber-950 hover:bg-amber-100"
+                onClick={() => setAddressDialogOpen(true)}
+              >
+                Add trc20 address
+              </Button>
             </div>
           )}
 
@@ -277,17 +254,66 @@ const WithdrawPage = () => {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || submitting || !hasAddress || !amount}
+            disabled={loading || submitting || !amount}
             className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Submit withdrawal request
           </Button>
           {!hasAddress && !loading && (
-            <p className="text-xs text-slate-500">Submit stays disabled until a trc20 address is saved.</p>
+            <p className="text-xs text-slate-500">
+              Enter an amount and submit — if no address is saved, a popup will ask for your trc20 wallet.
+            </p>
           )}
         </div>
       </div>
+
+      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+        <DialogContent className="z-[100] max-w-md border-slate-200 bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Add trc20 payout address</DialogTitle>
+            <DialogDescription className="text-left text-slate-600">
+              USDT withdrawals go to this Tron (trc20) address. You can also edit it anytime in profile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label htmlFor="dlg-trc20" className="text-slate-800">
+              trc20 address (starts with T…)
+            </Label>
+            <Input
+              id="dlg-trc20"
+              placeholder="TXyz…"
+              autoComplete="off"
+              spellCheck={false}
+              value={addressDraft}
+              onChange={(e) => setAddressDraft(e.target.value)}
+              className="font-mono text-sm border-slate-200 bg-white text-slate-900"
+              disabled={savingAddress}
+            />
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button type="button" variant="outline" className="w-full border-slate-300 sm:w-auto" asChild>
+              <Link to="/user/profile#trc20-payout" onClick={() => setAddressDialogOpen(false)}>
+                Open in profile
+              </Link>
+            </Button>
+            <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+              <Button type="button" variant="ghost" onClick={() => setAddressDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={savingAddress || !addressDraft.trim()}
+                className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+                onClick={handleSaveAddress}
+              >
+                {savingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save address
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 font-sans text-lg font-semibold text-slate-900">Your requests</h2>
