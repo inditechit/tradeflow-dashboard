@@ -265,7 +265,7 @@ const AdminPage = () => {
               variant="secondary"
               onClick={fetchLocations}
               disabled={isLoading}
-              className="gap-2 rounded-xl bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-70"
+              className="gap-2 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
             >
               <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
               Refresh
@@ -305,14 +305,14 @@ const AdminPage = () => {
                 Successful top-ups to user wallets.
               </p>
             </div>
-            <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+            <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
                 Total in user wallets now
               </p>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-cyan-900">
+              <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
                 USD {totals.sum_wallet_balances_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className="mt-1 text-xs text-cyan-800/80">
+              <p className="mt-1 text-xs text-neutral-900/80">
                 Sum of current balances across all users.
               </p>
             </div>
@@ -361,7 +361,7 @@ const AdminPage = () => {
 
               <tbody>
                 {locations.map((loc, i) => (
-                  <tr key={i} className="border-b border-slate-100 transition hover:bg-cyan-50/40">
+                  <tr key={i} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
 
                     {/* Username */}
                     <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
@@ -372,7 +372,7 @@ const AdminPage = () => {
                     {/* Contact */}
                     <td className="align-top px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
                       <div className="text-slate-800">{loc.mobile}</div>
-                      <div className="text-xs text-cyan-700">@{loc.telegram}</div>
+                      <div className="text-xs text-neutral-800">@{loc.telegram}</div>
                     </td>
 
                     {/* Wallet balance */}
@@ -413,7 +413,7 @@ const AdminPage = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8 gap-1 px-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 hover:text-cyan-900"
+                          className="h-8 gap-1 px-2 text-xs font-semibold text-neutral-800 hover:bg-yellow-50 hover:text-neutral-900"
                           title="Open recharge history for this user"
                           onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
                         >
@@ -429,12 +429,12 @@ const AdminPage = () => {
                         <button
                           type="button"
                           onClick={() => openUserLocationOnMap(loc)}
-                          className="group w-full max-w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-cyan-400 hover:bg-cyan-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-1 sm:max-w-[260px]"
+                          className="group w-full max-w-full rounded-lg border border-yellow-300 bg-white px-3 py-2 text-left shadow-sm transition hover:border-yellow-400 hover:bg-yellow-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-1 sm:max-w-[260px]"
                           title="Open Google Maps with this location marked"
                         >
                           <div className="flex gap-2">
                             <MapPin
-                              className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600 group-hover:text-cyan-700"
+                              className="mt-0.5 h-4 w-4 shrink-0 text-neutral-900 group-hover:text-neutral-800"
                               aria-hidden
                             />
                             <div className="min-w-0 flex-1">
@@ -444,14 +444,14 @@ const AdminPage = () => {
                                 </div>
                               ) : (
                                 <div className="text-xs">
-                                  <span className="font-medium text-cyan-900">Saved coordinates</span>
+                                  <span className="font-medium text-neutral-900">Saved coordinates</span>
                                   <span className="mt-0.5 block font-mono text-[11px] text-slate-600">
                                     {parseCoord(loc.latitude)?.toFixed(5)},{" "}
                                     {parseCoord(loc.longitude)?.toFixed(5)}
                                   </span>
                                 </div>
                               )}
-                              <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wide text-cyan-600">
+                              <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wide text-neutral-900">
                                 Open map
                               </span>
                             </div>

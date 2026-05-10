@@ -71,7 +71,7 @@ const WalletModal: React.FC<Props> = ({
                 placeholder="0.00"
                 value={balance} 
                 onChange={(e) => setBalance(e.target.value)} 
-                className="w-full px-4 py-3 rounded-xl border text-black border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 transition-all outline-none" 
+                className="w-full px-4 py-3 rounded-xl border text-black border-slate-200 focus:border-neutral-900 focus:ring-2 focus:ring-yellow-200 transition-all outline-none" 
               />
               <p className="text-xs text-slate-400 mt-2">
                 Leave blank or enter 0 to reset balance to $0.00.

@@ -209,11 +209,11 @@ const confirmApprove = async () => {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-            <ArrowDownToLine className="h-8 w-8 shrink-0 text-cyan-600" aria-hidden />
+            <ArrowDownToLine className="h-8 w-8 shrink-0 text-neutral-900" aria-hidden />
             Withdrawal requests
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Approve to deduct the user&apos;s in-app balance, then pay USDT TRC20 to their address manually from your hot wallet.
+            Approve to deduct the user&apos;s in-app balance, then pay USDT (trc20) to their address manually from your hot wallet.
           </p>
         </div>
         <Button
@@ -221,7 +221,7 @@ const confirmApprove = async () => {
           variant="secondary"
           onClick={load}
           disabled={loading}
-          className="gap-2 shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-70"
+          className="gap-2 shrink-0 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -255,7 +255,7 @@ const confirmApprove = async () => {
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">ID</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">User</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Amount</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">TRC20 address</th>
+                <th className="px-4 py-3 text-xs font-bold tracking-wide text-slate-600 sm:px-6">trc20 address</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Status</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Created</th>
                 <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
@@ -266,7 +266,7 @@ const confirmApprove = async () => {
             <tbody>
               {!loading &&
                 rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 hover:bg-cyan-50/40">
+                  <tr key={r.id} className="border-b border-slate-100 hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm text-slate-700 sm:px-6">{r.id}</td>
                     <td className="px-4 py-3 sm:px-6">
                       <div className="font-semibold text-slate-900">{r.user_name ?? "—"}</div>
@@ -290,7 +290,7 @@ const confirmApprove = async () => {
                           href={`https://tronscan.org/#/transaction/${encodeURIComponent(r.outbound_tx_hash)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-1 block break-all font-mono text-[11px] text-cyan-700 underline"
+                          className="mt-1 block break-all font-mono text-[11px] text-neutral-800 underline"
                         >
                           Tx
                         </a>
@@ -339,7 +339,7 @@ const confirmApprove = async () => {
         </div>
         {loading && (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-9 w-9 animate-spin text-cyan-600" />
+            <Loader2 className="h-9 w-9 animate-spin text-neutral-900" />
           </div>
         )}
         {!loading && rows.length === 0 && (
@@ -351,20 +351,22 @@ const confirmApprove = async () => {
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-black">Approve withdrawal</DialogTitle>
-            <DialogDescription>
-              This deducts the amount from the user&apos;s in-app wallet.you sure you want to proceed?
+            <DialogDescription className="text-slate-600">
+              This deducts the amount from the user&apos;s in-app wallet. Then send USDT (trc20) from your treasury to their address. Optionally paste the outbound tx hash after you broadcast.
             </DialogDescription>
           </DialogHeader>
-          {/* <div className="space-y-2 py-2">
-            <Label htmlFor="ap-tx">Outbound tx hash (optional)</Label>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="ap-tx" className="text-slate-800">
+              Outbound tx hash (optional)
+            </Label>
             <Input
               id="ap-tx"
               value={approveTx}
               onChange={(e) => setApproveTx(e.target.value)}
               placeholder="Paste after sending on-chain"
-              className="font-mono text-sm"
+              className="border-slate-200 bg-white font-mono text-sm text-slate-900"
             />
-          </div> */}
+          </div>
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setApproveOpen(false)}>
               Cancel
@@ -415,7 +417,7 @@ const confirmApprove = async () => {
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-black">Add transaction id</DialogTitle>
-            <DialogDescription>For a completed payout, record the TRON transaction hash.</DialogDescription>
+            <DialogDescription>For a completed payout, record the Tron transaction hash.</DialogDescription>
           </DialogHeader>
           <Input
             value={txFixHash}

@@ -143,7 +143,7 @@ const Mytrades = () => {
           No wallet balance — trades are not assigned.{' '}
           <button
             type="button"
-            className="font-semibold text-cyan-700 underline"
+            className="font-semibold text-neutral-800 underline"
             onClick={() => navigate('/user/recharge')}
           >
             Add funds
@@ -163,7 +163,7 @@ const Mytrades = () => {
 
         <button
           onClick={fetchTrades}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -188,7 +188,7 @@ const Mytrades = () => {
 
         <button
           onClick={fetchTrades}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -200,7 +200,7 @@ const Mytrades = () => {
         <div className="min-h-[300px]">
           {loading && openTrades.length === 0 ? (
             <div className="p-10 text-center text-slate-500">
-              <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
+              <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
               Loading trades...
             </div>
           ) : openTrades.length === 0 ? (
@@ -227,7 +227,7 @@ const Mytrades = () => {
               return (
                 <div
                   key={trade.ticket || i}
-                  className="flex justify-between items-center px-6 py-5 border-b hover:bg-cyan-50/30 transition"
+                  className="flex justify-between items-center px-6 py-5 border-b hover:bg-yellow-50/50 transition"
                 >
                   {/* Left */}
                   <div>

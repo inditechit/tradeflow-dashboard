@@ -106,7 +106,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           >
             <Avatar className="h-9 w-9 border border-slate-200 shadow-sm">
               {photoUrl ? <AvatarImage src={photoUrl} alt="" className="object-cover" /> : null}
-              <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-600 text-sm font-bold text-white">
+              <AvatarFallback className="bg-gradient-to-br from-yellow-400 to-neutral-900 text-sm font-bold text-white">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -122,7 +122,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
               <p className="truncate text-xs text-slate-500">{currentUser.email}</p>
             ) : null}
             {currentUser.telegram ? (
-              <p className="truncate text-xs text-cyan-700">@{currentUser.telegram}</p>
+              <p className="truncate text-xs text-neutral-800">@{currentUser.telegram}</p>
             ) : null}
           </div>
           <DropdownMenuSeparator className="bg-slate-200" />

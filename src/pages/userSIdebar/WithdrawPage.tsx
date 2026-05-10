@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet, AlertCircle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,12 @@ const WithdrawPage = () => {
 
   const [balance, setBalance] = useState<number | null>(null);
   const [payoutSaved, setPayoutSaved] = useState("");
+  const [addressDraft, setAddressDraft] = useState("");
   const [amount, setAmount] = useState("");
   const [rows, setRows] = useState<WithdrawRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -50,7 +52,9 @@ const WithdrawPage = () => {
       }
       const pData = await pRes.json();
       if (pData.success && pData.profile) {
-        setPayoutSaved(String(pData.profile.trc20WithdrawAddress ?? "").trim());
+        const addr = String(pData.profile.trc20WithdrawAddress ?? "").trim();
+        setPayoutSaved(addr);
+        if (!addr) setAddressDraft("");
       } else {
         setPayoutSaved("");
       }
@@ -71,6 +75,42 @@ const WithdrawPage = () => {
     load();
   }, [load]);
 
+  const handleSaveAddress = async () => {
+    if (!userId) return;
+    const trimmed = addressDraft.trim();
+    if (!trimmed) {
+      toast({
+        title: "Address required",
+        description: "Enter your trc20 payout address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const res = await fetch(`${API_BASE}/user/profile/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trc20_withdraw_address: trimmed }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Saved", description: "Your trc20 payout address is saved." });
+        await load();
+      } else {
+        toast({
+          title: "Could not save",
+          description: data.error ?? "Check the address format.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!userId) return;
     const amt = Number(amount);
@@ -78,6 +118,14 @@ const WithdrawPage = () => {
       toast({
         title: "Invalid amount",
         description: `Minimum withdrawal is ${MIN_WITHDRAW} USD.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!payoutSaved) {
+      toast({
+        title: "Add payout address",
+        description: "Save your trc20 address below before submitting.",
         variant: "destructive",
       });
       return;
@@ -97,7 +145,7 @@ const WithdrawPage = () => {
       if (data.success) {
         toast({
           title: "Request submitted",
-          description: "An admin will review and pay USDT TRC20 to your saved address.",
+          description: "An admin will review and send USDT (trc20) to your saved address.",
         });
         setAmount("");
         load();
@@ -119,22 +167,24 @@ const WithdrawPage = () => {
     return null;
   }
 
+  const hasAddress = Boolean(payoutSaved);
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-0 py-4 sm:px-2 md:px-6 md:py-10">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl">
-          <ArrowDownToLine className="h-7 w-7 text-cyan-600" aria-hidden />
-          Withdraw USDT (TRC20)
+          <ArrowDownToLine className="h-7 w-7 text-neutral-900" aria-hidden />
+          Withdraw USDT (trc20)
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Request a withdrawal from your in-app USD wallet. After approval, we send <strong className="font-medium text-slate-800">USDT on TRC20</strong> to the address saved in your profile.
+          Enter how much you want to withdraw. If you haven&apos;t saved a trc20 wallet address yet, you&apos;ll be asked to add one before the request can be sent.
         </p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2 text-slate-700">
-            <Wallet className="h-5 w-5 text-cyan-600" />
+            <Wallet className="h-5 w-5 text-neutral-900" />
             <span className="text-sm font-medium">Wallet balance</span>
           </div>
           <p className="text-2xl font-bold tabular-nums text-slate-900">
@@ -142,24 +192,12 @@ const WithdrawPage = () => {
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium text-slate-700">Saved TRC20 address</p>
-            {payoutSaved ? (
-              <p className="mt-1 break-all font-mono text-sm text-slate-800">{payoutSaved}</p>
-            ) : (
-              <p className="mt-1 text-sm text-amber-800">
-                You have not saved a payout address yet.{" "}
-                <Link to="/user/profile" className="font-semibold text-cyan-700 underline">
-                  Add it in Profile
-                </Link>
-                .
-              </p>
-            )}
-          </div>
-
+        <div className="space-y-6">
+          {/* 1) Amount first */}
           <div className="space-y-2">
-            <Label htmlFor="wd-amt" className="text-black">Amount (USD)</Label>
+            <Label htmlFor="wd-amt" className="text-black">
+              Amount (USD)
+            </Label>
             <Input
               id="wd-amt"
               type="number"
@@ -169,19 +207,85 @@ const WithdrawPage = () => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="max-w-xs border-slate-200 bg-white text-slate-900"
-              disabled={loading || submitting || !payoutSaved}
+              disabled={loading || submitting}
             />
           </div>
+
+          {/* 2) Address: only highlight when missing */}
+          {!loading && !hasAddress && (
+            <div
+              role="region"
+              aria-label="Add trc20 payout address"
+              className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm"
+            >
+              <div className="flex gap-2 text-amber-950">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold text-amber-950">No trc20 payout address on file</p>
+                  <p className="text-sm leading-relaxed text-amber-900/90">
+                    Add your USDT trc20 wallet address below, or open your profile — we&apos;ll scroll you to the same field.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="wd-trc20" className="text-slate-800">
+                  trc20 address (starts with T…)
+                </Label>
+                <Input
+                  id="wd-trc20"
+                  placeholder="TXyz…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={addressDraft}
+                  onChange={(e) => setAddressDraft(e.target.value)}
+                  className="font-mono text-sm border-slate-200 bg-white text-slate-900"
+                  disabled={savingAddress}
+                />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={handleSaveAddress}
+                  disabled={savingAddress || !addressDraft.trim()}
+                  className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+                >
+                  {savingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Save address
+                </Button>
+                <Button type="button" variant="outline" className="border-slate-300" asChild>
+                  <Link to="/user/profile#trc20-payout">Add in profile</Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!loading && hasAddress && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saved trc20 address</p>
+              <p className="mt-1 break-all font-mono text-sm text-slate-900">{payoutSaved}</p>
+              <Link
+                to="/user/profile#trc20-payout"
+                className="mt-2 inline-block text-sm font-semibold text-neutral-900 underline"
+              >
+                Change in profile
+              </Link>
+            </div>
+          )}
 
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || submitting || !payoutSaved || !amount}
-            className="gap-2 bg-cyan-600 text-white hover:bg-cyan-700"
+            disabled={loading || submitting || !hasAddress || !amount}
+            className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Submit withdrawal request
           </Button>
+          {!hasAddress && !loading && (
+            <p className="text-xs text-slate-500">Submit stays disabled until a trc20 address is saved.</p>
+          )}
         </div>
       </div>
 
@@ -189,7 +293,7 @@ const WithdrawPage = () => {
         <h2 className="mb-4 font-sans text-lg font-semibold text-slate-900">Your requests</h2>
         {loading ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-neutral-900" />
           </div>
         ) : rows.length === 0 ? (
           <p className="text-sm text-slate-500">No withdrawal requests yet.</p>
@@ -234,7 +338,7 @@ const WithdrawPage = () => {
                           href={`https://tronscan.org/#/transaction/${encodeURIComponent(r.outbound_tx_hash)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="break-all font-mono text-xs text-cyan-700 underline"
+                          className="break-all font-mono text-xs text-neutral-800 underline"
                         >
                           {r.outbound_tx_hash}
                         </a>

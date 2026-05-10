@@ -72,12 +72,12 @@ const indexSymbols = [
 // Input Field (Kept outside to prevent focus loss)
 const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
   <div className="relative group w-full">
-    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-cyan-500 transition-colors">
+    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-800 transition-colors">
       <Icon size={18} />
     </div>
     <input
       type={type}
-      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all outline-none shadow-sm"
+      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
       placeholder={placeholder}
       value={value}
       onChange={onChange}
@@ -321,8 +321,8 @@ const SignupPage = () => {
 
       {/* Bullish Candle 2 */}
       <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-40">
-        <div className="w-1 h-full bg-cyan-400 mx-auto rounded-full" />
-        <div className="absolute top-[10%] w-full h-[60%] bg-cyan-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+        <div className="w-1 h-full bg-yellow-400 mx-auto rounded-full" />
+        <div className="absolute top-[10%] w-full h-[60%] bg-yellow-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
       </div>
 
       {/* Bearish Candle 2 */}
@@ -332,11 +332,11 @@ const SignupPage = () => {
       </div>
 
       {/* --- ORIGINAL FORM UNTOUCHED --- */}
-      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-cyan-900/10 overflow-hidden flex flex-col">
+      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-neutral-900/12 overflow-hidden flex flex-col">
 
         {/* Header Section */}
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
-          <div className="inline-flex items-center justify-center gap-3 mb-2 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+          <div className="inline-flex items-center justify-center gap-3 mb-2 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
             <Shield size={20} />
             <span className="font-semibold tracking-wide uppercase text-sm">DWG Secure Setup</span>
           </div>
@@ -344,9 +344,9 @@ const SignupPage = () => {
           <p className="text-slate-500 text-sm mt-2">Create your account and verify your device to get started</p>
 
           <div className="flex items-center justify-center mt-8 max-w-xs mx-auto">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-400'}`}>1</div>
-            <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-cyan-600' : 'bg-slate-100'}`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-400'}`}>2</div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-neutral-950 text-[#FFD700]' : 'bg-slate-100 text-slate-400'}`}>1</div>
+            <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-[#FFD700]' : 'bg-slate-100'}`}></div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-neutral-950 text-[#FFD700]' : 'bg-slate-100 text-slate-400'}`}>2</div>
           </div>
         </div>
 
@@ -362,7 +362,7 @@ const SignupPage = () => {
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <User size={22} className="text-cyan-500" /> Account Details
+                <User size={22} className="text-yellow-800" /> Account Details
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-5">
@@ -386,7 +386,7 @@ const SignupPage = () => {
                 <button
                   onClick={() => setStep(2)}
                   disabled={!isStep1Valid}
-                  className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   Continue to Verification <ArrowRight size={20} />
                 </button>
@@ -395,7 +395,7 @@ const SignupPage = () => {
                   Already have an account?{" "}
                   <span
                     onClick={() => navigate("/login")}
-                    className="text-cyan-600 font-semibold cursor-pointer hover:underline"
+                    className="text-neutral-900 font-semibold cursor-pointer hover:underline"
                   >
                     Login
                   </span>
@@ -407,7 +407,7 @@ const SignupPage = () => {
           {step === 2 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <Shield size={22} className="text-cyan-500" /> Verification
+                <Shield size={22} className="text-yellow-800" /> Verification
               </h2>
 
               <div className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4 shadow-sm">
@@ -419,7 +419,7 @@ const SignupPage = () => {
                   <button
                     onClick={handleGetOtp}
                     disabled={otpState === 'sending' || otpState === 'verified' || !form.email}
-                    className="px-6 py-3.5 rounded-xl bg-cyan-50 text-cyan-600 text-sm font-semibold hover:bg-cyan-100 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center justify-center gap-2 h-[50px] border border-cyan-100"
+                    className="px-6 py-3.5 rounded-xl bg-yellow-50 text-neutral-900 text-sm font-semibold hover:bg-yellow-100 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center justify-center gap-2 h-[50px] border border-yellow-200"
                   >
                     {otpState === 'sending' && <Loader2 className="animate-spin" size={18} />}
                     {otpState === 'sending' ? 'Sending...' : otpState === 'sent' ? 'Resend OTP' : otpState === 'verified' ? 'OTP Sent' : 'Get OTP'}
@@ -429,7 +429,7 @@ const SignupPage = () => {
                 {(otpState === 'sent' || otpState === 'verified') && (
                   <div className="flex flex-col sm:flex-row gap-3 items-center pt-2">
                     <input
-                      className="flex-1 w-full px-4 py-3.5 rounded-xl text-sm border border-slate-200 text-center tracking-widest font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none h-[50px]"
+                      className="flex-1 w-full px-4 py-3.5 rounded-xl text-sm border border-slate-200 text-center tracking-widest font-mono focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 outline-none h-[50px]"
                       placeholder="Enter 6-digit OTP"
                       value={otp}
                       onChange={e => setOtp(e.target.value)}
@@ -437,11 +437,11 @@ const SignupPage = () => {
                       style={{    color: 'black'}}
                     />
                     {otpState === 'verified' ? (
-                      <div className="w-full sm:w-auto px-6 h-[50px] rounded-xl bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center gap-2 font-medium">
+                      <div className="w-full sm:w-auto px-6 h-[50px] rounded-xl bg-yellow-50 text-neutral-900 border border-yellow-200 flex items-center justify-center gap-2 font-medium">
                         <CheckCircle size={18} /> Verified
                       </div>
                     ) : (
-                      <button onClick={handleVerifyOtp} className="w-full sm:w-auto px-8 h-[50px] rounded-xl bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700 shadow-md shadow-cyan-600/20 transition-all">
+                      <button onClick={handleVerifyOtp} className="w-full sm:w-auto px-8 h-[50px] rounded-xl bg-neutral-950 text-[#FFD700] text-sm font-bold hover:bg-black shadow-md shadow-black/20 transition-all">
                         Verify
                       </button>
                     )}
@@ -449,9 +449,9 @@ const SignupPage = () => {
                 )}
               </div>
 
-              <div className={`p-6 rounded-xl border transition-all duration-300 ${permissionsState === 'granted' ? 'border-teal-200 bg-teal-50/30' : 'border-slate-100 bg-slate-50/50 shadow-sm'}`}>
+              <div className={`p-6 rounded-xl border transition-all duration-300 ${permissionsState === 'granted' ? 'border-yellow-300 bg-yellow-50/60' : 'border-slate-100 bg-slate-50/50 shadow-sm'}`}>
                 <div className="flex items-start gap-4 mb-5">
-                  <div className={`p-3 rounded-full flex-shrink-0 ${permissionsState === 'granted' ? 'bg-teal-100 text-teal-600' : 'bg-cyan-100 text-cyan-600'}`}>
+                  <div className={`p-3 rounded-full flex-shrink-0 ${permissionsState === 'granted' ? 'bg-yellow-100 text-neutral-900' : 'bg-yellow-100 text-neutral-900'}`}>
                     {permissionsState === 'granted' ? <CheckCircle size={24} /> : <Shield size={24} />}
                   </div>
                   <div>
@@ -468,10 +468,10 @@ const SignupPage = () => {
                   disabled={permissionsState === 'requesting' || permissionsState === 'granted'}
                   className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
                     ${permissionsState === 'granted'
-                      ? 'bg-teal-100 text-teal-700 cursor-default'
+                      ? 'bg-yellow-100 text-neutral-900 cursor-default'
                       : permissionsState === 'denied'
                         ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                        : 'bg-white border border-cyan-200 text-cyan-700 hover:bg-cyan-50 shadow-sm'}`}
+                        : 'bg-white border border-yellow-300 text-neutral-800 hover:bg-yellow-50 shadow-sm'}`}
                 >
                   {permissionsState === 'requesting' && <Loader2 className="animate-spin" size={18} />}
                   {permissionsState === 'idle' && 'Grant Permissions'}
@@ -488,7 +488,7 @@ const SignupPage = () => {
                         href="/videos/video.mp4"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-cyan-600 font-semibold hover:underline"
+                        className="text-neutral-900 font-semibold hover:underline"
                       >
                         Watch How to Enable Permissions
                       </a>
@@ -498,9 +498,9 @@ const SignupPage = () => {
               </div>
 
               {permissionsState === 'granted' && (
-                <div className="p-6 rounded-xl border border-cyan-100 bg-cyan-50/40 space-y-4 shadow-sm">
+                <div className="p-6 rounded-xl border border-yellow-200 bg-yellow-50/40 space-y-4 shadow-sm">
                   <h3 className="font-medium text-slate-800 flex items-center gap-2">
-                    <Camera size={18} className="text-cyan-600" />
+                    <Camera size={18} className="text-neutral-900" />
                     Live photo (required)
                   </h3>
                   <p className="text-sm text-slate-500">
@@ -517,7 +517,7 @@ const SignupPage = () => {
                       <button
                         type="button"
                         onClick={captureLivePhoto}
-                        className="w-full py-3.5 rounded-xl bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700 shadow-md"
+                        className="w-full py-3.5 rounded-xl bg-neutral-950 text-[#FFD700] text-sm font-bold hover:bg-black shadow-md"
                       >
                         Capture photo
                       </button>
@@ -557,7 +557,7 @@ const SignupPage = () => {
                     !livePhotoBase64 ||
                     isSubmitting
                   }
-                  className="flex-1 py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
                   {isSubmitting ? 'Creating Account...' : 'Create Account'}

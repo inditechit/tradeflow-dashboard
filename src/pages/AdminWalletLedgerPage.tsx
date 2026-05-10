@@ -70,7 +70,7 @@ const AdminWalletLedgerPage = () => {
         <button
           type="button"
           onClick={load}
-          className="px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700"
+          className="px-4 py-2 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-semibold hover:bg-black"
         >
           Apply
         </button>
@@ -98,7 +98,7 @@ const AdminWalletLedgerPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="animate-spin text-cyan-600" size={36} />
+          <Loader2 className="animate-spin text-neutral-900" size={36} />
         </div>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">

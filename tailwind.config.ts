@@ -18,6 +18,12 @@ export default {
         body: ['Inter', 'sans-serif'],
       },
       colors: {
+        brand: {
+          yellow: "#FFD700",
+          yellowHi: "#FFE000",
+          ink: "#0a0a0a",
+          silver: "#C0C0C0",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -77,8 +83,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 15px rgba(77, 169, 167, 0.4)" },
-          "50%": { boxShadow: "0 0 25px rgba(77, 169, 167, 0.7)" },
+          "0%, 100%": { boxShadow: "0 0 15px rgba(255, 200, 0, 0.45)" },
+          "50%": { boxShadow: "0 0 28px rgba(255, 215, 0, 0.65)" },
         },
       },
       animation: {

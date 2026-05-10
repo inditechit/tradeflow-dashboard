@@ -36,7 +36,7 @@ const UserLayout = () => {
   }, [mobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen min-h-[100dvh] bg-slate-50">
+    <div className="flex min-h-screen min-h-[100dvh] bg-white/55 backdrop-blur-[2px]">
       <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:ml-64">

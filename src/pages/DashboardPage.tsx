@@ -301,9 +301,9 @@ const DashboardPage = () => {
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header Profile Card */}  
-        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-cyan-900/5 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-neutral-900/8 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-cyan-50 flex items-center justify-center border border-cyan-100 text-cyan-600">
+            <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center border border-yellow-200 text-neutral-900">
               <User size={32} />
             </div>
             <div>
@@ -328,7 +328,7 @@ const DashboardPage = () => {
             Your wallet has no funds. No trades are assigned until you add balance.{' '}
             <button
               type="button"
-              className="font-semibold text-cyan-700 underline decoration-cyan-600"
+              className="font-semibold text-neutral-800 underline decoration-neutral-900"
               onClick={() => navigate('/user/recharge')}
             >
               Recharge wallet
@@ -339,13 +339,13 @@ const DashboardPage = () => {
         {/* Wallet & profit share (user only) */}
         {currentUser?.role !== 'admin' && (
           <section className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <Wallet className="h-5 w-5 text-cyan-600" />
+                <Wallet className="h-5 w-5 text-neutral-900" />
                 <span className="text-xs font-bold uppercase tracking-wide">Wallet balance</span>
               </div>
               {loadingFinance && !wallet ? (
-                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : wallet ? (
                 <>
                   <p className="text-2xl font-extrabold tabular-nums text-slate-900">
@@ -362,13 +362,13 @@ const DashboardPage = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-cyan-900/5 md:col-span-1">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8 md:col-span-1">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
                 <span className="text-xs font-bold uppercase tracking-wide">Your share of Trade P/L</span>
               </div>
               {loadingFinance && tradesFeed.length === 0 ? (
-                <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : profitPct != null ? (
                 <>
                   <p className={`text-2xl font-extrabold tabular-nums ${
@@ -397,7 +397,7 @@ const DashboardPage = () => {
         {/* Market Analysis Section - High Impact Chart */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="text-cyan-600" size={24} />
+            <TrendingUp className="text-neutral-900" size={24} />
             <h2 className="text-xl font-bold text-slate-800">Market Analysis</h2>
           </div>
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-lg overflow-hidden">
@@ -411,7 +411,7 @@ const DashboardPage = () => {
             <h2 className="text-xl font-bold text-slate-800">Your Active Packages</h2>
             <button 
               onClick={() => navigate('/packages')}
-              className="text-cyan-600 text-sm font-bold hover:text-cyan-700 flex items-center gap-1"
+              className="text-neutral-900 text-sm font-bold hover:text-neutral-800 flex items-center gap-1"
             >
               <Plus size={16} /> Add New 
             </button>
@@ -419,7 +419,7 @@ const DashboardPage = () => {
 
           {isLoading ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-              <Loader2 className="animate-spin text-cyan-500 mb-4" size={32} />
+              <Loader2 className="animate-spin text-yellow-800 mb-4" size={32} />
               <p className="text-slate-500 font-medium">Loading your portfolio...</p>
             </div>
           ) : error ? (
@@ -435,7 +435,7 @@ const DashboardPage = () => {
               <p className="text-slate-500 mb-6 max-w-sm mx-auto">You haven't purchased any trading packages yet.</p>
               <button 
                 onClick={() => navigate('/packages')} 
-                className="px-8 py-3.5 bg-cyan-600 text-white rounded-xl font-bold shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 transition-all hover:-translate-y-0.5"
+                className="px-8 py-3.5 bg-neutral-950 text-[#FFD700] rounded-xl font-bold shadow-lg shadow-black/20 hover:bg-black transition-all hover:-translate-y-0.5"
               >
                 Browse Packages
               </button>
@@ -446,10 +446,10 @@ const DashboardPage = () => {
               .filter((txn) => txn.package_id !== "recharge") 
               .map((txn, i) => (
                 <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   
                   <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center border border-cyan-100">
+                    <div className="w-12 h-12 bg-yellow-50 text-neutral-900 rounded-xl flex items-center justify-center border border-yellow-200">
                       {getPackageIcon(txn.package_name)}
                     </div>
                     {txn.status === 'success' ? (

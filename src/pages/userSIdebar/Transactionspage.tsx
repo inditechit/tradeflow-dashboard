@@ -87,7 +87,7 @@ const UserTransactions = () => {
         <button
           onClick={fetchPayments}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -132,7 +132,7 @@ const UserTransactions = () => {
 
             <tbody>
               {!loading && payments.map((p) => (
-                <tr key={p.id} className="hover:bg-cyan-50/30 transition">
+                <tr key={p.id} className="hover:bg-yellow-50/50 transition">
 
                   {/* ID */}
                   <td className="px-6 py-4 font-bold text-slate-600">
@@ -155,7 +155,7 @@ const UserTransactions = () => {
                     {p.tx_hash && (
                       <button
                         onClick={() => navigator.clipboard.writeText(p.tx_hash)}
-                        className="text-cyan-600 hover:text-cyan-800 text-xs"
+                        className="text-neutral-900 hover:text-neutral-900 text-xs"
                         title="Copy full TXN"
                       >
                         Copy

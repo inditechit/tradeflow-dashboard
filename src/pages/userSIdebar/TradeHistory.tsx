@@ -90,7 +90,7 @@ const TradeHistory = () => {
           No wallet balance — trade history is hidden until you add funds.{' '}
           <button
             type="button"
-            className="font-semibold text-cyan-700 underline"
+            className="font-semibold text-neutral-800 underline"
             onClick={() => navigate('/user/recharge')}
           >
             Recharge wallet
@@ -111,7 +111,7 @@ const TradeHistory = () => {
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2 disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {loading ? "Refreshing..." : "Refresh"}
@@ -119,7 +119,7 @@ const TradeHistory = () => {
       </div>
 
       {/* TABLE CARD */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-cyan-900/5 border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             {/* HEADER */}
@@ -160,7 +160,7 @@ const TradeHistory = () => {
                     colSpan={8}
                     className="px-6 py-12 text-center text-slate-500"
                   >
-                    <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
+                    <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
                     Loading trades...
                   </td>
                 </tr>
@@ -194,7 +194,7 @@ const TradeHistory = () => {
                   return (
                     <tr
                       key={trade.ticket || index}
-                      className="hover:bg-cyan-50/30 transition-colors"
+                      className="hover:bg-yellow-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">
                         {trade.ticket}
@@ -204,7 +204,7 @@ const TradeHistory = () => {
                         {trade.account}
                       </td>
 
-                      <td className="px-6 py-4 text-sm font-semibold text-cyan-600">
+                      <td className="px-6 py-4 text-sm font-semibold text-neutral-900">
                         {trade.symbol}
                       </td>
 

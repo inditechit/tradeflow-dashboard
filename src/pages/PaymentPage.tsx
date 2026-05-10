@@ -241,7 +241,7 @@ const PaymentPage = () => {
           <p className="text-slate-500 text-base mb-8 leading-relaxed">Please choose a package from our catalog before proceeding to checkout.</p>
           <button
             onClick={() => navigate('/packages')}
-            className="w-full py-4 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 active:scale-[0.98]"
+            className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition-all shadow-lg shadow-black/20 active:scale-[0.98]"
           >
             Browse Packages
           </button>
@@ -262,14 +262,14 @@ const PaymentPage = () => {
           <div className="flex justify-between items-center mb-8 relative">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-100 rounded-full -z-10"></div>
             <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-cyan-500 rounded-full -z-10 transition-all duration-500"
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-yellow-500 rounded-full -z-10 transition-all duration-500"
               style={{ width: `${(currentStepIndex / (stepsList.length - 1)) * 100}%` }}
             ></div>
 
             {stepsList.map((s, i) => (
               <div key={s} className="flex flex-col items-center gap-2 bg-white px-2">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20' :
-                  i === currentStepIndex ? 'bg-white border-2 border-cyan-500 text-cyan-600 shadow-lg shadow-cyan-500/10' :
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/15' :
+                  i === currentStepIndex ? 'bg-white border-2 border-neutral-900 text-neutral-900 shadow-lg shadow-yellow-400/12' :
                     'bg-slate-100 text-slate-400'
                   }`}>
                   {i < currentStepIndex ? <Check size={20} strokeWidth={3} /> : i + 1}
@@ -308,7 +308,7 @@ const PaymentPage = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-                <div className="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600 shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-neutral-900 shrink-0">
                   <ShieldCheck size={24} />
                 </div>
                 <div>
@@ -322,7 +322,7 @@ const PaymentPage = () => {
                     </span>
                     . Once the transaction is successfully completed, it will be processed instantly.
                   </p>
-                  <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-cyan-400 pl-3">
+                  <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
                     By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset and fiat settlements, all processed transactions are final and strictly non-refundable.
                   </p>
                 </div>
@@ -331,7 +331,7 @@ const PaymentPage = () => {
               <button
                 onClick={handleCreatePayment}
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
+                className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/20 hover:bg-black hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
               >
                 {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : 'Proceed to Checkout'}
                 {!isSubmitting && <ArrowRight size={20} />}
@@ -354,7 +354,7 @@ const PaymentPage = () => {
                       disabled={isDisabled}
                       className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
         ${selectedMethod === method
-                          ? 'bg-white text-cyan-700 shadow-sm'
+                          ? 'bg-white text-neutral-800 shadow-sm'
                           : 'text-slate-500 hover:text-slate-700'}
         ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}
       `}
@@ -376,7 +376,7 @@ const PaymentPage = () => {
               {/* Show loader while switching methods to prevent crash */}
               {isSubmitting ? (
                 <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="animate-spin text-cyan-600 mb-4" size={40} />
+                  <Loader2 className="animate-spin text-neutral-900 mb-4" size={40} />
                   <p className="text-slate-500 font-medium">Fetching payment details...</p>
                 </div>
               ) : paymentData?.type === 'bank' ? (
@@ -438,7 +438,7 @@ const PaymentPage = () => {
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                       <div className="w-full truncate">
                         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
-                          {paymentData?.type === 'crypto' ? 'USDT (TRC20) Address' : 'UPI ID'}
+                          {paymentData?.type === 'crypto' ? 'USDT (trc20) address' : 'UPI ID'}
                         </p>
                         {/* THIS LINE IS FIXED: Added `?.wallet` and `?.upiId` to prevent crash */}
                         <p className="font-mono text-sm text-slate-800 truncate font-semibold">
@@ -456,13 +456,13 @@ const PaymentPage = () => {
                   </div>
 
                   {selectedMethod !== "INR" && (
-                    <div className="mt-8 flex flex-col items-center justify-center py-6 bg-cyan-50/50 rounded-2xl border border-cyan-100">
+                    <div className="mt-8 flex flex-col items-center justify-center py-6 bg-yellow-50/90 rounded-2xl border border-yellow-200">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-cyan-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
-                        <Loader2 className="animate-spin text-cyan-600 relative z-10 mb-3" size={36} />
+                        <div className="absolute inset-0 bg-yellow-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
+                        <Loader2 className="animate-spin text-neutral-900 relative z-10 mb-3" size={36} />
                       </div>
-                      <p className="text-base font-bold text-cyan-800">Awaiting Payment</p>
-                      <p className="text-sm text-cyan-600/80 mt-1">Please do not close this window. We will detect your payment automatically.</p>
+                      <p className="text-base font-bold text-neutral-900">Awaiting Payment</p>
+                      <p className="text-sm text-neutral-700 mt-1">Please do not close this window. We will detect your payment automatically.</p>
                     </div>
                   )}
                 </div>
@@ -476,8 +476,8 @@ const PaymentPage = () => {
                   </h3>
 
                   {!preview ? (
-                    <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-cyan-50">
-                      <Upload size={28} className="mb-2 text-cyan-600" />
+                    <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-yellow-50">
+                      <Upload size={28} className="mb-2 text-neutral-900" />
                       <p className="text-sm font-medium">Click to upload receipt</p>
                       <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                     </label>
@@ -496,7 +496,7 @@ const PaymentPage = () => {
                   <button
                     onClick={handleConfirmPayment}
                     disabled={!file || isSubmitting}
-                    className="w-full mt-4 py-3 bg-cyan-600 text-white font-bold rounded-xl disabled:opacity-50"
+                    className="w-full mt-4 py-3 bg-neutral-950 text-[#FFD700] font-bold rounded-xl disabled:opacity-50"
                   >
                     {isSubmitting ? "Processing..." : "Submit & Complete"}
                   </button>
@@ -520,7 +520,7 @@ const PaymentPage = () => {
               </div>
               <h2 className="text-3xl font-extrabold text-slate-800 mb-3">All Done!</h2>
               <p className="text-slate-500 text-lg mb-8 max-w-sm mx-auto">Your payment and receipt have been verified. Welcome aboard!</p>
-              <div className="flex items-center justify-center gap-3 text-cyan-600 font-semibold bg-cyan-50 w-max mx-auto px-6 py-3 rounded-full">
+              <div className="flex items-center justify-center gap-3 text-neutral-900 font-semibold bg-yellow-50 w-max mx-auto px-6 py-3 rounded-full">
                 <Loader2 className="animate-spin" size={20} />
                 Redirecting to dashboard...
               </div>

@@ -145,7 +145,7 @@ const AddUserModal: React.FC<Props> = ({
 
           <button
             onClick={handleSubmit}
-            className="px-5 py-2 rounded-lg bg-cyan-600 text-white font-bold hover:bg-cyan-700 shadow"
+            className="px-5 py-2 rounded-lg bg-neutral-950 text-[#FFD700] font-bold hover:bg-black shadow"
           >
             Add User
           </button>

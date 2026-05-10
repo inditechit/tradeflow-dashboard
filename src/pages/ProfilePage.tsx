@@ -144,7 +144,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Intersecting Line (Indices) */}
-      <div className="absolute z-0 w-[200%] h-[72px] top-[45%] -left-[30%] rotate-12 bg-white/30 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden shadow-sm shadow-cyan-900/5 pointer-events-none">
+      <div className="absolute z-0 w-[200%] h-[72px] top-[45%] -left-[30%] rotate-12 bg-white/30 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden shadow-sm shadow-neutral-900/8 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
         <div className="w-full opacity-70">
           <TradingViewTicker symbols={indexSymbols} />
@@ -167,8 +167,8 @@ const ProfilePage = () => {
 
       {/* Bullish Candle 2 */}
       <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-40">
-        <div className="w-1 h-full bg-cyan-400 mx-auto rounded-full" />
-        <div className="absolute top-[10%] w-full h-[60%] bg-cyan-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+        <div className="w-1 h-full bg-yellow-400 mx-auto rounded-full" />
+        <div className="absolute top-[10%] w-full h-[60%] bg-yellow-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
       </div>
 
       {/* Bearish Candle 2 */}
@@ -178,11 +178,11 @@ const ProfilePage = () => {
       </div>
 
       {/* --- ORIGINAL FORM UNTOUCHED --- */}
-      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-cyan-900/10 overflow-hidden flex flex-col">
+      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-neutral-900/12 overflow-hidden flex flex-col">
         
         {/* Header Section */}
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
-          <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+          <div className="inline-flex items-center justify-center gap-2 mb-3 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
             <Activity size={18} />
             <span className="font-semibold tracking-wide uppercase text-sm">Step 2 of 3</span>
           </div>
@@ -203,7 +203,7 @@ const ProfilePage = () => {
           {/* Question 1: Experience */}
           <div>
             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Activity className="text-cyan-500" size={20} />
+              <Activity className="text-yellow-800" size={20} />
               Trading Experience
             </h2>
             <p className="text-sm text-slate-500 mb-4">How many years have you been actively trading?</p>
@@ -217,12 +217,12 @@ const ProfilePage = () => {
                     onClick={() => updateUser({ experienceYears: opt })}
                     className={`relative p-4 rounded-xl border text-sm font-medium transition-all duration-200 flex flex-col items-center justify-center gap-2
                       ${isSelected 
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-700 shadow-sm shadow-cyan-500/10' 
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-200 hover:bg-slate-50'
+                        ? 'border-neutral-900 bg-yellow-50 text-neutral-800 shadow-sm shadow-yellow-400/12' 
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-yellow-300 hover:bg-slate-50'
                       }`}
                   >
                     {isSelected && (
-                      <div className="absolute top-2 right-2 text-cyan-500 animate-in zoom-in">
+                      <div className="absolute top-2 right-2 text-yellow-800 animate-in zoom-in">
                         <CheckCircle2 size={16} fill="currentColor" className="text-white" />
                       </div>
                     )}
@@ -238,7 +238,7 @@ const ProfilePage = () => {
           {/* Question 2: Deposit Method */}
           <div>
             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Wallet className="text-cyan-500" size={20} />
+              <Wallet className="text-yellow-800" size={20} />
               Preferred Funding
             </h2>
             <p className="text-sm text-slate-500 mb-4">What is your primary method of deposit?</p>
@@ -252,12 +252,12 @@ const ProfilePage = () => {
                     onClick={() => updateUser({ depositMethod: opt })}
                     className={`relative p-5 rounded-xl border transition-all duration-200 flex flex-col items-center justify-center gap-2
                       ${isSelected 
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-700 shadow-sm shadow-cyan-500/10' 
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-200 hover:bg-slate-50'
+                        ? 'border-neutral-900 bg-yellow-50 text-neutral-800 shadow-sm shadow-yellow-400/12' 
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-yellow-300 hover:bg-slate-50'
                       }`}
                   >
                     {isSelected && (
-                      <div className="absolute top-2 right-2 text-cyan-500 animate-in zoom-in">
+                      <div className="absolute top-2 right-2 text-yellow-800 animate-in zoom-in">
                         <CheckCircle2 size={18} fill="currentColor" className="text-white" />
                       </div>
                     )}
@@ -273,7 +273,7 @@ const ProfilePage = () => {
             <button
               onClick={handleSaveAndProceed}
               disabled={!experience || !deposit || isSubmitting}
-              className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
               {isSubmitting ? 'Saving Profile...' : 'View Packages'} 

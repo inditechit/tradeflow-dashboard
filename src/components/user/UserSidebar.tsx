@@ -85,10 +85,10 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
           </button>
 
           <div className="mb-6 pr-10 md:pr-0">
-            <h1 className="text-lg font-bold text-cyan-600 sm:text-xl">User Panel</h1>
+            <h1 className="text-lg font-bold text-neutral-900 sm:text-xl">User Panel</h1>
           </div>
 
-          <div className="mb-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 p-3 text-white shadow-lg sm:mb-8 sm:p-4">
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-yellow-400 to-neutral-900 p-3 text-white shadow-lg sm:mb-8 sm:p-4">
             <p className="text-xs opacity-80">My Fund</p>
 
             <h2 className="mt-1 text-lg font-bold tabular-nums sm:text-xl">
@@ -112,8 +112,8 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
                     cn(
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
                       isActive
-                        ? "bg-cyan-50 text-cyan-600"
-                        : "text-slate-600 hover:bg-slate-100 active:bg-slate-100",
+                        ? "bg-neutral-950 text-[#FFD700]"
+                        : "text-slate-600 hover:bg-yellow-50 active:bg-yellow-50",
                     )
                   }
                 >

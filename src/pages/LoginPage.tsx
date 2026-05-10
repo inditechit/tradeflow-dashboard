@@ -58,7 +58,7 @@ const forexSymbols = [
 
 const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
   <div className="relative group w-full">
-    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-cyan-500 transition-colors">
+    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-800 transition-colors">
       <Icon size={18} />
     </div>
 
@@ -67,7 +67,7 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all outline-none shadow-sm"
+      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
     />
   </div>
 );
@@ -166,8 +166,8 @@ const LoginPage = () => {
 
       {/* Bullish Candle 2 */}
       <div className="absolute z-20 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-70 pointer-events-none">
-        <div className="w-1 h-full bg-cyan-400 mx-auto rounded-full" /> {/* Wick */}
-        <div className="absolute top-[10%] w-full h-[60%] bg-cyan-400 rounded-sm shadow-[0_0_20px_rgba(34,211,238,0.4)]" /> {/* Body */}
+        <div className="w-1 h-full bg-yellow-400 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[10%] w-full h-[60%] bg-yellow-400 rounded-sm shadow-[0_0_20px_rgba(34,211,238,0.4)]" /> {/* Body */}
       </div>
 
       {/* Bearish Candle 2 */}
@@ -189,11 +189,11 @@ const LoginPage = () => {
 
       {/* Form Container - Centered */}
       <div className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-2xl shadow-cyan-900/10 overflow-hidden">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-2xl shadow-neutral-900/12 overflow-hidden">
 
           {/* Header */}
           <div className="text-center p-8 border-b border-slate-100 bg-white">
-            <div className="inline-flex items-center gap-3 mb-3 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+            <div className="inline-flex items-center gap-3 mb-3 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
               <Shield size={20} />
               <span className="text-sm font-semibold uppercase">
                 Secure Login
@@ -236,7 +236,7 @@ const LoginPage = () => {
             <button
               onClick={handleLogin}
               disabled={!isValid || isSubmitting}
-              className="w-full py-4 rounded-xl bg-cyan-600 text-white text-lg font-bold shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="animate-spin" size={20} />}
               {isSubmitting ? "Logging in..." : "Login"}
@@ -246,7 +246,7 @@ const LoginPage = () => {
               Don't have an account?{" "}
               <span
                 onClick={() => navigate("/signup")}
-                className="text-cyan-600 font-semibold cursor-pointer hover:underline"
+                className="text-neutral-900 font-semibold cursor-pointer hover:underline"
               >
                 Sign up
               </span>

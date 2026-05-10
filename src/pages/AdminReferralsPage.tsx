@@ -68,7 +68,7 @@ const AdminReferralsPage = () => {
   if (loading && rows.length === 0) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="animate-spin text-cyan-600" size={36} />
+        <Loader2 className="animate-spin text-neutral-900" size={36} />
       </div>
     );
   }
@@ -96,7 +96,7 @@ const AdminReferralsPage = () => {
                   onChange={(e) => setQ(e.target.value)}
                 />
               </div>
-              <button type="submit" className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-sm font-medium">
+              <button type="submit" className="px-3 py-1.5 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-medium">
                 Search
               </button>
             </form>
@@ -153,7 +153,7 @@ const AdminReferralsPage = () => {
                   <p className="font-medium text-slate-800 truncate">{t.telegram || t.name || `#${t.user_id}`}</p>
                   <p className="text-xs text-slate-500 truncate">{t.email}</p>
                 </div>
-                <span className="shrink-0 font-bold text-cyan-700">{t.direct_referrals}</span>
+                <span className="shrink-0 font-bold text-neutral-800">{t.direct_referrals}</span>
               </li>
             ))}
           </ol>

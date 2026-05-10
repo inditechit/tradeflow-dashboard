@@ -126,7 +126,7 @@ const OpenTrades = () => {
   };
 
   const inputCls =
-    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20";
+    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30";
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -148,7 +148,7 @@ const OpenTrades = () => {
         <button
           onClick={fetchTrades}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2 disabled:opacity-50"
         >
           <RefreshCw
             size={18}
@@ -271,7 +271,7 @@ const OpenTrades = () => {
       </div>
 
       {/* TABLE CARD */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-cyan-900/5 border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             {/* HEADER */}
@@ -315,7 +315,7 @@ const OpenTrades = () => {
               {loading ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
-                    <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
+                    <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
                     Loading trades...
                   </td>
                 </tr>
@@ -334,7 +334,7 @@ const OpenTrades = () => {
                   return (
                     <tr
                       key={`${trade.ticket}-${index}`}
-                      className="hover:bg-cyan-50/30 transition-colors"
+                      className="hover:bg-yellow-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">
                         {trade.ticket}
@@ -344,7 +344,7 @@ const OpenTrades = () => {
                         {trade.account}
                       </td>
 
-                      <td className="px-6 py-4 text-sm font-semibold text-cyan-600">
+                      <td className="px-6 py-4 text-sm font-semibold text-neutral-900">
                         {trade.symbol}
                       </td>
 

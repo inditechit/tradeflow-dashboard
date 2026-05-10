@@ -19,7 +19,7 @@ const API_BASE = "https://mt5api.inditechit.com/api";
 /** Light fields — global theme uses dark `background`; profile cards are light paper. */
 const fieldInputClass =
   "mt-2 h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 " +
-  "focus-visible:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-500/20 " +
+  "focus-visible:border-neutral-900 focus-visible:ring-2 focus-visible:ring-yellow-500/30 " +
   "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600 disabled:opacity-100";
 
 const fieldLabelClass = "text-sm font-medium text-slate-700";
@@ -88,6 +88,32 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Deep-link from withdraw flow: /user/profile#trc20-payout */
+  const scrollToTrc20 = useCallback(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash !== "trc20-payout") return;
+    window.setTimeout(() => {
+      document.getElementById("trc20-payout")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+  }, []);
+
+  useEffect(() => {
+    if (loading || !profile) return;
+    scrollToTrc20();
+  }, [loading, profile, scrollToTrc20]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (!profile) return;
+      scrollToTrc20();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [profile, scrollToTrc20]);
 
   const handleSaveDetails = async () => {
     setSaving(true);
@@ -197,7 +223,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">
             <h2 className="font-sans text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <User className="shrink-0 text-cyan-600" size={22} aria-hidden />
+              <User className="shrink-0 text-neutral-900" size={22} aria-hidden />
               Account
             </h2>
             <p className="text-sm text-slate-600">
@@ -205,7 +231,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               {profile.telegram ? (
                 <>
                   {" "}
-                  · <span className="text-cyan-700">@{String(profile.telegram)}</span>
+                  · <span className="text-neutral-800">@{String(profile.telegram)}</span>
                 </>
               ) : null}
             </p>
@@ -268,7 +294,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       {/* Editable details */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 mb-6 flex items-center gap-2">
-          <MapPin className="shrink-0 text-cyan-600" size={20} aria-hidden />
+          <MapPin className="shrink-0 text-neutral-900" size={20} aria-hidden />
           Contact & address
         </h3>
         <div className="grid sm:grid-cols-2 gap-x-5 gap-y-6">
@@ -358,18 +384,22 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           />
         </div>
 
-        <div className="mt-8 border-t border-slate-100 pt-8">
+        <div
+          id="trc20-payout"
+          className="scroll-mt-24 mt-8 border-t border-slate-100 pt-8"
+        >
           <h4 className="mb-2 flex items-center gap-2 font-sans text-base font-semibold text-slate-900">
-            <Wallet className="h-5 w-5 shrink-0 text-cyan-600" aria-hidden />
-            USDT TRC20 payout address
+            <Wallet className="h-5 w-5 shrink-0 text-neutral-900" aria-hidden />
+            USDT trc20 payout address
           </h4>
           <p className="mb-4 text-sm leading-relaxed text-slate-600">
-            Withdrawals are paid in <strong className="font-medium text-slate-800">USDT on the TRON network (TRC20)</strong>.
+            Withdrawals are paid in{" "}
+            <strong className="font-medium text-slate-800">USDT on the TRON network (trc20)</strong>.
             Enter the wallet address where you want to receive funds. Verify it carefully—wrong addresses cannot be reversed.
           </p>
           <div className="space-y-0">
             <Label htmlFor="pf-trc20" className={fieldLabelClass}>
-              TRC20 address (starts with T…)
+              trc20 address (starts with T…)
             </Label>
             <Input
               id="pf-trc20"
@@ -390,7 +420,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               type="button"
               onClick={handleSaveDetails}
               disabled={saving}
-              className="gap-2 bg-cyan-600 text-white hover:bg-cyan-700"
+              className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
             >
               {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
               Save details
@@ -402,7 +432,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       {/* KYC */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
         <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
-          <Shield className="shrink-0 text-cyan-600" size={20} aria-hidden />
+          <Shield className="shrink-0 text-neutral-900" size={20} aria-hidden />
           Identity & proofs
         </h3>
 

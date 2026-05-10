@@ -63,7 +63,7 @@ const AffiliateRulesAdminPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="animate-spin text-cyan-600" size={32} />
+        <Loader2 className="animate-spin text-neutral-900" size={32} />
       </div>
     );
   }
@@ -75,8 +75,8 @@ const AffiliateRulesAdminPage = () => {
         Set percentage <strong>per level</strong> (1 = direct upline … 4).{" "}
         <strong>Min / Max USD</strong> are optional brackets: they match the <em>gross</em> recharge amount (e.g. only pay these % if recharge is between min and max).
       </p>
-      <div className="mb-6 rounded-xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm text-slate-800">
-        <p className="font-semibold text-cyan-900 mb-1">How payouts are calculated</p>
+      <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-slate-800">
+        <p className="font-semibold text-neutral-900 mb-1">How payouts are calculated</p>
         <ul className="list-disc list-inside space-y-1 text-slate-700">
           <li>
             A flat <strong>10% platform fee</strong> is taken from each recharge first (configurable on server:{" "}
@@ -171,7 +171,7 @@ function RuleRow({
               is_active: active,
             })
           }
-          className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg bg-neutral-950 text-[#FFD700] text-xs font-semibold hover:bg-black disabled:opacity-50"
         >
           {saving ? "…" : "Save"}
         </button>

@@ -86,7 +86,7 @@ const AffiliateProgramPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         <div className="border rounded-xl p-5 shadow-sm flex items-start gap-3">
-          <Wallet className="text-cyan-600 shrink-0 mt-1" size={22} />
+          <Wallet className="text-neutral-900 shrink-0 mt-1" size={22} />
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Total earned</p>
             <p className="text-2xl font-bold">
@@ -95,7 +95,7 @@ const AffiliateProgramPage = () => {
           </div>
         </div>
         <div className="border rounded-xl p-5 shadow-sm flex items-start gap-3">
-          <Users className="text-cyan-600 shrink-0 mt-1" size={22} />
+          <Users className="text-neutral-900 shrink-0 mt-1" size={22} />
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Direct referrals</p>
             <p className="text-2xl font-bold">{summary ? summary.directReferrals : "—"}</p>
@@ -111,7 +111,7 @@ const AffiliateProgramPage = () => {
               type="button"
               onClick={copyLink}
               disabled={!referralUrl}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-cyan-600 text-white text-sm font-medium hover:bg-cyan-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-medium hover:bg-black disabled:opacity-50"
             >
               <Copy size={16} />
               {copied ? "Copied" : "Copy"}

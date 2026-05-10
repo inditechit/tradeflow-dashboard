@@ -218,7 +218,7 @@ const Dashboard = () => {
   const marginLevel = accountMetrics?.margin_level;
 
   const statCard = (icon, label, value, sub) => (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-cyan-900/5">
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-neutral-900/8">
       <div className="mb-3 flex items-center gap-2 text-slate-500">
         {icon}
         <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
@@ -271,7 +271,7 @@ const Dashboard = () => {
             fetchTrades();
             fetchAccountMetrics();
           }}
-          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2 disabled:opacity-60"
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
@@ -281,7 +281,7 @@ const Dashboard = () => {
 
       <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2 text-slate-600">
-          <CalendarRange className="h-5 w-5 shrink-0 text-cyan-600" />
+          <CalendarRange className="h-5 w-5 shrink-0 text-neutral-900" />
           <span className="text-sm font-semibold">Filter by date</span>
         </div>
         <div className="flex flex-col gap-1">
@@ -290,7 +290,7 @@ const Dashboard = () => {
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -299,7 +299,7 @@ const Dashboard = () => {
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
           />
         </div>
         {dateFilterActive && (
@@ -392,21 +392,21 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl shadow-cyan-900/5 border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
         <div className="p-4 border-b border-slate-100">
           <input
             type="text"
             placeholder="Search Symbol..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           />
         </div>
 
         <div className="min-h-[300px]">
           {loading && trades.length === 0 ? (
             <div className="p-10 text-center text-slate-500">
-              <RefreshCw className="animate-spin mx-auto mb-2 text-cyan-500" />
+              <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
               Loading data...
             </div>
           ) : filteredTrades.length === 0 ? (
@@ -419,7 +419,7 @@ const Dashboard = () => {
               return (
                 <div
                   key={trade.ticket || i}
-                  className="flex justify-between items-center px-6 py-4 border-b border-slate-100 hover:bg-cyan-50/30 transition"
+                  className="flex justify-between items-center px-6 py-4 border-b border-slate-100 hover:bg-yellow-50/50 transition"
                 >
                   <div>
                     <div className="font-bold text-slate-800">{trade.symbol}</div>

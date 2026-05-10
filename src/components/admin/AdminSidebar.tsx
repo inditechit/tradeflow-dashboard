@@ -63,7 +63,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
           </button>
 
           <div className="mb-8 pr-10 md:pr-0">
-            <h1 className="font-sans text-lg font-bold text-cyan-600 sm:text-xl">Admin Panel</h1>
+            <h1 className="font-sans text-lg font-bold text-neutral-900 sm:text-xl">Admin Panel</h1>
           </div>
 
           <nav className="flex flex-col gap-1 sm:gap-2" aria-label="Admin navigation">
@@ -78,8 +78,8 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                     cn(
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
                       isActive
-                        ? "bg-cyan-50 text-cyan-600"
-                        : "text-slate-600 hover:bg-slate-100 active:bg-slate-100",
+                        ? "bg-neutral-950 text-[#FFD700]"
+                        : "text-slate-600 hover:bg-yellow-50 active:bg-yellow-50",
                     )
                   }
                 >

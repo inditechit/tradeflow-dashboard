@@ -58,7 +58,7 @@ const PackagesPage = () => {
       
       {/* Header */}
       <div className="text-center mb-12 max-w-2xl">
-        <div className="inline-flex items-center justify-center gap-2 mb-4 px-4 py-2 rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+        <div className="inline-flex items-center justify-center gap-2 mb-4 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
           <Sparkles size={18} />
           <span className="font-semibold tracking-wide uppercase text-sm">Step 3 of 3</span>
         </div>
@@ -81,13 +81,13 @@ const PackagesPage = () => {
               key={pkg.id}
               className={`relative bg-white rounded-3xl p-8 transition-all duration-300 flex flex-col h-full
                 ${isPopular 
-                  ? 'border-2 border-cyan-500 shadow-xl shadow-cyan-900/10 lg:-translate-y-4' 
-                  : 'border border-slate-200 shadow-lg shadow-slate-200/50 hover:border-cyan-300 hover:-translate-y-2 hover:shadow-xl'
+                  ? 'border-2 border-neutral-900 shadow-xl shadow-neutral-900/12 lg:-translate-y-4' 
+                  : 'border border-slate-200 shadow-lg shadow-slate-200/50 hover:border-yellow-400 hover:-translate-y-2 hover:shadow-xl'
                 }`}
             >
               {/* "Most Popular" Badge */}
               {isPopular && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-cyan-500 to-teal-400 text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">
                   Most Popular
                 </div>
               )}
@@ -95,11 +95,11 @@ const PackagesPage = () => {
               {/* Card Header */}
               <div className="mb-6">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 
-                  ${isPopular ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/25' : 'bg-cyan-50 text-cyan-600'}`}
+                  ${isPopular ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/25' : 'bg-yellow-50 text-neutral-900'}`}
                 >
                   <Icon size={28} />
                 </div>
-                <div className="text-cyan-600 font-semibold text-sm mb-1">{pkg.duration}</div>
+                <div className="text-neutral-900 font-semibold text-sm mb-1">{pkg.duration}</div>
                 <h3 className="text-2xl font-bold text-slate-800 leading-tight">{pkg.name}</h3>
               </div>
 
@@ -130,8 +130,8 @@ const PackagesPage = () => {
                 onClick={() => handleSelect(pkg)}
                 className={`w-full py-4 rounded-xl text-base font-bold transition-all mt-auto
                   ${isPopular 
-                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/25 hover:bg-cyan-700 hover:-translate-y-0.5' 
-                    : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-600 hover:text-white'
+                    ? 'bg-neutral-950 text-[#FFD700] shadow-lg shadow-black/25 hover:bg-black hover:-translate-y-0.5' 
+                    : 'bg-yellow-50 text-neutral-800 hover:bg-neutral-950 hover:text-[#FFD700]'
                   }`}
               >
                 Select {pkg.name.split(' ')[0]}

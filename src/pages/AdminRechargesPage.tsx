@@ -149,7 +149,7 @@ const AdminRechargesPage = () => {
           variant="secondary"
           onClick={() => fetchPayments(activeFilter)}
           disabled={loading}
-          className="gap-2 shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-70"
+          className="gap-2 shrink-0 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -170,7 +170,7 @@ const AdminRechargesPage = () => {
               placeholder="e.g. 42"
               value={filterUserId}
               onChange={(e) => setFilterUserId(e.target.value)}
-              className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
             />
             <Button type="button" onClick={applyUserFilter} className="h-10 gap-1.5 bg-slate-800 text-white hover:bg-slate-900">
               <Filter className="h-4 w-4" />
@@ -187,7 +187,7 @@ const AdminRechargesPage = () => {
         {activeFilter !== null && (
           <Link
             to={`/admin/user-profile/${activeFilter}`}
-            className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-900 hover:bg-cyan-100"
+            className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
           >
             <Users className="h-4 w-4" />
             Open user profile
@@ -202,16 +202,16 @@ const AdminRechargesPage = () => {
             <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-900">{stats.success_count}</p>
             <p className="mt-1 text-xs text-emerald-800/90">Completed recharges in this view</p>
           </div>
-          <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Volume (success)</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-cyan-900">
+          <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">Volume (success)</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
               USD{" "}
               {stats.success_amount_usd.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
             </p>
-            <p className="mt-1 text-xs text-cyan-800/90">Sum of successful amounts</p>
+            <p className="mt-1 text-xs text-neutral-900/90">Sum of successful amounts</p>
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pending</p>
@@ -247,7 +247,7 @@ const AdminRechargesPage = () => {
             <tbody>
               {!loading &&
                 payments.map((p) => (
-                  <tr key={p.id} className="border-b border-slate-100 transition hover:bg-cyan-50/40">
+                  <tr key={p.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm font-semibold text-slate-700 sm:px-6 sm:py-4">{p.id}</td>
                     <td className="px-4 py-3 sm:px-6 sm:py-4">
                       <div className="font-semibold text-slate-900">{p.name ?? "—"}</div>
@@ -275,7 +275,7 @@ const AdminRechargesPage = () => {
         </div>
         {loading && (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-9 w-9 animate-spin text-cyan-600" />
+            <Loader2 className="h-9 w-9 animate-spin text-neutral-900" />
           </div>
         )}
         {!loading && payments.length === 0 && (
