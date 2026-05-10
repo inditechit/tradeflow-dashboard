@@ -87,7 +87,7 @@ const PackagesPage = () => {
             >
               {/* "Most Popular" Badge */}
               {isPopular && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#FFD700] text-black px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">
                   Most Popular
                 </div>
               )}
@@ -117,7 +117,7 @@ const PackagesPage = () => {
               <div className="flex-1 space-y-3 mb-8">
                 {pkg.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <div className="mt-0.5 bg-green-100 text-green-600 rounded-full p-0.5">
+                    <div className="mt-0.5 bg-[#FFF9E6] text-yellow-700 rounded-full p-0.5">
                       <Check size={14} strokeWidth={3} />
                     </div>
                     <span className="text-slate-600 text-sm">{feature}</span>
@@ -130,8 +130,8 @@ const PackagesPage = () => {
                 onClick={() => handleSelect(pkg)}
                 className={`w-full py-4 rounded-xl text-base font-bold transition-all mt-auto
                   ${isPopular 
-                    ? 'bg-neutral-950 text-[#FFD700] shadow-lg shadow-black/25 hover:bg-black hover:-translate-y-0.5' 
-                    : 'bg-yellow-50 text-neutral-800 hover:bg-neutral-950 hover:text-[#FFD700]'
+                    ? 'bg-[#FFD700] text-black shadow-lg shadow-black/25 hover:bg-[#E6C200] hover:-translate-y-0.5' 
+                    : 'bg-[#F2F2F2] text-neutral-900 hover:bg-[#E8E8E8]'
                   }`}
               >
                 Select {pkg.name.split(' ')[0]}

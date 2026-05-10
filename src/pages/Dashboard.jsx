@@ -232,21 +232,21 @@ const Dashboard = () => {
 
   const plColor =
   stats.floatingPl > 0
-    ? "text-green-600"
+    ? "text-yellow-700"
     : stats.floatingPl < 0
     ? "text-red-600"
     : "text-gray-500";
 
     const combinedColor =
   stats.combinedNet > 0
-    ? "text-green-600"
+    ? "text-yellow-700"
     : stats.combinedNet < 0
     ? "text-red-600"
     : "text-gray-500";
 
     const realizedColor =
   stats.realizedNet > 0
-    ? "text-green-600"
+    ? "text-yellow-700"
     : stats.realizedNet < 0
     ? "text-red-600"
     : "text-gray-500";
@@ -271,7 +271,7 @@ const Dashboard = () => {
             fetchTrades();
             fetchAccountMetrics();
           }}
-          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-60"
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
@@ -338,7 +338,7 @@ const Dashboard = () => {
           "Sum of profit on OPEN trades only (unrealized)."
         )}
         {statCard(
-          <TrendingUp className="h-4 w-4 text-green-500" />,
+          <TrendingUp className="h-4 w-4 text-yellow-600" />,
           "Realized profit (closed)",
           fmtMoney(stats.realizedProfit),
           "CLOSED trades with profit &gt; 0 only."
@@ -433,12 +433,12 @@ const Dashboard = () => {
                     <div
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold shadow-sm
     ${isProfit
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-[#FFF9E6] text-neutral-900"
                           : "bg-red-100 text-red-700"
                         }`}
                     >
                       <span
-                        className={`animate-pulse w-2 h-2 rounded-full ${isProfit ? "bg-green-500" : "bg-red-500"
+                        className={`animate-pulse w-2 h-2 rounded-full ${isProfit ? "bg-[#FFF9E6]0" : "bg-red-500"
                           }`}
                       ></span>
 

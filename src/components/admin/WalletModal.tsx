@@ -92,7 +92,7 @@ const WalletModal: React.FC<Props> = ({
           <button
             onClick={handleSubmit}
             disabled={isLoading}
-            className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow disabled:opacity-50"
+            className="px-5 py-2 rounded-lg bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] shadow disabled:opacity-50"
           >
             Save Balance
           </button>

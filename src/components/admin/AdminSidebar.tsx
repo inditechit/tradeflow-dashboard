@@ -48,7 +48,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl transition-transform duration-300 ease-out sm:p-5 md:z-30 md:h-screen md:w-64 md:max-h-none md:translate-x-0 md:overflow-visible md:shadow-sm",
+          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:translate-x-0 md:shadow-sm",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
@@ -78,8 +78,8 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                     cn(
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
                       isActive
-                        ? "bg-neutral-950 text-[#FFD700]"
-                        : "text-slate-600 hover:bg-yellow-50 active:bg-yellow-50",
+                        ? "bg-[#FFD700] text-black"
+                        : "text-slate-600 hover:bg-white/80 active:bg-white",
                     )
                   }
                 >

@@ -255,7 +255,7 @@ const WithdrawPage = () => {
             type="button"
             onClick={handleSubmit}
             disabled={loading || submitting || !amount}
-            className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+            className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Submit withdrawal request
@@ -304,7 +304,7 @@ const WithdrawPage = () => {
               <Button
                 type="button"
                 disabled={savingAddress || !addressDraft.trim()}
-                className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+                className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
                 onClick={handleSaveAddress}
               >
                 {savingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -347,7 +347,7 @@ const WithdrawPage = () => {
                       <span
                         className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${
                           r.status === "completed"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            ? "border-yellow-200 bg-[#FFF9E6] text-neutral-900"
                             : r.status === "pending"
                               ? "border-amber-200 bg-amber-50 text-amber-900"
                               : "border-red-200 bg-red-50 text-red-900"

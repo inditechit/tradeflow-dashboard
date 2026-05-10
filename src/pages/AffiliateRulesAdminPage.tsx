@@ -171,7 +171,7 @@ function RuleRow({
               is_active: active,
             })
           }
-          className="px-3 py-1.5 rounded-lg bg-neutral-950 text-[#FFD700] text-xs font-semibold hover:bg-black disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg bg-[#FFD700] text-black text-xs font-semibold hover:bg-[#E6C200] disabled:opacity-50"
         >
           {saving ? "…" : "Save"}
         </button>

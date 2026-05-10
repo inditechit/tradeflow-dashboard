@@ -154,8 +154,8 @@ const LoginPage = () => {
 
       {/* Bullish Candle 1 */}
       <div className="absolute z-20 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-80 pointer-events-none">
-        <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" /> {/* Wick */}
-        <div className="absolute top-[20%] w-full h-[50%] bg-emerald-400 rounded-sm shadow-[0_0_20px_rgba(52,211,153,0.4)]" /> {/* Body */}
+        <div className="w-1 h-full bg-[#FFD700] mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[20%] w-full h-[50%] bg-[#FFD700] rounded-sm shadow-[0_0_20px_rgba(255,215,0,0.4)]" /> {/* Body */}
       </div>
 
       {/* Bearish Candle 1 */}
@@ -236,7 +236,7 @@ const LoginPage = () => {
             <button
               onClick={handleLogin}
               disabled={!isValid || isSubmitting}
-              className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="animate-spin" size={20} />}
               {isSubmitting ? "Logging in..." : "Login"}

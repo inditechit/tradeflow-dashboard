@@ -163,7 +163,7 @@ const Mytrades = () => {
 
         <button
           onClick={fetchTrades}
-          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -177,7 +177,7 @@ const Mytrades = () => {
             📊 My Open Trades
             {/* 🔥 SUBTLE DEVELOPER CHECK: Green if connected, Red if disconnected */}
             <span 
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} 
+              className={`w-2 h-2 rounded-full ${isConnected ? "bg-[#FFF9E6]0" : "bg-red-500"}`} 
               title={isConnected ? "VM Connected" : "VM Disconnected"}
             />
           </h1>
@@ -188,7 +188,7 @@ const Mytrades = () => {
 
         <button
           onClick={fetchTrades}
-          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -254,13 +254,13 @@ const Mytrades = () => {
                       className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold
                       ${
                         isProfit
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-[#FFF9E6] text-neutral-900"
                           : "bg-red-100 text-red-700"
                       }`}
                     >
                      <span
                         className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${
-                          isProfit ? "bg-green-500" : "bg-red-500"
+                          isProfit ? "bg-[#FFF9E6]0" : "bg-red-500"
                         } ${!isConnected ? "opacity-40" : ""}`}
                       />
 

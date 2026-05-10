@@ -152,7 +152,7 @@ export function LiveCameraCaptureDialog({
           </Button>
           <Button
             type="button"
-            className="touch-manipulation gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+            className="touch-manipulation gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
             disabled={!!cameraError || starting || !videoReady}
             onClick={handleCapture}
           >

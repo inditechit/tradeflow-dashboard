@@ -364,7 +364,7 @@ const DashboardPage = () => {
 
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8 md:col-span-1">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <TrendingUp className="h-5 w-5 text-yellow-700" />
                 <span className="text-xs font-bold uppercase tracking-wide">Your share of Trade P/L</span>
               </div>
               {loadingFinance && tradesFeed.length === 0 ? (
@@ -373,7 +373,7 @@ const DashboardPage = () => {
                 <>
                   <p className={`text-2xl font-extrabold tabular-nums ${
                     yourShareSinceJoin >= 0 
-                      ? "text-green-600" 
+                      ? "text-yellow-700" 
                       : "text-red-600" 
                   }`}>
                     {yourShareSinceJoin > 0 ? "+" : ""}
@@ -435,7 +435,7 @@ const DashboardPage = () => {
               <p className="text-slate-500 mb-6 max-w-sm mx-auto">You haven't purchased any trading packages yet.</p>
               <button 
                 onClick={() => navigate('/packages')} 
-                className="px-8 py-3.5 bg-neutral-950 text-[#FFD700] rounded-xl font-bold shadow-lg shadow-black/20 hover:bg-black transition-all hover:-translate-y-0.5"
+                className="px-8 py-3.5 bg-[#FFD700] text-black rounded-xl font-bold shadow-lg shadow-black/20 hover:bg-[#E6C200] transition-all hover:-translate-y-0.5"
               >
                 Browse Packages
               </button>
@@ -446,14 +446,14 @@ const DashboardPage = () => {
               .filter((txn) => txn.package_id !== "recharge") 
               .map((txn, i) => (
                 <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute top-0 left-0 w-full h-1 bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 bg-yellow-50 text-neutral-900 rounded-xl flex items-center justify-center border border-yellow-200">
                       {getPackageIcon(txn.package_name)}
                     </div>
                     {txn.status === 'success' ? (
-                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200">
+                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-[#FFF9E6] text-yellow-700 border border-yellow-200">
                         <CheckCircle2 size={14} /> Active
                       </span>
                     ) : (

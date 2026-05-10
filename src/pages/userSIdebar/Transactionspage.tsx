@@ -64,7 +64,7 @@ const UserTransactions = () => {
       case "pending":
         return "bg-yellow-50 text-yellow-600 border-yellow-200";
       case "success":
-        return "bg-green-50 text-green-600 border-green-200";
+        return "bg-[#FFF9E6] text-yellow-700 border-yellow-200";
       case "failed":
         return "bg-red-50 text-red-600 border-red-200";
       default:
@@ -87,7 +87,7 @@ const UserTransactions = () => {
         <button
           onClick={fetchPayments}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -140,7 +140,7 @@ const UserTransactions = () => {
                   </td>
 
                   {/* Amount */}
-                  <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                  <td className="px-6 py-4 text-sm font-semibold text-yellow-700">
                     {p.payment_method === "INR"
                       ? `₹${parseFloat(p.amount).toFixed(0)}`
                       : `$${parseFloat(p.amount).toFixed(0)}`}

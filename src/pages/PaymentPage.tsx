@@ -241,7 +241,7 @@ const PaymentPage = () => {
           <p className="text-slate-500 text-base mb-8 leading-relaxed">Please choose a package from our catalog before proceeding to checkout.</p>
           <button
             onClick={() => navigate('/packages')}
-            className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition-all shadow-lg shadow-black/20 active:scale-[0.98]"
+            className="w-full py-4 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition-all shadow-lg shadow-black/20 active:scale-[0.98]"
           >
             Browse Packages
           </button>
@@ -331,7 +331,7 @@ const PaymentPage = () => {
               <button
                 onClick={handleCreatePayment}
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/20 hover:bg-black hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
+                className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/20 hover:bg-[#E6C200] hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
               >
                 {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : 'Proceed to Checkout'}
                 {!isSubmitting && <ArrowRight size={20} />}
@@ -430,7 +430,7 @@ const PaymentPage = () => {
                         onClick={handleCopyAmount}
                         className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
                       >
-                        {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+                        {copied ? <Check size={18} className="text-yellow-600" /> : <Copy size={18} />}
                         {copied ? "Copied" : "Copy Amount"}
                       </button>
                     </div>
@@ -449,7 +449,7 @@ const PaymentPage = () => {
                         onClick={handleCopyWallet}
                         className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors shadow-sm shrink-0"
                       >
-                        {copiedWallet ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+                        {copiedWallet ? <Check size={18} className="text-yellow-600" /> : <Copy size={18} />}
                         {copiedWallet ? "Copied" : "Copy Details"}
                       </button>
                     </div>
@@ -496,7 +496,7 @@ const PaymentPage = () => {
                   <button
                     onClick={handleConfirmPayment}
                     disabled={!file || isSubmitting}
-                    className="w-full mt-4 py-3 bg-neutral-950 text-[#FFD700] font-bold rounded-xl disabled:opacity-50"
+                    className="w-full mt-4 py-3 bg-[#FFD700] text-black font-bold rounded-xl disabled:opacity-50"
                   >
                     {isSubmitting ? "Processing..." : "Submit & Complete"}
                   </button>
@@ -513,9 +513,9 @@ const PaymentPage = () => {
           {step === 'success' && (
             <div className="py-12 text-center animate-in zoom-in-95 duration-500">
               <div className="relative w-32 h-32 mx-auto mb-8">
-                <div className="absolute inset-0 bg-green-200 rounded-full animate-ping opacity-50"></div>
-                <div className="relative w-full h-full bg-green-100 rounded-full flex items-center justify-center shadow-xl shadow-green-100/50 border-4 border-white">
-                  <CheckCircle className="text-green-500" size={64} strokeWidth={2.5} />
+                <div className="absolute inset-0 bg-yellow-100 rounded-full animate-ping opacity-50"></div>
+                <div className="relative w-full h-full bg-[#FFF9E6] rounded-full flex items-center justify-center shadow-xl shadow-yellow-100/40 border-4 border-white">
+                  <CheckCircle className="text-yellow-600" size={64} strokeWidth={2.5} />
                 </div>
               </div>
               <h2 className="text-3xl font-extrabold text-slate-800 mb-3">All Done!</h2>

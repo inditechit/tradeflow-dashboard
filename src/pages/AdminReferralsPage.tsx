@@ -96,7 +96,7 @@ const AdminReferralsPage = () => {
                   onChange={(e) => setQ(e.target.value)}
                 />
               </div>
-              <button type="submit" className="px-3 py-1.5 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-medium">
+              <button type="submit" className="px-3 py-1.5 rounded-lg bg-[#FFD700] text-black text-sm font-medium">
                 Search
               </button>
             </form>

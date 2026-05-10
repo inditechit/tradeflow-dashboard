@@ -70,7 +70,7 @@ const AdminWalletLedgerPage = () => {
         <button
           type="button"
           onClick={load}
-          className="px-4 py-2 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-semibold hover:bg-black"
+          className="px-4 py-2 rounded-lg bg-[#FFD700] text-black text-sm font-semibold hover:bg-[#E6C200]"
         >
           Apply
         </button>
@@ -124,7 +124,7 @@ const AdminWalletLedgerPage = () => {
                     <span className="font-mono text-xs">{r.user_id}</span>{" "}
                     <span className="text-slate-700">{r.user_telegram ?? ""}</span>
                   </td>
-                  <td className={`p-3 font-mono ${Number(r.delta_usd) >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                  <td className={`p-3 font-mono ${Number(r.delta_usd) >= 0 ? "text-yellow-800" : "text-red-600"}`}>
                     {Number(r.delta_usd) >= 0 ? "+" : ""}
                     {Number(r.delta_usd).toFixed(4)}
                   </td>

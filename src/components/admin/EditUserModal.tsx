@@ -163,7 +163,7 @@ const EditUserModal: React.FC<Props> = ({
 
           <button
             onClick={handleSubmit}
-            className="px-5 py-2 rounded-lg bg-neutral-950 text-[#FFD700] font-bold hover:bg-black shadow"
+            className="px-5 py-2 rounded-lg bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] shadow"
           >
             Update
           </button>

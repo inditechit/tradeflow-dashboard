@@ -309,8 +309,8 @@ const SignupPage = () => {
       
       {/* Bullish Candle 1 */}
       <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-50">
-        <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" />
-        <div className="absolute top-[20%] w-full h-[50%] bg-emerald-400 rounded-sm shadow-[0_0_15px_rgba(52,211,153,0.3)]" />
+        <div className="w-1 h-full bg-[#FFD700] mx-auto rounded-full" />
+        <div className="absolute top-[20%] w-full h-[50%] bg-[#FFD700] rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
       </div>
 
       {/* Bearish Candle 1 */}
@@ -344,9 +344,9 @@ const SignupPage = () => {
           <p className="text-slate-500 text-sm mt-2">Create your account and verify your device to get started</p>
 
           <div className="flex items-center justify-center mt-8 max-w-xs mx-auto">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-neutral-950 text-[#FFD700]' : 'bg-slate-100 text-slate-400'}`}>1</div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>1</div>
             <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-[#FFD700]' : 'bg-slate-100'}`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-neutral-950 text-[#FFD700]' : 'bg-slate-100 text-slate-400'}`}>2</div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>2</div>
           </div>
         </div>
 
@@ -386,7 +386,7 @@ const SignupPage = () => {
                 <button
                   onClick={() => setStep(2)}
                   disabled={!isStep1Valid}
-                  className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   Continue to Verification <ArrowRight size={20} />
                 </button>
@@ -441,7 +441,7 @@ const SignupPage = () => {
                         <CheckCircle size={18} /> Verified
                       </div>
                     ) : (
-                      <button onClick={handleVerifyOtp} className="w-full sm:w-auto px-8 h-[50px] rounded-xl bg-neutral-950 text-[#FFD700] text-sm font-bold hover:bg-black shadow-md shadow-black/20 transition-all">
+                      <button onClick={handleVerifyOtp} className="w-full sm:w-auto px-8 h-[50px] rounded-xl bg-[#FFD700] text-black text-sm font-bold hover:bg-[#E6C200] shadow-md shadow-black/20 transition-all">
                         Verify
                       </button>
                     )}
@@ -517,7 +517,7 @@ const SignupPage = () => {
                       <button
                         type="button"
                         onClick={captureLivePhoto}
-                        className="w-full py-3.5 rounded-xl bg-neutral-950 text-[#FFD700] text-sm font-bold hover:bg-black shadow-md"
+                        className="w-full py-3.5 rounded-xl bg-[#FFD700] text-black text-sm font-bold hover:bg-[#E6C200] shadow-md"
                       >
                         Capture photo
                       </button>
@@ -557,7 +557,7 @@ const SignupPage = () => {
                     !livePhotoBase64 ||
                     isSubmitting
                   }
-                  className="flex-1 py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
                   {isSubmitting ? 'Creating Account...' : 'Create Account'}

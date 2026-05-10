@@ -31,7 +31,7 @@ function statusPillClass(status: string) {
     case "pending":
       return "border-amber-200 bg-amber-50 text-amber-900";
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+      return "border-yellow-200 bg-[#FFF9E6] text-neutral-900";
     case "failed":
       return "border-red-200 bg-red-50 text-red-900";
     default:
@@ -149,7 +149,7 @@ const AdminRechargesPage = () => {
           variant="secondary"
           onClick={() => fetchPayments(activeFilter)}
           disabled={loading}
-          className="gap-2 shrink-0 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
+          className="gap-2 shrink-0 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -197,10 +197,10 @@ const AdminRechargesPage = () => {
 
       {stats && (
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Successful</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-900">{stats.success_count}</p>
-            <p className="mt-1 text-xs text-emerald-800/90">Completed recharges in this view</p>
+          <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">Successful</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">{stats.success_count}</p>
+            <p className="mt-1 text-xs text-neutral-800/90">Completed recharges in this view</p>
           </div>
           <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">Volume (success)</p>
@@ -254,7 +254,7 @@ const AdminRechargesPage = () => {
                       <div className="text-xs text-slate-500">User #{p.user_id}</div>
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">{p.email ?? "—"}</td>
-                    <td className="px-4 py-3 text-sm font-semibold tabular-nums text-emerald-700 sm:px-6 sm:py-4">
+                    <td className="px-4 py-3 text-sm font-semibold tabular-nums text-yellow-800 sm:px-6 sm:py-4">
                       ${Number(p.amount).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">{p.payment_method ?? "—"}</td>

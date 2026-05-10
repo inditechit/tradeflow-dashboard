@@ -167,7 +167,7 @@ const Recharge = () => {
                 Send exact amount. Do not round.
               </p>
 
-              <div className="mt-4 text-green-600 text-sm">
+              <div className="mt-4 text-yellow-700 text-sm">
                 Payment will be verified automatically or by admin.
               </div>
 
@@ -182,7 +182,7 @@ const Recharge = () => {
 
               {/* ✅ VERIFIED */}
               {paymentVerified && (
-                <div className="mt-3 text-green-600 font-semibold text-sm">
+                <div className="mt-3 text-yellow-700 font-semibold text-sm">
                   ✅ Payment Verified Successfully
                 </div>
               )}

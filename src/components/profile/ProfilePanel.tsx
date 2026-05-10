@@ -255,7 +255,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               <span
                 className={`inline-flex text-xs font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full ${
                   kycStatus === "verified"
-                    ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80"
+                    ? "bg-[#FFF9E6] text-neutral-900 ring-1 ring-yellow-200/80"
                     : kycStatus === "submitted"
                       ? "bg-amber-100 text-amber-900 ring-1 ring-amber-200/80"
                       : kycStatus === "rejected"
@@ -420,7 +420,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               type="button"
               onClick={handleSaveDetails}
               disabled={saving}
-              className="gap-2 bg-neutral-950 text-[#FFD700] hover:bg-black"
+              className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
             >
               {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
               Save details

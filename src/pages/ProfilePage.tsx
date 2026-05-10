@@ -155,8 +155,8 @@ const ProfilePage = () => {
       
       {/* Bullish Candle 1 */}
       <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-50">
-        <div className="w-1 h-full bg-emerald-400 mx-auto rounded-full" />
-        <div className="absolute top-[20%] w-full h-[50%] bg-emerald-400 rounded-sm shadow-[0_0_15px_rgba(52,211,153,0.3)]" />
+        <div className="w-1 h-full bg-[#FFD700] mx-auto rounded-full" />
+        <div className="absolute top-[20%] w-full h-[50%] bg-[#FFD700] rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
       </div>
 
       {/* Bearish Candle 1 */}
@@ -273,7 +273,7 @@ const ProfilePage = () => {
             <button
               onClick={handleSaveAndProceed}
               disabled={!experience || !deposit || isSubmitting}
-              className="w-full py-4 rounded-xl bg-neutral-950 text-[#FFD700] text-lg font-bold shadow-lg shadow-black/25 hover:bg-black hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
               {isSubmitting ? 'Saving Profile...' : 'View Packages'} 

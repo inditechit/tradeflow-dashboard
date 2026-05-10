@@ -111,7 +111,7 @@ const AffiliateProgramPage = () => {
               type="button"
               onClick={copyLink}
               disabled={!referralUrl}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-neutral-950 text-[#FFD700] text-sm font-medium hover:bg-black disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[#FFD700] text-black text-sm font-medium hover:bg-[#E6C200] disabled:opacity-50"
             >
               <Copy size={16} />
               {copied ? "Copied" : "Copy"}
@@ -151,7 +151,7 @@ const AffiliateProgramPage = () => {
                     <td className="p-3">{r.source_telegram || `#${r.source_user_id}`}</td>
                     <td className="p-3">{Number(r.recharge_amount_usd).toFixed(2)} USD</td>
                     <td className="p-3">{Number(r.percent_applied).toFixed(2)}%</td>
-                    <td className="p-3 font-medium text-emerald-700">
+                    <td className="p-3 font-medium text-yellow-800">
                       +{Number(r.commission_usd).toFixed(2)} USD
                     </td>
                   </tr>

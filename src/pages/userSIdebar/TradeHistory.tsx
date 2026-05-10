@@ -111,7 +111,7 @@ const TradeHistory = () => {
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-neutral-950 text-[#FFD700] font-bold hover:bg-black transition flex items-center gap-2 disabled:opacity-50"
+          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {loading ? "Refreshing..." : "Refresh"}
@@ -213,7 +213,7 @@ const TradeHistory = () => {
                         <span
                           className={`px-2 py-1 rounded text-xs font-bold ${
                             trade?.type === "ORDER_TYPE_BUY"
-                              ? "bg-green-50 text-green-600"
+                              ? "bg-[#FFF9E6] text-yellow-700"
                               : "bg-red-50 text-red-600"
                           }`}
                         >
@@ -232,7 +232,7 @@ const TradeHistory = () => {
                       {/* CALCULATED PROFIT */}
                       <td
                         className={`px-6 py-4 text-sm font-bold ${
-                          isProfit ? "text-green-600" : "text-red-600"
+                          isProfit ? "text-yellow-700" : "text-red-600"
                         }`}
                       >
                         {yourShare.toFixed(2)}
@@ -243,7 +243,7 @@ const TradeHistory = () => {
                           className={`px-3 py-1 rounded-full text-xs font-semibold
                             ${
                               trade.status === "OPEN"
-                                ? "bg-green-100 text-green-700"
+                                ? "bg-[#FFF9E6] text-neutral-900"
                                 : "bg-red-100 text-red-700"
                             }`}
                         >

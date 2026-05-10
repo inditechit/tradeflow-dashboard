@@ -40,7 +40,7 @@ type WithdrawalRow = {
 
 function statusClass(s: string) {
   const x = String(s).toLowerCase();
-  if (x === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  if (x === "completed") return "border-yellow-200 bg-[#FFF9E6] text-neutral-900";
   if (x === "pending") return "border-amber-200 bg-amber-50 text-amber-900";
   return "border-red-200 bg-red-50 text-red-900";
 }
@@ -221,7 +221,7 @@ const confirmApprove = async () => {
           variant="secondary"
           onClick={load}
           disabled={loading}
-          className="gap-2 shrink-0 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
+          className="gap-2 shrink-0 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -273,7 +273,7 @@ const confirmApprove = async () => {
                       <div className="text-xs text-slate-500">#{r.user_id}</div>
                       <div className="break-all text-xs text-slate-600">{r.user_email}</div>
                     </td>
-                    <td className="px-4 py-3 font-semibold tabular-nums text-emerald-800 sm:px-6">
+                    <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
                       ${Number(r.amount_usd).toFixed(2)}
                     </td>
                     <td className="max-w-[220px] px-4 py-3 sm:px-6">
@@ -306,7 +306,7 @@ const confirmApprove = async () => {
                             <Button
                               type="button"
                               size="sm"
-                              className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                              className="gap-1 bg-[#FFD700] text-black hover:bg-[#E6C200]"
                               onClick={() => openApprove(r.id)}
                             >
                               <Check className="h-4 w-4" />
@@ -373,7 +373,7 @@ const confirmApprove = async () => {
             </Button>
             <Button
               type="button"
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              className="bg-[#FFD700] text-black hover:bg-[#E6C200]"
               disabled={approveBusy}
               onClick={confirmApprove}
             >

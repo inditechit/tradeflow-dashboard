@@ -106,7 +106,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           >
             <Avatar className="h-9 w-9 border border-slate-200 shadow-sm">
               {photoUrl ? <AvatarImage src={photoUrl} alt="" className="object-cover" /> : null}
-              <AvatarFallback className="bg-gradient-to-br from-yellow-400 to-neutral-900 text-sm font-bold text-white">
+              <AvatarFallback className="bg-[#FFD700] text-sm font-bold text-black">
                 {initials}
               </AvatarFallback>
             </Avatar>

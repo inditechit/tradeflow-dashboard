@@ -20,7 +20,7 @@ const API_BASE = 'https://mt5api.inditechit.com/api';
 
 function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();
-  if (s === "verified") return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  if (s === "verified") return "border-yellow-200 bg-[#FFF9E6] text-neutral-900";
   if (s === "submitted") return "border-amber-200 bg-amber-50 text-amber-900";
   if (s === "rejected") return "border-red-200 bg-red-50 text-red-900";
   return "border-slate-200 bg-slate-50 text-slate-700";
@@ -265,7 +265,7 @@ const AdminPage = () => {
               variant="secondary"
               onClick={fetchLocations}
               disabled={isLoading}
-              className="gap-2 rounded-xl bg-neutral-950 text-[#FFD700] hover:bg-black disabled:opacity-70"
+              className="gap-2 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
             >
               <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
               Refresh
@@ -294,14 +294,14 @@ const AdminPage = () => {
                 All completed payment rows (recharges, packages, tours).
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+            <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">
                 Wallet recharges only
               </p>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-900">
+              <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
                 USD {totals.sum_successful_recharges_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className="mt-1 text-xs text-emerald-800/80">
+              <p className="mt-1 text-xs text-neutral-800/80">
                 Successful top-ups to user wallets.
               </p>
             </div>
@@ -396,7 +396,7 @@ const AdminPage = () => {
                           {Number(loc.recharge_success_count ?? 0)}×{" "}
                           <span className="font-normal text-slate-600">success</span>
                         </div>
-                        <div className="text-xs tabular-nums font-medium text-emerald-800">
+                        <div className="text-xs tabular-nums font-medium text-neutral-800">
                           USD{" "}
                           {Number(loc.recharge_total_usd ?? 0).toLocaleString("en-US", {
                             minimumFractionDigits: 2,
@@ -506,7 +506,7 @@ const AdminPage = () => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-9 gap-1.5 border-emerald-200 bg-emerald-50 font-semibold text-emerald-800 hover:bg-emerald-100"
+                          className="h-9 gap-1.5 border-yellow-200 bg-[#FFF9E6] font-semibold text-neutral-800 hover:bg-yellow-50"
                           title="Manage wallet balance"
                           onClick={() => handleOpenWalletModal(loc)}
                         >
