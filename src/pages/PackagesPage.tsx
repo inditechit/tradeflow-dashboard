@@ -54,11 +54,11 @@ const PackagesPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-12 bg-slate-50">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-12 bg-white">
       
       {/* Header */}
       <div className="text-center mb-12 max-w-2xl">
-        <div className="inline-flex items-center justify-center gap-2 mb-4 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
+        <div className="inline-flex items-center justify-center gap-2 mb-4 px-4 py-2 rounded-full bg-[#FFF9E6] text-neutral-900 border border-yellow-200/80">
           <Sparkles size={18} />
           <span className="font-semibold tracking-wide uppercase text-sm">Step 3 of 3</span>
         </div>
@@ -79,10 +79,10 @@ const PackagesPage = () => {
           return (
             <div
               key={pkg.id}
-              className={`relative bg-white rounded-3xl p-8 transition-all duration-300 flex flex-col h-full
+              className={`relative bg-white rounded-xl p-8 transition-all duration-300 flex flex-col h-full border
                 ${isPopular 
-                  ? 'border-2 border-neutral-900 shadow-xl shadow-neutral-900/12 lg:-translate-y-4' 
-                  : 'border border-slate-200 shadow-lg shadow-slate-200/50 hover:border-yellow-400 hover:-translate-y-2 hover:shadow-xl'
+                  ? 'border-2 border-[#FFD700] shadow-sm lg:-translate-y-2' 
+                  : 'border-slate-200 shadow-sm hover:border-slate-300 hover:-translate-y-1'
                 }`}
             >
               {/* "Most Popular" Badge */}
@@ -94,8 +94,8 @@ const PackagesPage = () => {
 
               {/* Card Header */}
               <div className="mb-6">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 
-                  ${isPopular ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/25' : 'bg-yellow-50 text-neutral-900'}`}
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-6 
+                  ${isPopular ? 'bg-[#FFD700] text-black shadow-sm' : 'bg-[#F2F2F2] text-neutral-900'}`}
                 >
                   <Icon size={28} />
                 </div>

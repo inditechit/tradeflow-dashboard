@@ -232,8 +232,8 @@ const PaymentPage = () => {
 
   if (!selectedPackage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-        <div className="bg-white rounded-3xl p-10 text-center shadow-2xl border border-slate-100 max-w-md w-full animate-in fade-in zoom-in duration-300">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white">
+        <div className="bg-white rounded-xl p-10 text-center shadow-sm border border-slate-200 max-w-md w-full animate-in fade-in zoom-in duration-300">
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
             <QrCode size={36} strokeWidth={1.5} />
           </div>
@@ -254,22 +254,22 @@ const PaymentPage = () => {
   const currentStepIndex = ['terms', 'pay', 'success'].indexOf(step);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50 font-sans">
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+    <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-white font-sans">
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
 
         {/* Header & Stepper */}
-        <div className="p-8 pb-6 border-b border-slate-100 bg-white">
+        <div className="p-8 pb-6 border-b border-slate-200 bg-white">
           <div className="flex justify-between items-center mb-8 relative">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-100 rounded-full -z-10"></div>
             <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-yellow-500 rounded-full -z-10 transition-all duration-500"
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-[#FFD700] rounded-full -z-10 transition-all duration-500"
               style={{ width: `${(currentStepIndex / (stepsList.length - 1)) * 100}%` }}
             ></div>
 
             {stepsList.map((s, i) => (
               <div key={s} className="flex flex-col items-center gap-2 bg-white px-2">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/15' :
-                  i === currentStepIndex ? 'bg-white border-2 border-neutral-900 text-neutral-900 shadow-lg shadow-yellow-400/12' :
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${i < currentStepIndex ? 'bg-[#FFD700] text-black shadow-sm' :
+                  i === currentStepIndex ? 'bg-white border-2 border-neutral-900 text-neutral-900 shadow-sm' :
                     'bg-slate-100 text-slate-400'
                   }`}>
                   {i < currentStepIndex ? <Check size={20} strokeWidth={3} /> : i + 1}
@@ -307,8 +307,8 @@ const PaymentPage = () => {
           {step === "terms" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
 
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-                <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-neutral-900 shrink-0">
+              <div className="bg-[#FFF9E6] border border-yellow-200/80 rounded-xl p-6 flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#FFD700] flex items-center justify-center text-black shrink-0">
                   <ShieldCheck size={24} />
                 </div>
                 <div>
@@ -342,7 +342,7 @@ const PaymentPage = () => {
           {/* STEP 2: PAYMENT */}
           {step === 'pay' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="flex gap-2 justify-center bg-slate-100 p-1.5 rounded-2xl w-max mx-auto">
+              <div className="flex gap-1 justify-center bg-[#F2F2F2] p-1 rounded-xl w-max mx-auto border border-slate-200/80">
                 {['USD', 'INR', 'AED'].map((method) => {
                   const isDisabled =
                     selectedPackage.id === 'intl-tour' && method === 'INR';
@@ -352,10 +352,10 @@ const PaymentPage = () => {
                       key={method}
                       onClick={() => !isDisabled && handleChangeMethod(method as any)}
                       disabled={isDisabled}
-                      className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
+                      className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300
         ${selectedMethod === method
-                          ? 'bg-white text-neutral-800 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700'}
+                          ? 'bg-[#FFD700] text-black shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'}
         ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}
       `}
                     >
@@ -380,17 +380,17 @@ const PaymentPage = () => {
                   <p className="text-slate-500 font-medium">Fetching payment details...</p>
                 </div>
               ) : paymentData?.type === 'bank' ? (
-                <div className="flex flex-col items-center justify-center p-12 bg-amber-50 border border-amber-200 rounded-3xl text-center">
-                  <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4">
+                <div className="flex flex-col items-center justify-center p-12 bg-[#FFF9E6] border border-yellow-200/80 rounded-xl text-center">
+                  <div className="w-16 h-16 bg-[#F2F2F2] text-neutral-800 rounded-full flex items-center justify-center mb-4 border border-slate-200">
                     <AlertTriangle size={32} />
                   </div>
-                  <p className="text-2xl font-bold text-amber-800 mb-2">AED Payment Coming Soon</p>
-                  <p className="text-amber-600/80">We are currently setting up our AED gateway.<br />Please switch to UPI or USDT for now.</p>
+                  <p className="text-2xl font-bold text-slate-800 mb-2">AED Payment Coming Soon</p>
+                  <p className="text-slate-600">We are currently setting up our AED gateway.<br />Please switch to UPI or USDT for now.</p>
                 </div>
               ) : paymentData ? (
-                <div className="border border-slate-200 rounded-3xl p-8 bg-white shadow-sm">
+                <div className="border border-slate-200 rounded-xl p-8 bg-white">
                   <div className="flex justify-center mb-8">
-                    <div className="bg-white p-4 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                       {paymentData?.type === 'crypto' && paymentData?.wallet && (
                         <QRCodeCanvas value={paymentData.wallet} size={220} className="rounded-xl" />
                       )}
@@ -400,7 +400,7 @@ const PaymentPage = () => {
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-6">
+                  <div className="bg-[#F9F9F9] rounded-xl p-6 border border-slate-200 space-y-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-200">
                       <div>
                         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Total to Pay</p>
@@ -456,13 +456,10 @@ const PaymentPage = () => {
                   </div>
 
                   {selectedMethod !== "INR" && (
-                    <div className="mt-8 flex flex-col items-center justify-center py-6 bg-yellow-50/90 rounded-2xl border border-yellow-200">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-yellow-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
-                        <Loader2 className="animate-spin text-neutral-900 relative z-10 mb-3" size={36} />
-                      </div>
+                    <div className="mt-8 flex flex-col items-center justify-center py-6 bg-[#FFF9E6] rounded-xl border border-yellow-200/80">
+                      <Loader2 className="animate-spin text-neutral-900 mb-3" size={36} />
                       <p className="text-base font-bold text-neutral-900">Awaiting Payment</p>
-                      <p className="text-sm text-neutral-700 mt-1">Please do not close this window. We will detect your payment automatically.</p>
+                      <p className="text-sm text-slate-600 mt-1 text-center px-2">Please do not close this window. We will detect your payment automatically.</p>
                     </div>
                   )}
                 </div>
@@ -476,7 +473,7 @@ const PaymentPage = () => {
                   </h3>
 
                   {!preview ? (
-                    <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-yellow-50">
+                    <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-[#F9F9F9] hover:bg-[#FFF9E6]">
                       <Upload size={28} className="mb-2 text-neutral-900" />
                       <p className="text-sm font-medium">Click to upload receipt</p>
                       <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
@@ -513,14 +510,13 @@ const PaymentPage = () => {
           {step === 'success' && (
             <div className="py-12 text-center animate-in zoom-in-95 duration-500">
               <div className="relative w-32 h-32 mx-auto mb-8">
-                <div className="absolute inset-0 bg-yellow-100 rounded-full animate-ping opacity-50"></div>
-                <div className="relative w-full h-full bg-[#FFF9E6] rounded-full flex items-center justify-center shadow-xl shadow-yellow-100/40 border-4 border-white">
-                  <CheckCircle className="text-yellow-600" size={64} strokeWidth={2.5} />
+                <div className="relative w-full h-full bg-[#FFF9E6] rounded-full flex items-center justify-center border-2 border-yellow-200/80 shadow-sm">
+                  <CheckCircle className="text-neutral-900" size={64} strokeWidth={2.5} />
                 </div>
               </div>
               <h2 className="text-3xl font-extrabold text-slate-800 mb-3">All Done!</h2>
               <p className="text-slate-500 text-lg mb-8 max-w-sm mx-auto">Your payment and receipt have been verified. Welcome aboard!</p>
-              <div className="flex items-center justify-center gap-3 text-neutral-900 font-semibold bg-yellow-50 w-max mx-auto px-6 py-3 rounded-full">
+              <div className="flex items-center justify-center gap-3 text-neutral-900 font-semibold bg-[#FFF9E6] border border-yellow-200/80 w-max mx-auto px-6 py-3 rounded-full">
                 <Loader2 className="animate-spin" size={20} />
                 Redirecting to dashboard...
               </div>

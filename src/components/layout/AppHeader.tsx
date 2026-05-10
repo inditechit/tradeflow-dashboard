@@ -35,6 +35,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const { currentUser, setCurrentUser } = useApp();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -57,6 +58,27 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
     };
   }, [currentUser?.userId]);
 
+  useEffect(() => {
+    if (variant !== "user" || !currentUser?.userId) {
+      setWallet(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/wallet/${currentUser.userId}`);
+        const data = await res.json();
+        if (cancelled || !data.success || !data.wallet) return;
+        setWallet(data.wallet);
+      } catch {
+        if (!cancelled) setWallet(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, currentUser?.userId]);
+
   if (!currentUser) {
     return null;
   }
@@ -72,8 +94,16 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
     navigate("/login");
   };
 
+  const walletLabel =
+    wallet != null
+      ? `${Number(wallet.balance).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} ${wallet.currency || "USD"}`
+      : null;
+
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur-md sm:gap-4 sm:px-4 md:px-8">
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200/90 bg-[#F9F9F9] px-3 sm:gap-4 sm:px-4 md:px-8">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         {onMenuClick ? (
           <Button
@@ -96,6 +126,17 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           </p>
         </div>
       </div>
+
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+        {variant === "user" && walletLabel ? (
+          <button
+            type="button"
+            onClick={() => navigate("/user/recharge")}
+            className="max-w-[10rem] truncate rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left text-[11px] font-semibold tabular-nums text-slate-900 shadow-sm transition-colors hover:bg-slate-50 sm:max-w-[11rem] sm:px-2.5 sm:text-xs md:max-w-none md:px-3"
+          >
+            {walletLabel}
+          </button>
+        ) : null}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -142,6 +183,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }
