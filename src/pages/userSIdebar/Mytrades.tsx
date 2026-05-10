@@ -20,6 +20,8 @@ const Mytrades = () => {
   const [allowedTickets, setAllowedTickets] = useState(new Set());
   const [assignFunded, setAssignFunded] = useState(true);
 
+  const [isConnected, setIsConnected] = useState(socket.connected);
+
   // 🔹 Fetch Assigned Tickets
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -72,6 +74,11 @@ const Mytrades = () => {
     fetchTrades();
     fetchProfitPercentage();
 
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
     socket.on("mt5data", (trade) => {
       setTrades((prev) => {
         const index = prev.findIndex(
@@ -113,6 +120,8 @@ const Mytrades = () => {
     });
 
     return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
       socket.off("mt5data");
       socket.off("mt5close");
       socket.off("mt5live");
@@ -142,10 +151,37 @@ const Mytrades = () => {
         </div>
       )}
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-black">📊 My Open Trades</h1>
           <p className="text-slate-500 text-sm">
+            Live profit & running trades
+          </p>
+        </div>
+
+        
+
+        <button
+          onClick={fetchTrades}
+          className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition flex items-center gap-2"
+        >
+          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+          Refresh
+        </button>
+      </div> */}
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-black flex items-center gap-3">
+            📊 My Open Trades
+            {/* 🔥 SUBTLE DEVELOPER CHECK: Green if connected, Red if disconnected */}
+            <span 
+              className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} 
+              title={isConnected ? "VM Connected" : "VM Disconnected"}
+            />
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
             Live profit & running trades
           </p>
         </div>
@@ -222,10 +258,10 @@ const Mytrades = () => {
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      <span
-                        className={`w-2 h-2 rounded-full animate-pulse ${
+                     <span
+                        className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${
                           isProfit ? "bg-green-500" : "bg-red-500"
-                        }`}
+                        } ${!isConnected ? "opacity-40" : ""}`}
                       />
 
                       {isProfit ? "+" : ""}

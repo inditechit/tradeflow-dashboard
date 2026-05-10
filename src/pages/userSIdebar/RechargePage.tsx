@@ -90,7 +90,7 @@ const Recharge = () => {
         <div className="border rounded-xl p-6 shadow-sm">
 
           <div className="mb-6">
-            <label className="block font-medium mb-2">
+            <label className="block text-black font-medium mb-2">
               Enter Amount (USD)
             </label>
             <input

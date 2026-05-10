@@ -127,10 +127,10 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           </div>
           <DropdownMenuSeparator className="bg-slate-200" />
           <DropdownMenuItem
-            className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+            className="cursor-pointer text-black focus:bg-slate-100 focus:text-slate-900"
             onClick={() => navigate(profilePath)}
           >
-            <User className="mr-2 h-4 w-4 text-slate-600" />
+            <User className="mr-2 h-4 w-4 text-black" />
             Profile
           </DropdownMenuItem>
           <DropdownMenuItem

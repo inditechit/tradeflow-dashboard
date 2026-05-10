@@ -159,7 +159,7 @@ const WithdrawPage = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wd-amt">Amount (USD)</Label>
+            <Label htmlFor="wd-amt" className="text-black">Amount (USD)</Label>
             <Input
               id="wd-amt"
               type="number"

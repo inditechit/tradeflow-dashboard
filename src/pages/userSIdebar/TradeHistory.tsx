@@ -178,18 +178,19 @@ const TradeHistory = () => {
                   const rawProfit = Number(trade.profit || 0);
                   const isProfit = rawProfit >= 0;
 
-                  // 🔥 EXACT ADMIN NUMBER FOR LOSS, PERCENTAGE CUT FOR PROFIT
-                  let yourShare = 0;
-                  if (profitPercentage != null) {
-                    if (isProfit) {
-                      yourShare = rawProfit * (profitPercentage / 100); // Admin takes a cut
-                    } else {
-                      yourShare = rawProfit; // User sees exact Admin loss
-                    }
-                  } else {
-                     yourShare = rawProfit; // Fallback if no percentage is set
+                 // Start with raw profit (automatically handles losses and fallbacks)
+                  let yourShare = rawProfit; 
+
+                  // 1. FIRST: Apply the Admin Profit Percentage cut (ONLY ON WINS)
+                  if (isProfit && profitPercentage != null && profitPercentage > 0) {
+                    yourShare = rawProfit * (profitPercentage / 100); 
                   }
 
+                  // 2. SECOND: Apply the static $30 per volume cut ONLY IF TRADE IS CLOSED
+                  if (String(trade.status).toUpperCase() === "CLOSED") {
+                    const adminVolumeCut = 30 * Number(trade.volume); 
+                    yourShare = yourShare - adminVolumeCut;
+                  }
                   return (
                     <tr
                       key={trade.ticket || index}

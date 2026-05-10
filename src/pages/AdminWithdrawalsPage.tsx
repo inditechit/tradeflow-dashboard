@@ -96,37 +96,43 @@ const AdminWithdrawalsPage = () => {
     setApproveTx("");
     setApproveOpen(true);
   };
+const confirmApprove = async () => {
+  if (approveId == null) return;
+  setApproveBusy(true);
 
-  const confirmApprove = async () => {
-    if (approveId == null) return;
-    setApproveBusy(true);
-    try {
-      const body: { outbound_tx_hash?: string } = {};
-      const t = approveTx.trim();
-      if (t) body.outbound_tx_hash = t.slice(0, 128);
-      const res = await fetch(`${API_BASE}/admin/withdrawals/${approveId}/approve`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+  try {
+    // 1. Notice the body is now empty {} 
+    // The backend will generate the tx hash itself
+    const res = await fetch(`${API_BASE}/admin/withdrawals/${approveId}/approve`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}), 
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast({
+        title: "Payout Successful",
+        // Show the actual TX Hash returned by the blockchain
+        description: `Funds sent! TX ID: ${data.txHash.slice(0, 12)}...`,
       });
-      const data = await res.json();
-      if (data.success) {
-        toast({
-          title: "Approved",
-          description:
-            "In-app balance was reduced. Send USDT TRC20 from your treasury to the user address shown.",
-        });
-        setApproveOpen(false);
-        load();
-      } else {
-        toast({ title: "Failed", description: data.error ?? "", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Network error", variant: "destructive" });
-    } finally {
-      setApproveBusy(false);
+      setApproveOpen(false);
+      load(); // Refresh the table
+    } else {
+      // If the Admin wallet is out of Energy or USDT, it shows the error here
+      toast({ 
+        title: "Payout Failed", 
+        description: data.error ?? "Blockchain error", 
+        variant: "destructive" 
+      });
     }
-  };
+  } catch (err) {
+    toast({ title: "Network error", variant: "destructive" });
+  } finally {
+    setApproveBusy(false);
+  }
+};
 
   const openReject = (id: number) => {
     setRejectId(id);
@@ -344,12 +350,12 @@ const AdminWithdrawalsPage = () => {
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Approve withdrawal</DialogTitle>
+            <DialogTitle className="text-black">Approve withdrawal</DialogTitle>
             <DialogDescription>
-              This deducts the amount from the user&apos;s in-app wallet. Optionally paste the outbound TRC20 transaction id after you send USDT from your treasury.
+              This deducts the amount from the user&apos;s in-app wallet.you sure you want to proceed?
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
+          {/* <div className="space-y-2 py-2">
             <Label htmlFor="ap-tx">Outbound tx hash (optional)</Label>
             <Input
               id="ap-tx"
@@ -358,7 +364,7 @@ const AdminWithdrawalsPage = () => {
               placeholder="Paste after sending on-chain"
               className="font-mono text-sm"
             />
-          </div>
+          </div> */}
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setApproveOpen(false)}>
               Cancel
@@ -379,14 +385,14 @@ const AdminWithdrawalsPage = () => {
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reject withdrawal</DialogTitle>
+            <DialogTitle className="text-black">Reject withdrawal</DialogTitle>
             <DialogDescription>The user will see this reason. Their balance is not changed.</DialogDescription>
           </DialogHeader>
           <Textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="Reason"
-            className="min-h-[100px] text-slate-900"
+            className="min-h-[100px]"
           />
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setRejectOpen(false)}>
@@ -408,7 +414,7 @@ const AdminWithdrawalsPage = () => {
       <Dialog open={txFixOpen} onOpenChange={setTxFixOpen}>
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add transaction id</DialogTitle>
+            <DialogTitle className="text-black">Add transaction id</DialogTitle>
             <DialogDescription>For a completed payout, record the TRON transaction hash.</DialogDescription>
           </DialogHeader>
           <Input
