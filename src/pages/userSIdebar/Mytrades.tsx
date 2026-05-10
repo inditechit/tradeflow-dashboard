@@ -16,11 +16,34 @@ const Mytrades = () => {
   const { currentUser } = useApp();
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [profitPercentage, setProfitPercentage] = useState<number | null>(null);
   const [allowedTickets, setAllowedTickets] = useState(new Set());
   const [assignFunded, setAssignFunded] = useState(true);
+  /** Per-ticket volume slice for proportional P/L: your lots / total lots */
+  const [shareMap, setShareMap] = useState<
+    Record<string, { v_i: number; V: number }>
+  >({});
 
   const [isConnected, setIsConnected] = useState(socket.connected);
+
+  const loadVolumeSlices = async () => {
+    if (!currentUser?.userId) return;
+    try {
+      const res = await fetch(`${API_BASE}/user/trades/${currentUser.userId}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.trades)) {
+        const m: Record<string, { v_i: number; V: number }> = {};
+        for (const t of data.trades) {
+          m[String(t.ticket_id)] = {
+            v_i: Number(t.allocated_volume || 0),
+            V: Number(t.mt5_volume || t.total_trade_volume || 0),
+          };
+        }
+        setShareMap(m);
+      }
+    } catch (err) {
+      console.error("user/trades:", err);
+    }
+  };
 
   // 🔹 Fetch Assigned Tickets
   useEffect(() => {
@@ -37,7 +60,7 @@ const Mytrades = () => {
       .catch((err) => console.error("Error fetching assigned tickets:", err));
   }, [currentUser?.userId]);
 
-  // 🔹 Fetch All Trades
+  // 🔹 Fetch All Trades (MT5 board — filtered to your tickets only)
   const fetchTrades = async () => {
     try {
       setLoading(true);
@@ -46,6 +69,7 @@ const Mytrades = () => {
       if (data.success) {
         setTrades(data.trades);
       }
+      await loadVolumeSlices();
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -53,26 +77,11 @@ const Mytrades = () => {
     }
   };
 
-  // 🔹 Fetch Profit Percentage
-  const fetchProfitPercentage = async () => {
-    if (!currentUser?.userId) return;
-    try {
-      const res = await fetch(`${API_BASE}/user/profit/${currentUser.userId}`);
-      const data = await res.json();
-
-      if (data.success && data.profit_percentage != null) {
-        setProfitPercentage(Number(data.profit_percentage));
-      }
-    } catch (err) {
-      console.error("Profit fetch error:", err);
-    }
-  };
-
   useEffect(() => {
     if (!currentUser?.userId) return;
 
     fetchTrades();
-    fetchProfitPercentage();
+    loadVolumeSlices();
 
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
@@ -93,6 +102,7 @@ const Mytrades = () => {
           return [trade, ...prev];
         }
       });
+      loadVolumeSlices();
     });
 
     socket.on("mt5close", (trade) => {
@@ -177,7 +187,7 @@ const Mytrades = () => {
             📊 My Open Trades
             {/* 🔥 SUBTLE DEVELOPER CHECK: Green if connected, Red if disconnected */}
             <span 
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-[#FFF9E6]0" : "bg-red-500"}`} 
+              className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-red-500"}`} 
               title={isConnected ? "VM Connected" : "VM Disconnected"}
             />
           </h1>
@@ -211,17 +221,13 @@ const Mytrades = () => {
             openTrades.map((trade, i) => {
               const raw = Number(trade.profit || 0);
               const isProfit = raw >= 0;
-              
-              // 🔥 UPDATED LOGIC: Cut profit, show full loss
-              let yourShare = null;
-              if (profitPercentage != null) {
-                if (isProfit) {
-                  yourShare = (raw * profitPercentage) / 100; // Admin takes a cut
-                } else {
-                  yourShare = raw; // User takes the full loss
-                }
-              } else {
-                 yourShare = raw; // Fallback if no percentage is set yet
+              const sm = shareMap[String(trade.ticket)];
+              const Vmt5 = Number(trade.volume || 0);
+              let yourShare: number | null = null;
+              if (sm && sm.V > 0) {
+                yourShare = raw * (sm.v_i / sm.V);
+              } else if (Vmt5 > 0) {
+                yourShare = raw;
               }
 
               return (
@@ -241,7 +247,12 @@ const Mytrades = () => {
 
                   {/* Middle */}
                   <div className="text-sm text-slate-600">
-                    Vol: <span className="font-semibold">{trade.volume}</span>
+                    Total vol: <span className="font-semibold">{trade.volume}</span>
+                    {sm && sm.v_i > 0 ? (
+                      <span className="ml-2 text-xs text-slate-500">
+                        · Your lot {sm.v_i.toFixed(4)}
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Right */}
@@ -260,14 +271,13 @@ const Mytrades = () => {
                     >
                      <span
                         className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${
-                          isProfit ? "bg-[#FFF9E6]0" : "bg-red-500"
+                          isProfit ? "bg-emerald-500" : "bg-red-500"
                         } ${!isConnected ? "opacity-40" : ""}`}
                       />
 
                       {isProfit ? "+" : ""}
-                      {yourShare != null
-                        ? yourShare.toFixed(2)
-                        : "—"}{" "}
+                      {yourShare != null ? yourShare.toFixed(2) : "—"}{" "}
+                      <span className="font-normal text-slate-500">(est.)</span>
                     </div>
                   </div>
                 </div>

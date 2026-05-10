@@ -7,6 +7,7 @@ import {
   Wallet, Percent,
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
+import { tradeEventMs } from '@/utils/mt5TradeDates';
 
 // --- TradingView Component (Memoized for performance) ---
 const TradingViewChart = memo(() => {
@@ -133,46 +134,27 @@ const DashboardPage = () => {
     return Number.isFinite(ms) ? ms : null;
   }, [currentUser?.createdAt]);
 
-  // 🔥 UPDATED PAMM MATHEMATICAL CALCULATION 🔥
+  /** Sum of your proportional P/L: settled rows use final_profit_loss (after fees & rule); open rows use live estimate */
   const yourShareSinceJoin = useMemo(() => {
-    if (profitPct == null || tradesFeed.length === 0) return 0;
-    
-    const currentWallet = wallet?.balance ? Number(wallet.balance) : 0;
-    if (currentWallet === 0) return 0;
-
-    // 1. Sum up (Volume * Price) for every assigned trade
-    const totalInvested = tradesFeed.reduce((sum, trade) => {
-      const vol = Number(trade.volume || 0);
-      const price = Number(trade.price || 0);
-      return sum + (vol * price);
-    }, 0);
-
-    // Prevent divide by zero error
-    if (totalInvested === 0) return 0;
-
-    // 2. Find the Wallet Balance Percentage of the Invested Amount
-    const walletRatio = currentWallet / totalInvested;  
-
-    // 3. Sum up the real total profit from all assigned trades
-    const totalRawProfit = tradesFeed.reduce((sum, trade) => {
-      return sum + Number(trade.profit || 0);
-    }, 0);
-
-    // 4. Calculate User's base proportional share
-    const userProportionalProfit = totalRawProfit * walletRatio;
-
-    // 5. Apply the logic: Share profits, but take full proportional losses
-    let finalUserCut = 0;
-    if (userProportionalProfit > 0) {
-      // It's a PROFIT: Admin takes a fee, user only gets their % cut
-      finalUserCut = userProportionalProfit * (profitPct / 100);
-    } else {
-      // It's a LOSS: Admin does not share the loss, user takes the full proportional loss
-      finalUserCut = userProportionalProfit;
+    if (tradesFeed.length === 0) return 0;
+    let sum = 0;
+    for (const r of tradesFeed as Record<string, unknown>[]) {
+      if (joinMs != null) {
+        const ev = tradeEventMs({
+          status: r.mt5_status as string | undefined,
+          open_time: r.open_time as string | null,
+          close_time: r.close_time as string | null,
+        });
+        if (ev == null || ev < joinMs) continue;
+      }
+      if (r.wallet_settled_at) {
+        sum += Number(r.final_profit_loss ?? 0);
+      } else {
+        sum += Number(r.user_estimated_live_pl ?? 0);
+      }
     }
-
-    return finalUserCut;
-  }, [tradesFeed, profitPct, wallet?.balance]);
+    return sum;
+  }, [tradesFeed, joinMs]);
 
   const shareIncludesAllTrades = joinMs == null && tradesFeed.length > 0;
 
@@ -215,24 +197,24 @@ const DashboardPage = () => {
       try {
         const uid = currentUser.userId;
         
-        const [wRes, pRes, tRes, assignRes] = await Promise.all([
+        const [wRes, pRes, assignRes, userTradesRes] = await Promise.all([
           fetch(`${API_BASE}/user/wallet/${uid}`),
           fetch(`${API_BASE}/user/profit/${uid}`),
-          fetch(`${API_BASE}/mt5-trades`),
-          fetch(`${API_BASE}/user/trade-assign/${uid}`)
+          fetch(`${API_BASE}/user/trade-assign/${uid}`),
+          fetch(`${API_BASE}/user/trades/${uid}`),
         ]);
-        
+
         const wData = await wRes.json();
         const pData = await pRes.json();
-        const tData = await tRes.json();
-        const assignData = await assignRes.json(); 
+        const assignData = await assignRes.json();
+        const utData = await userTradesRes.json();
 
         if (cancelled) return;
 
         if (wData.success && wData.wallet) {
           setWallet(wData.wallet);
         }
-        
+
         if (pData.success) {
           const pct = Number(pData.profit_percentage);
           setProfitPct(Number.isFinite(pct) ? pct : null);
@@ -242,15 +224,12 @@ const DashboardPage = () => {
           }
         }
 
-        let allowedTickets = new Set();
-        if (assignData && assignData.tickets) {
-          allowedTickets = new Set(assignData.tickets.map(String));
-        }
         setAssignFunded(assignData?.funded !== false);
 
-        if (tData.success && Array.isArray(tData.trades)) {
-          const userTrades = tData.trades.filter(t => allowedTickets.has(String(t.ticket)));
-          setTradesFeed(userTrades);
+        if (utData.success && Array.isArray(utData.trades)) {
+          setTradesFeed(utData.trades);
+        } else {
+          setTradesFeed([]);
         }
       } catch (err) {
         console.error("Finance load error:", err);
@@ -369,26 +348,29 @@ const DashboardPage = () => {
               </div>
               {loadingFinance && tradesFeed.length === 0 ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
-              ) : profitPct != null ? (
+              ) : (
                 <>
-                  <p className={`text-2xl font-extrabold tabular-nums ${
-                    yourShareSinceJoin >= 0 
-                      ? "text-yellow-700" 
-                      : "text-red-600" 
-                  }`}>
+                  <p
+                    className={`text-2xl font-extrabold tabular-nums ${
+                      yourShareSinceJoin >= 0 ? "text-yellow-700" : "text-red-600"
+                    }`}
+                  >
                     {yourShareSinceJoin > 0 ? "+" : ""}
-                    {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || 'USD')}
+                    {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || "USD")}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
                     {joinMs
-                      ? `After your join date (${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(joinMs)}). Each trade’s P/L × ${profitPct}%.`
+                      ? `After join (${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(joinMs)}). Your share of each trade’s volume; fees & profit % apply at settlement (see wallet ledger).`
                       : shareIncludesAllTrades
-                        ? `Estimated: join date not stored yet — includes every trade in the feed × ${profitPct}%. Log in again after your API sends created_at, or contact support.`
-                        : `Each trade’s P/L × ${profitPct}% (no trades loaded).`}
+                        ? "Join date not stored — showing all assigned trades. Log in again if needed."
+                        : "Your proportional P/L from assigned volume (live estimate until trade closes)."}
                   </p>
+                  {profitPct != null ? (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Contract profit share: {profitPct}% of net profit (after proportional fee) — configured by admin.
+                    </p>
+                  ) : null}
                 </>
-              ) : (
-                <p className="text-slate-500 text-sm">Profit % not assigned yet</p>
               )}
             </div>
           </section>

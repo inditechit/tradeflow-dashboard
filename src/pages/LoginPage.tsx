@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Lock, AtSign, Loader2, Shield } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
@@ -232,6 +232,15 @@ const LoginPage = () => {
               value={form.password}
               onChange={(e: any) => update("password", e.target.value)}
             />
+
+            <div className="text-right text-sm">
+              <Link
+                to="/forgot-password"
+                className="font-semibold text-neutral-900 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <button
               onClick={handleLogin}

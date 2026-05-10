@@ -11,6 +11,7 @@ import {
   ScrollText,
   X,
   ArrowDownToLine,
+  Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
     { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
     { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
+    { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
     { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
     { name: "Referrals", icon: Share2, path: "/admin/referrals" },
     { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },

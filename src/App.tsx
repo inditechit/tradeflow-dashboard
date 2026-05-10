@@ -7,6 +7,7 @@ import { AppProvider } from "@/context/AppContext";
 
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import PackagesPage from "./pages/PackagesPage";
 import PaymentPage from "./pages/PaymentPage";
@@ -41,6 +42,8 @@ import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
 import AdminProfilePage from "./pages/AdminProfilePage";
 import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
+import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
+import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,7 @@ const App = () => (
 
             {/* Auth */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/signup" element={<SignupPage />} />
 
             {/* Public/User pages */}
@@ -80,6 +84,7 @@ const App = () => (
               <Route path="withdraw" element={<WithdrawPage />} />
               <Route path="affiliate" element={<AffiliateProgramPage />} />
               <Route path="profile" element={<My_Profile />} />
+              <Route path="support" element={<SupportTicketsPage />} />
 
             </Route>
 
@@ -104,6 +109,7 @@ const App = () => (
               <Route path="referrals" element={<AdminReferralsPage />} />
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+              <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
 
             </Route>
 

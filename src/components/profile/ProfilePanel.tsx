@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, User, MapPin, Shield, Camera, Wallet } from "lucide-react";
+import { Loader2, Save, User, MapPin, Shield, Camera, Wallet, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,12 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
     address: "",
     trc20WithdrawAddress: "",
   });
+
+  const [pwdOtp, setPwdOtp] = useState("");
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdConfirm, setPwdConfirm] = useState("");
+  const [pwdSending, setPwdSending] = useState(false);
+  const [pwdSubmitting, setPwdSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -199,6 +205,77 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const isAdmin = currentUser?.role === "admin";
   const canEdit = viewerIsOwner || isAdmin;
 
+  const sendPasswordChangeOtp = async () => {
+    if (!viewerIsOwner) return;
+    setPwdSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/user/password-change/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: Number(targetUserId) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Code sent", description: data.message ?? "Check your email." });
+      } else {
+        toast({
+          title: "Could not send code",
+          description: data.error ?? "",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setPwdSending(false);
+    }
+  };
+
+  const confirmPasswordChange = async () => {
+    if (!viewerIsOwner) return;
+    if (pwdNew.length < 6) {
+      toast({ title: "Password too short", description: "Use at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      toast({ title: "Mismatch", description: "New passwords do not match.", variant: "destructive" });
+      return;
+    }
+    if (!pwdOtp.trim()) {
+      toast({ title: "Code required", description: "Enter the email verification code.", variant: "destructive" });
+      return;
+    }
+    setPwdSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/user/password-change/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: Number(targetUserId),
+          otp: pwdOtp.trim(),
+          newPassword: pwdNew,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Password updated", description: data.message ?? "Use your new password at login." });
+        setPwdOtp("");
+        setPwdNew("");
+        setPwdConfirm("");
+      } else {
+        toast({
+          title: "Update failed",
+          description: data.error ?? "",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setPwdSubmitting(false);
+    }
+  };
+
   if (loading && !profile) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500 gap-2">
@@ -290,6 +367,102 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           </div>
         </div>
       </div>
+
+      {viewerIsOwner ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 font-sans text-lg font-semibold tracking-tight text-slate-900">
+            <KeyRound className="h-5 w-5 shrink-0 text-neutral-900" aria-hidden />
+            Password
+          </h3>
+          <p className="mb-4 text-sm text-slate-600">
+            Log in with your Telegram username and password. To set a new password, we send a one-time code to your
+            registered email.
+          </p>
+          {String(profile.email ?? "").trim() === "" ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Add an email in your profile (or contact support) before you can change your password with a code.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-slate-200"
+                disabled={pwdSending || pwdSubmitting}
+                onClick={sendPasswordChangeOtp}
+              >
+                {pwdSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending…
+                  </>
+                ) : (
+                  "Send verification code to email"
+                )}
+              </Button>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-0">
+                  <Label htmlFor="pf-pwd-otp" className={fieldLabelClass}>
+                    Email code
+                  </Label>
+                  <Input
+                    id="pf-pwd-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={pwdOtp}
+                    onChange={(e) => setPwdOtp(e.target.value)}
+                    disabled={pwdSubmitting}
+                    className={`${fieldInputClass} font-mono tracking-widest`}
+                    placeholder="6-digit code"
+                  />
+                </div>
+                <div />
+                <div className="space-y-0">
+                  <Label htmlFor="pf-pwd-new" className={fieldLabelClass}>
+                    New password
+                  </Label>
+                  <Input
+                    id="pf-pwd-new"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwdNew}
+                    onChange={(e) => setPwdNew(e.target.value)}
+                    disabled={pwdSubmitting}
+                    className={fieldInputClass}
+                  />
+                </div>
+                <div className="space-y-0">
+                  <Label htmlFor="pf-pwd-confirm" className={fieldLabelClass}>
+                    Confirm new password
+                  </Label>
+                  <Input
+                    id="pf-pwd-confirm"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwdConfirm}
+                    onChange={(e) => setPwdConfirm(e.target.value)}
+                    disabled={pwdSubmitting}
+                    className={fieldInputClass}
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                className="bg-[#FFD700] font-semibold text-black hover:bg-[#E6C200]"
+                disabled={pwdSubmitting}
+                onClick={confirmPasswordChange}
+              >
+                {pwdSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating…
+                  </>
+                ) : (
+                  "Update password"
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Editable details */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

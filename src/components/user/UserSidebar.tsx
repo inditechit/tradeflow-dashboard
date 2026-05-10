@@ -9,6 +9,7 @@ import {
   User,
   X,
   ArrowDownToLine,
+  LifeBuoy,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -52,6 +53,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },
     { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
+    { name: "Support", icon: LifeBuoy, path: "/user/support" },
     { name: "Profile", icon: User, path: "/user/profile" },
   ];
 

@@ -8,11 +8,33 @@ const UserTransactions = () => {
   const { toast } = useToast();
 
   const [payments, setPayments] = useState([]);
+  const [ledger, setLedger] = useState<
+    { id: number; delta_usd: string | number; balance_after: string | number; entry_type: string; note: string | null; created_at: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
   const [error, setError] = useState("");
 
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
+
+  const fetchLedger = async () => {
+    if (!userId) return;
+    setLedgerLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/user/wallet/ledger/${userId}?limit=80`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setLedger(data.data);
+      } else {
+        setLedger([]);
+      }
+    } catch {
+      setLedger([]);
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
 
   const fetchPayments = async () => {
     if (!userId) return;
@@ -52,6 +74,7 @@ const UserTransactions = () => {
 
   useEffect(() => {
     fetchPayments();
+    fetchLedger();
   }, [userId]);
   const formatDate = (date) => {
     return new Date(date).toLocaleString();
@@ -85,11 +108,15 @@ const UserTransactions = () => {
         </div>
 
         <button
-          onClick={fetchPayments}
-          disabled={loading}
-          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2"
+          type="button"
+          onClick={() => {
+            fetchPayments();
+            fetchLedger();
+          }}
+          disabled={loading && ledgerLoading}
+          className="flex items-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50"
         >
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+          <RefreshCw size={18} className={loading || ledgerLoading ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
@@ -196,11 +223,58 @@ const UserTransactions = () => {
       </div>
       )}
 
+      {/* Wallet ledger (recharges, trade settlements, withdrawals, etc.) */}
+      <div className="mt-12">
+        <h2 className="mb-2 text-lg font-bold text-slate-800">Wallet activity</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Credits and debits to your balance, including closed trade settlements.
+        </p>
+        {ledgerLoading && ledger.length === 0 ? (
+          <p className="py-8 text-center text-slate-400">Loading wallet log…</p>
+        ) : ledger.length === 0 ? (
+          <p className="rounded-2xl border border-slate-100 bg-white py-8 text-center text-slate-500">
+            No wallet movements yet.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500">When</th>
+                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500">Type</th>
+                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500">Change</th>
+                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500">Balance after</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ledger.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/80">
+                      <td className="px-4 py-3 text-slate-600">{formatDate(row.created_at)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{row.entry_type}</td>
+                      <td
+                        className={`px-4 py-3 font-semibold tabular-nums ${
+                          Number(row.delta_usd) >= 0 ? "text-emerald-700" : "text-red-600"
+                        }`}
+                      >
+                        {Number(row.delta_usd) >= 0 ? "+" : ""}
+                        {Number(row.delta_usd).toFixed(2)} USD
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-700">
+                        {Number(row.balance_after).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Loading */}
       {loading && (
-        <div className="text-center py-10 text-slate-400">
-          Loading transactions...
-        </div>
+        <div className="py-10 text-center text-slate-400">Loading payments...</div>
       )}
     </div>
   );
