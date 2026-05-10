@@ -315,7 +315,7 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {/* Wallet & profit share (user only) */}
+        {/* Wallet & trade P/L (user only) */}
         {currentUser?.role !== 'admin' && (
           <section className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
@@ -326,16 +326,13 @@ const DashboardPage = () => {
               {loadingFinance && !wallet ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : wallet ? (
-                <>
-                  <p className="text-2xl font-extrabold tabular-nums text-slate-900">
-                    {wallet.currency}{' '}
-                    {Number(wallet.balance).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">Funds in your app wallet</p>
-                </>
+                <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+                  {wallet.currency}{' '}
+                  {Number(wallet.balance).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
               ) : (
                 <p className="text-slate-500 text-sm">Could not load wallet</p>
               )}
@@ -344,33 +341,19 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8 md:col-span-1">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Your share of Trade P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Trade P/L</span>
               </div>
               {loadingFinance && tradesFeed.length === 0 ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <>
-                  <p
-                    className={`text-2xl font-extrabold tabular-nums ${
-                      yourShareSinceJoin >= 0 ? "text-yellow-700" : "text-red-600"
-                    }`}
-                  >
-                    {yourShareSinceJoin > 0 ? "+" : ""}
-                    {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || "USD")}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {joinMs
-                      ? `After join (${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(joinMs)}). Your share of each trade’s volume; fees & profit % apply at settlement (see wallet ledger).`
-                      : shareIncludesAllTrades
-                        ? "Join date not stored — showing all assigned trades. Log in again if needed."
-                        : "Your proportional P/L from assigned volume (live estimate until trade closes)."}
-                  </p>
-                  {profitPct != null ? (
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      Contract profit share: {profitPct}% of net profit (after proportional fee) — configured by admin.
-                    </p>
-                  ) : null}
-                </>
+                <p
+                  className={`text-2xl font-extrabold tabular-nums ${
+                    yourShareSinceJoin >= 0 ? "text-yellow-700" : "text-red-600"
+                  }`}
+                >
+                  {yourShareSinceJoin > 0 ? "+" : ""}
+                  {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || "USD")}
+                </p>
               )}
             </div>
           </section>
