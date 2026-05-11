@@ -374,13 +374,9 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             <KeyRound className="h-5 w-5 shrink-0 text-neutral-900" aria-hidden />
             Password
           </h3>
-          <p className="mb-4 text-sm text-slate-600">
-            Log in with your Telegram username and password. To set a new password, we send a one-time code to your
-            registered email.
-          </p>
           {String(profile.email ?? "").trim() === "" ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Add an email in your profile (or contact support) before you can change your password with a code.
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Add an email above to reset your password with a code.
             </p>
           ) : (
             <div className="space-y-4">

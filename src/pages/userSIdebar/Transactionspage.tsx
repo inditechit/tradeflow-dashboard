@@ -101,10 +101,7 @@ const UserTransactions = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl text-black font-bold">💳 My Transactions</h1>
-          <p className="text-slate-500 text-sm">
-            View your payment history
-          </p>
+          <h1 className="text-2xl font-bold text-black">Transactions</h1>
         </div>
 
         <button
@@ -134,7 +131,6 @@ const UserTransactions = () => {
           <div className="text-center">
             <div className="text-slate-400 text-6xl mb-4">📄</div>
             <p className="text-slate-600 font-medium text-lg">No transaction history found</p>
-            <p className="text-slate-400 text-sm mt-2">Your transactions will appear here once you make any payments</p>
           </div>
         </div>
       )}
@@ -223,12 +219,8 @@ const UserTransactions = () => {
       </div>
       )}
 
-      {/* Wallet ledger (recharges, trade settlements, withdrawals, etc.) */}
       <div className="mt-12">
-        <h2 className="mb-2 text-lg font-bold text-slate-800">Wallet activity</h2>
-        <p className="mb-4 text-sm text-slate-500">
-          Credits and debits to your balance, including closed trade settlements.
-        </p>
+        <h2 className="mb-4 text-lg font-bold text-slate-800">Wallet</h2>
         {ledgerLoading && ledger.length === 0 ? (
           <p className="py-8 text-center text-slate-400">Loading wallet log…</p>
         ) : ledger.length === 0 ? (

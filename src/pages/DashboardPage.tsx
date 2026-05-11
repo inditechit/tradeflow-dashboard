@@ -120,7 +120,6 @@ const DashboardPage = () => {
   const [error, setError] = useState('');
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
-  const [profitPct, setProfitPct] = useState<number | null>(null);
   const [tradesFeed, setTradesFeed] = useState<Record<string, unknown>[]>([]);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
@@ -134,7 +133,7 @@ const DashboardPage = () => {
     return Number.isFinite(ms) ? ms : null;
   }, [currentUser?.createdAt]);
 
-  /** Sum of your proportional P/L: settled rows use final_profit_loss (after fees & rule); open rows use live estimate */
+  /** Settled trades: stored P/L. Open trades: live estimate from your row only */
   const yourShareSinceJoin = useMemo(() => {
     if (tradesFeed.length === 0) return 0;
     let sum = 0;
@@ -155,8 +154,6 @@ const DashboardPage = () => {
     }
     return sum;
   }, [tradesFeed, joinMs]);
-
-  const shareIncludesAllTrades = joinMs == null && tradesFeed.length > 0;
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -216,8 +213,6 @@ const DashboardPage = () => {
         }
 
         if (pData.success) {
-          const pct = Number(pData.profit_percentage);
-          setProfitPct(Number.isFinite(pct) ? pct : null);
           const joinFromApi = pData.created_at || pData.joined_at || pData.signup_date;
           if (joinFromApi && !currentUser.createdAt) {
             updateUser({ createdAt: String(joinFromApi) });
@@ -303,14 +298,13 @@ const DashboardPage = () => {
         </div>
 
         {currentUser?.role !== 'admin' && assignFunded === false && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm">
-            Your wallet has no funds. No trades are assigned until you add balance.{' '}
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <button
               type="button"
               className="font-semibold text-neutral-800 underline decoration-neutral-900"
               onClick={() => navigate('/user/recharge')}
             >
-              Recharge wallet
+              Add funds
             </button>
           </div>
         )}

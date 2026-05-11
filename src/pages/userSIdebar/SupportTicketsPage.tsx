@@ -213,9 +213,6 @@ const SupportTicketsPage = () => {
           <LifeBuoy className="h-7 w-7 text-neutral-800" />
           Support
         </h1>
-        <p className="text-sm text-slate-600">
-          Raise a ticket and chat with our team. You will see admin replies here.
-        </p>
       </div>
 
       <div className="grid min-h-[520px] gap-4 md:grid-cols-[minmax(0,280px)_1fr] md:gap-6">

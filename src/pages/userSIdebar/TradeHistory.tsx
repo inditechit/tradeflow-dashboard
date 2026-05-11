@@ -11,15 +11,10 @@ type UserTradeRow = {
   assignment_id?: number;
   symbol?: string;
   allocated_volume?: string | number | null;
-  mt5_volume?: string | number | null;
-  mt5_total_profit?: string | number | null;
   mt5_status?: string | null;
   final_profit_loss?: string | number | null;
   wallet_settled_at?: string | null;
   user_estimated_live_pl?: number | null;
-  proportional_fee?: string | number | null;
-  raw_proportional_pl?: string | number | null;
-  admin_profit_percentage?: string | number | null;
 };
 
 const TradeHistory = () => {
@@ -85,22 +80,18 @@ const TradeHistory = () => {
     <div className="mx-auto max-w-7xl p-4">
       {assignFunded === false && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No wallet balance — trade history is hidden until you add funds.{" "}
           <button
             type="button"
             className="font-semibold text-neutral-800 underline"
             onClick={() => navigate("/user/recharge")}
           >
-            Recharge wallet
+            Add funds
           </button>
         </div>
       )}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">My Trade History</h1>
-          <p className="text-sm text-slate-500">
-            Only your allocated volume and your P/L (fees & profit share applied when trade closes).
-          </p>
+          <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
         </div>
 
         <button
@@ -120,24 +111,23 @@ const TradeHistory = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your lot</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Total vol</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your P/L</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Volume</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                    No assigned trades
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    No trades yet
                   </td>
                 </tr>
               ) : (
@@ -153,17 +143,11 @@ const TradeHistory = () => {
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {r.allocated_volume != null ? Number(r.allocated_volume).toFixed(4) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {r.mt5_volume != null ? Number(r.mt5_volume).toFixed(4) : "—"}
-                      </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold ${isProfit ? "text-yellow-700" : "text-red-600"}`}
                       >
                         {settled ? "" : "~"}
                         {pl.toFixed(2)}
-                        {!settled ? (
-                          <span className="ml-1 text-xs font-normal text-slate-400">live est.</span>
-                        ) : null}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span

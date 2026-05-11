@@ -109,10 +109,7 @@ const ForgotPasswordPage = () => {
               <span className="text-sm font-semibold uppercase">Reset password</span>
             </div>
             <h1 className="mt-3 text-2xl font-bold text-slate-800">Forgot password</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              We will email a code to the address on your account. You log in with your Telegram username and
-              password.
-            </p>
+            <p className="mt-2 text-sm text-slate-500">We&apos;ll email you a code.</p>
           </div>
 
           <div className="space-y-5 p-8">
