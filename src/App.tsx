@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
+import PermissionsGate from "@/components/PermissionsGate";
 
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
@@ -55,6 +56,7 @@ const App = () => (
       <Sonner />
       <AppProvider>
         <BrowserRouter>
+          <PermissionsGate>
           <Routes>
 
             {/* Default */}
@@ -119,6 +121,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
 
           </Routes>
+          </PermissionsGate>
         </BrowserRouter>
       </AppProvider>
     </TooltipProvider>
