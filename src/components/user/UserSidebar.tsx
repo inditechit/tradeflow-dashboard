@@ -10,6 +10,7 @@ import {
   X,
   ArrowDownToLine,
   LifeBuoy,
+  BarChart3,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -48,6 +49,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/user/dashboard" },
     { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
+    { name: "Profit & Loss", icon: BarChart3, path: "/user/pnl" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
     { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },

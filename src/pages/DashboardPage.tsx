@@ -148,6 +148,8 @@ const DashboardPage = () => {
       }
       if (r.wallet_settled_at) {
         sum += Number(r.final_profit_loss ?? 0);
+      } else if (r.user_estimated_net_pl != null) {
+        sum += Number(r.user_estimated_net_pl);
       } else {
         sum += Number(r.user_estimated_live_pl ?? 0);
       }

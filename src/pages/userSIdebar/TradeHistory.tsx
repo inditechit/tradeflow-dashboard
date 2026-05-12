@@ -11,10 +11,14 @@ type UserTradeRow = {
   assignment_id?: number;
   symbol?: string;
   allocated_volume?: string | number | null;
+  user_investment_amount?: string | number | null;
+  proportional_fee?: string | number | null;
+  admin_profit_percentage?: string | number | null;
   mt5_status?: string | null;
   final_profit_loss?: string | number | null;
   wallet_settled_at?: string | null;
   user_estimated_live_pl?: number | null;
+  user_estimated_net_pl?: number | null;
 };
 
 const TradeHistory = () => {
@@ -70,9 +74,9 @@ const TradeHistory = () => {
   }, [rows]);
 
   const displayPl = (r: UserTradeRow) => {
-    if (r.wallet_settled_at) {
-      return Number(r.final_profit_loss ?? 0);
-    }
+    if (r.wallet_settled_at) return Number(r.final_profit_loss ?? 0);
+    // user_estimated_net_pl already applies fee + admin % (matches what would hit wallet)
+    if (r.user_estimated_net_pl != null) return Number(r.user_estimated_net_pl);
     return Number(r.user_estimated_live_pl ?? 0);
   };
 
@@ -92,6 +96,9 @@ const TradeHistory = () => {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            ~ means live estimate (trade still open). Settled rows show final wallet impact.
+          </p>
         </div>
 
         <button
@@ -111,7 +118,9 @@ const TradeHistory = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Volume</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your volume</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
@@ -119,14 +128,14 @@ const TradeHistory = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                     No trades yet
                   </td>
                 </tr>
@@ -136,15 +145,30 @@ const TradeHistory = () => {
                   const isProfit = pl >= 0;
                   const st = normTradeStatus({ status: r.mt5_status });
                   const settled = Boolean(r.wallet_settled_at);
+                  const vol = Number(r.allocated_volume ?? 0);
+                  const invested = Number(r.user_investment_amount ?? 0);
+                  const fee = Number(r.proportional_fee ?? 0);
+
                   return (
-                    <tr key={`${r.ticket_id}-${r.assignment_id ?? index}`} className="transition-colors hover:bg-yellow-50/50">
+                    <tr
+                      key={`${r.ticket_id}-${r.assignment_id ?? index}`}
+                      className="transition-colors hover:bg-yellow-50/50"
+                    >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {r.allocated_volume != null ? Number(r.allocated_volume).toFixed(4) : "—"}
+                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                        {vol > 0 ? vol.toFixed(4) : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                        {invested > 0 ? `$${invested.toFixed(2)}` : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                        {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
                       </td>
                       <td
-                        className={`px-6 py-4 text-sm font-bold ${isProfit ? "text-yellow-700" : "text-red-600"}`}
+                        className={`px-6 py-4 text-sm font-bold tabular-nums ${
+                          isProfit ? "text-yellow-700" : "text-red-600"
+                        }`}
                       >
                         {settled ? "" : "~"}
                         {pl.toFixed(2)}

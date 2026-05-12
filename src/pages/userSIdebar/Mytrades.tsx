@@ -20,8 +20,12 @@ type UserTradeRow = {
   total_trade_volume?: unknown;
   mt5_volume?: unknown;
   user_volume_share?: unknown;
+  user_investment_amount?: unknown;
+  proportional_fee?: unknown;
+  admin_profit_percentage?: unknown;
   wallet_settled_at?: unknown;
   user_estimated_live_pl?: unknown;
+  user_estimated_net_pl?: unknown;
   final_profit_loss?: unknown;
   mt5_total_profit?: unknown;
 };
@@ -29,8 +33,22 @@ type UserTradeRow = {
 type UserSlice = {
   v_i: number;
   V: number;
-  livePl: number | null;
+  fee: number;
+  pct: number;
+  netFromApi: number | null;
 };
+
+/**
+ * Apply the same rules the backend uses on settlement so the live UI
+ * matches what will actually hit the wallet on close.
+ */
+function applyUserRules(rawPl: number, fee: number, pct: number): number {
+  if (!Number.isFinite(rawPl)) return 0;
+  if (rawPl <= 0) return rawPl;
+  const net = rawPl - fee;
+  if (net <= 0) return net;
+  return net * (pct / 100);
+}
 
 function buildSliceMap(utRows: UserTradeRow[]): Record<string, UserSlice> {
   const out: Record<string, UserSlice> = {};
@@ -38,19 +56,17 @@ function buildSliceMap(utRows: UserTradeRow[]): Record<string, UserSlice> {
     const ticket = String(t.ticket_id ?? "");
     if (!ticket) continue;
     const V = Number(t.mt5_volume || t.total_trade_volume || 0);
-    const allocated = Number(t.allocated_volume || 0);
-    const share = Number(t.user_volume_share || 0);
-    const v_i = allocated > 0 ? allocated : share > 0 && V > 0 ? share * V : 0;
-    const liveFromApi =
-      t.user_estimated_live_pl == null ? null : Number(t.user_estimated_live_pl);
-    const settled = t.wallet_settled_at != null;
-    const mt5Profit = Number(t.mt5_total_profit || 0);
-    const fallbackLive =
-      !settled && V > 0 && v_i > 0 ? mt5Profit * (v_i / V) : null;
+    const v_i = Number(t.allocated_volume || 0);
+    const fee = Number(t.proportional_fee || 0);
+    const pct = Number(t.admin_profit_percentage ?? 0);
+    const netFromApi =
+      t.user_estimated_net_pl == null ? null : Number(t.user_estimated_net_pl);
     out[ticket] = {
       v_i,
       V,
-      livePl: liveFromApi ?? fallbackLive,
+      fee,
+      pct,
+      netFromApi: Number.isFinite(netFromApi as number) ? (netFromApi as number) : null,
     };
   }
   return out;
@@ -81,7 +97,7 @@ const Mytrades = () => {
       const assignData = await assignRes.json();
       const utData = await utRes.json();
 
-      const utRows =
+      const utRows: UserTradeRow[] =
         utData.success && Array.isArray(utData.trades) ? utData.trades : [];
       const ticketSet = new Set<string>();
       const ratioMap: Record<string, number> = {};
@@ -160,34 +176,13 @@ const Mytrades = () => {
           </button>
         </div>
       )}
-      {/* Header */}
-      {/* <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-black">📊 My Open Trades</h1>
-          <p className="text-slate-500 text-sm">
-            Live profit & running trades
-          </p>
-        </div>
 
-        
-
-        <button
-          onClick={() => fetchBoard()}
-          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2"
-        >
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
-      </div> */}
-
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-black flex items-center gap-3">
             Open trades
-            {/* 🔥 SUBTLE DEVELOPER CHECK: Green if connected, Red if disconnected */}
-            <span 
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-red-500"}`} 
+            <span
+              className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-red-500"}`}
               title={isConnected ? "VM Connected" : "VM Disconnected"}
             />
           </h1>
@@ -204,7 +199,6 @@ const Mytrades = () => {
         </button>
       </div>
 
-      {/* Trades Card */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="min-h-[300px]">
           {loading && openTrades.length === 0 ? (
@@ -220,34 +214,34 @@ const Mytrades = () => {
             openTrades.map((trade, i) => {
               const ticket = String(trade.ticket_id ?? "");
               const sm = shareMap[ticket];
-              const rawLive = liveRawByTicket[ticket];
+              const rawLiveSocket = liveRawByTicket[ticket];
               const ratio = myRatiosRef.current[ticket] ?? 0;
-              const socketShare =
-                Number.isFinite(rawLive) && ratio > 0 ? rawLive * ratio : null;
+
+              const mt5Profit = Number(trade.mt5_total_profit || 0);
+              const rawLive = Number.isFinite(rawLiveSocket) ? rawLiveSocket : mt5Profit;
+              const userRawLive = ratio > 0 ? rawLive * ratio : 0;
+
+              const fee = sm?.fee ?? Number(trade.proportional_fee || 0);
+              const pct = sm?.pct ?? Number(trade.admin_profit_percentage ?? 0);
+
               const settled = trade.wallet_settled_at != null;
               const settledPl = Number(trade.final_profit_loss || 0);
-              const mt5Profit = Number(trade.mt5_total_profit || 0);
-              const fallbackLive =
-                sm && sm.V > 0 && sm.v_i > 0 ? mt5Profit * (sm.v_i / sm.V) : null;
-              const displayPl = settled
-                ? settledPl
-                : socketShare ??
-                  sm?.livePl ??
-                  (trade.user_estimated_live_pl == null
-                    ? fallbackLive ?? 0
-                    : Number(trade.user_estimated_live_pl));
+
+              const liveNet = applyUserRules(userRawLive, fee, pct);
+
+              const displayPl = settled ? settledPl : liveNet;
               const isProfit = displayPl >= 0;
               const yourVol =
                 sm && sm.v_i > 0
                   ? sm.v_i
                   : Number(trade.allocated_volume || 0);
+              const investment = Number(trade.user_investment_amount || 0);
 
               return (
                 <div
                   key={ticket || i}
-                  className="flex justify-between items-center px-6 py-5 border-b hover:bg-yellow-50/50 transition"
+                  className="flex flex-col gap-2 px-6 py-5 border-b hover:bg-yellow-50/50 transition md:flex-row md:items-center md:justify-between"
                 >
-                  {/* Left */}
                   <div>
                     <div className="font-bold text-slate-800 text-lg">
                       {String(trade.symbol || "-")}
@@ -255,23 +249,33 @@ const Mytrades = () => {
                     <div className="text-xs text-slate-500">
                       Ticket: {ticket}
                     </div>
+                    {/* {investment > 0 && (
+                      <div className="text-xs text-slate-500 mt-1">
+                        Invested: <span className="font-semibold tabular-nums">${investment.toFixed(2)}</span>
+                      </div>
+                    )} */}
                   </div>
 
-                  {/* Middle */}
-                  <div className="text-sm text-slate-600">
-                    Volume:{" "}
-                    <span className="font-semibold">
-                      {Number.isFinite(yourVol) && yourVol > 0
-                        ? yourVol.toFixed(4)
-                        : "-"}
-                    </span>
-                  </div>
-
-                  {/* Right */}
-                  <div className="text-right">
-                    <div className="text-sm text-slate-500">
-                      Price: {trade.price ?? "-"}
+                  <div className="text-sm text-slate-600 flex flex-col gap-0.5 md:items-center">
+                    <div>
+                      Assign volume:{" "}
+                      <span className="font-semibold tabular-nums">
+                        {Number.isFinite(yourVol) && yourVol > 0
+                          ? yourVol.toFixed(4)
+                          : "-"}
+                      </span>
                     </div>
+                    {/* {fee > 0 && (
+                      <div className="text-xs text-slate-500">
+                        Fee on close: <span className="tabular-nums">${fee.toFixed(2)}</span>
+                      </div>
+                    )} */}
+                  </div>
+
+                  <div className="text-right">
+                    {/* <div className="text-sm text-slate-500">
+                      Price: {trade.price != null ? String(trade.price) : "-"}
+                    </div> */}
 
                     <div
                       className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold
@@ -281,7 +285,7 @@ const Mytrades = () => {
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                     <span
+                      <span
                         className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${
                           isProfit ? "bg-emerald-500" : "bg-red-500"
                         } ${!isConnected ? "opacity-40" : ""}`}
