@@ -15,6 +15,7 @@ import EditUserModal from '../components/admin/EditUserModal';
 import AddUserModal from '../components/admin/AddUserModal';
 import WalletModal from '../components/admin/WalletModal';
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const API_BASE = 'https://mt5api.inditechit.com/api';
 
@@ -40,6 +41,26 @@ function userHasMapLink(loc: { latitude?: unknown; longitude?: unknown; address?
   return addr.length > 0;
 }
 
+/**
+ * Human-friendly "last seen" label.  We rely on server time strings
+ * ("YYYY-MM-DD HH:MM:SS" or ISO).  Returns "Online" for live users,
+ * "Never" if last_seen_at is missing, otherwise "X min/hours/days ago".
+ */
+function lastSeenLabel(lastSeenAt: unknown, isOnline: unknown): string {
+  if (Number(isOnline) === 1) return "Online";
+  if (!lastSeenAt) return "Never";
+  const t = new Date(String(lastSeenAt).replace(" ", "T")).getTime();
+  if (!Number.isFinite(t)) return "—";
+  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const m = Math.floor(diffSec / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
 const AdminPage = () => {
   const navigate = useNavigate();
 
@@ -49,6 +70,7 @@ const AdminPage = () => {
     sum_successful_payments_usd: number;
     sum_successful_recharges_usd: number;
   } | null>(null);
+  const [liveCount, setLiveCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -65,8 +87,9 @@ const AdminPage = () => {
 
   const { toast } = useToast();
 
-  const fetchLocations = async () => {
-    setIsLoading(true);
+  const fetchLocations = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) setIsLoading(true);
     setError('');
 
     try {
@@ -74,6 +97,7 @@ const AdminPage = () => {
       const data = await response.json();
       if (data.success) {
         setLocations(data.users);
+        setLiveCount(Number(data.live_count ?? data.totals?.live_users ?? 0));
         if (data.totals) {
           setTotals({
             sum_wallet_balances_usd: Number(data.totals.sum_wallet_balances_usd ?? 0),
@@ -84,17 +108,21 @@ const AdminPage = () => {
           setTotals(null);
         }
       } else {
-        setError(data.error || 'Failed to fetch data.');
+        if (!silent) setError(data.error || 'Failed to fetch data.');
       }
     } catch (err) {
-      setError('Server connection error.');
+      if (!silent) setError('Server connection error.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchLocations();
+    // Refresh the list (and "Online" indicators) every 30s without
+    // showing the loading spinner — keeps the table feeling live.
+    const id = window.setInterval(() => fetchLocations({ silent: true }), 30_000);
+    return () => window.clearInterval(id);
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -242,9 +270,21 @@ const AdminPage = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Users
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Users
+              </h1>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                title={`Updates every 30s • online within last 90s`}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                {liveCount} live
+              </span>
+            </div>
             <p className="mt-1 text-sm text-slate-600">
               Manage accounts, wallets, addresses &amp; KYC
             </p>
@@ -329,6 +369,9 @@ const AdminPage = () => {
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                     User
                   </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                    Status
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                     Contact
                   </th>
@@ -367,6 +410,29 @@ const AdminPage = () => {
                     <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                       <div className="font-semibold text-slate-900">{loc.name}</div>
                       <div className="break-all text-xs text-slate-500">{loc.email}</div>
+                    </td>
+
+                    {/* Online / last seen */}
+                    <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "inline-block h-2.5 w-2.5 rounded-full",
+                            Number(loc.is_online) === 1
+                              ? "bg-emerald-500 ring-2 ring-emerald-200"
+                              : "bg-slate-300",
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "font-medium",
+                            Number(loc.is_online) === 1 ? "text-emerald-700" : "text-slate-500",
+                          )}
+                        >
+                          {lastSeenLabel(loc.last_seen_at, loc.is_online)}
+                        </span>
+                      </div>
                     </td>
 
                     {/* Contact */}

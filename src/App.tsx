@@ -44,6 +44,7 @@ import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
+import AdminUserMapPage from "./pages/AdminUserMapPage";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="profile" element={<AdminProfilePage />} />
               <Route path="open-trades" element={<OpenTrades />} />
               <Route path="users" element={<AdminPage />} />
+              <Route path="user-map" element={<AdminUserMapPage />} />
               <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<AdminRechargesPage />} />

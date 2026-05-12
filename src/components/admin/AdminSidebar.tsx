@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -12,8 +13,11 @@ import {
   X,
   ArrowDownToLine,
   Headphones,
+  Map as MapIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const API_BASE = "https://mt5api.inditechit.com/api";
 
 type AdminSidebarProps = {
   mobileOpen: boolean;
@@ -21,11 +25,35 @@ type AdminSidebarProps = {
 };
 
 const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/presence`);
+        const data = await res.json();
+        if (!cancelled && data?.success) {
+          setLiveCount(Number(data.live_count ?? 0));
+        }
+      } catch {
+        // best-effort; leave previous value in place
+      }
+    };
+    load();
+    const id = window.setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { name: "Profile", icon: User, path: "/admin/profile" },
     { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
-    { name: "Users", icon: Users, path: "/admin/users" },
+    { name: "Users", icon: Users, path: "/admin/users", showLive: true },
+    { name: "User map", icon: MapIcon, path: "/admin/user-map" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
     { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
     { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
@@ -33,7 +61,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
     { name: "Referrals", icon: Share2, path: "/admin/referrals" },
     { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
-  ];
+  ] as Array<{ name: string; icon: any; path: string; showLive?: boolean }>;
 
   return (
     <>
@@ -86,7 +114,16 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                   }
                 >
                   <Icon size={18} className="shrink-0" />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {item.showLive && liveCount != null && liveCount > 0 && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                      title="Users seen in the last 90 seconds"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {liveCount}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}

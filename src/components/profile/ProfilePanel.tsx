@@ -607,9 +607,14 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
 
         <DocBlock
           title="Live photo"
-          subtitle="Take a selfie with your camera only — picking from the gallery is not allowed."
+          subtitle={
+            liveSrc && viewerIsOwner && !isAdmin
+              ? "Your live photo is on file. Contact support if it needs to change."
+              : "Take a selfie with your camera only — picking from the gallery is not allowed."
+          }
           src={liveSrc}
-          canUpload={canEdit}
+          canUpload={isAdmin || (viewerIsOwner && !liveSrc)}
+          locked={Boolean(liveSrc) && viewerIsOwner && !isAdmin}
           disabled={saving}
           facingMode="user"
           onCaptured={(dataUrl) => uploadDoc("livePhotoBase64", dataUrl)}
@@ -617,9 +622,14 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
 
         <DocBlock
           title="ID proof"
-          subtitle="Photograph your government ID with the camera — gallery upload is not used."
+          subtitle={
+            idSrc && viewerIsOwner && !isAdmin
+              ? "Your ID proof is on file. Contact support if it needs to change."
+              : "Photograph your government ID with the camera — gallery upload is not used."
+          }
           src={idSrc}
-          canUpload={canEdit}
+          canUpload={isAdmin || (viewerIsOwner && !idSrc)}
+          locked={Boolean(idSrc) && viewerIsOwner && !isAdmin}
           disabled={saving}
           facingMode="environment"
           onCaptured={(dataUrl) => uploadDoc("idProofBase64", dataUrl)}
@@ -627,9 +637,14 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
 
         <DocBlock
           title="Address proof"
-          subtitle="Photograph your document with the camera — gallery upload is not used."
+          subtitle={
+            addrSrc && viewerIsOwner && !isAdmin
+              ? "Your address proof is on file. Contact support if it needs to change."
+              : "Photograph your document with the camera — gallery upload is not used."
+          }
           src={addrSrc}
-          canUpload={canEdit}
+          canUpload={isAdmin || (viewerIsOwner && !addrSrc)}
+          locked={Boolean(addrSrc) && viewerIsOwner && !isAdmin}
           disabled={saving}
           facingMode="environment"
           onCaptured={(dataUrl) => uploadDoc("addressProofBase64", dataUrl)}
@@ -644,6 +659,7 @@ function DocBlock({
   subtitle,
   src,
   canUpload,
+  locked,
   disabled,
   facingMode,
   onCaptured,
@@ -652,6 +668,7 @@ function DocBlock({
   subtitle: string;
   src: string | null;
   canUpload: boolean;
+  locked?: boolean;
   disabled: boolean;
   facingMode: "user" | "environment";
   onCaptured: (dataUrl: string) => void;
@@ -665,6 +682,11 @@ function DocBlock({
           <p className="font-sans font-semibold text-slate-900">{title}</p>
           <p className="text-xs leading-relaxed text-slate-600">{subtitle}</p>
         </div>
+        {locked && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 ring-1 ring-slate-200">
+            <Camera className="h-3 w-3" /> On file
+          </span>
+        )}
         {canUpload && (
           <>
             <Button

@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
-  User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft
+  User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft,
+  FileText, Home, X as XIcon,
 } from 'lucide-react';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -69,6 +70,83 @@ const indexSymbols = [
   { proName: "INDEX:DAX", title: "DAX" }
 ];
 
+// Generic document upload row (KYC docs at signup).
+// Uses a native file input with capture="environment" so mobile users get the
+// back-camera. Desktop users get the file picker. No extra deps.
+const DocUploadRow = ({
+  label,
+  icon,
+  value,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClear: () => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          {icon}
+          {label}
+        </div>
+        {value && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+
+      {value ? (
+        <img
+          src={value}
+          alt={label}
+          className="w-full max-h-48 object-contain rounded-lg bg-white border border-slate-200"
+        />
+      ) : (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 flex flex-col items-center justify-center text-center">
+          <Camera size={22} className="text-slate-400 mb-2" />
+          <p className="text-xs text-slate-500 mb-3">No image yet</p>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="px-4 py-2 rounded-lg bg-white border border-yellow-300 text-neutral-800 text-sm font-semibold hover:bg-yellow-50 shadow-sm"
+          >
+            Take / upload photo
+          </button>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onPick}
+        className="hidden"
+      />
+
+      {value && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50"
+        >
+          Replace
+        </button>
+      )}
+    </div>
+  );
+};
+
 // Input Field (Kept outside to prevent focus loss)
 const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
   <div className="relative group w-full">
@@ -102,11 +180,14 @@ const SignupPage = () => {
   const [otp, setOtp] = useState('');
   const [permissionsState, setPermissionsState] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [livePhotoBase64, setLivePhotoBase64] = useState('');
+  const [idProofBase64, setIdProofBase64] = useState('');
+  const [addressProofBase64, setAddressProofBase64] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [docsStatus, setDocsStatus] = useState<string>('');
 
   useEffect(() => {
     return () => {
@@ -224,8 +305,55 @@ const SignupPage = () => {
     requestSystemPermissions();
   };
 
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setter: (b64: string) => void,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setErrorMessage('Image is too large. Please pick something under 8 MB.');
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setter(dataUrl);
+      setErrorMessage('');
+    } catch (err) {
+      console.error(err);
+      setErrorMessage('Could not read that file. Try a different image.');
+    }
+  };
+
+  const uploadProofDoc = async (
+    userId: number | string,
+    field: 'idProofBase64' | 'addressProofBase64',
+    base64: string,
+  ) => {
+    if (!base64) return;
+    try {
+      await fetch(`${API_BASE}/user/profile/${userId}/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: base64 }),
+      });
+    } catch (err) {
+      console.error(`upload ${field} failed:`, err);
+    }
+  };
+
   const handleProceed = async () => {
     setErrorMessage('');
+    setDocsStatus('');
     setIsSubmitting(true);
 
     try {
@@ -247,6 +375,21 @@ const SignupPage = () => {
       const data = await response.json();
 
       if (data.success) {
+        // Account created. If the user attached extra KYC docs at signup,
+        // push them now via the existing /user/profile/:userId/documents
+        // endpoint. This is fire-and-forget so signup never blocks on it.
+        if (idProofBase64 || addressProofBase64) {
+          setDocsStatus('Uploading documents…');
+          await Promise.all([
+            idProofBase64
+              ? uploadProofDoc(data.userId, 'idProofBase64', idProofBase64)
+              : Promise.resolve(),
+            addressProofBase64
+              ? uploadProofDoc(data.userId, 'addressProofBase64', addressProofBase64)
+              : Promise.resolve(),
+          ]);
+        }
+
         const user: UserData = {
           ...form,
           userId: data.userId,
@@ -538,6 +681,44 @@ const SignupPage = () => {
                       </button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Optional KYC documents – uploaded after signup via the existing documents endpoint */}
+              {permissionsState === 'granted' && livePhotoBase64 && (
+                <div className="p-6 rounded-xl border border-slate-200 bg-white space-y-5 shadow-sm">
+                  <div>
+                    <h3 className="font-medium text-slate-800 flex items-center gap-2">
+                      <FileText size={18} className="text-neutral-900" />
+                      KYC documents <span className="text-xs font-normal text-slate-400">(optional — finish in profile later)</span>
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Add a photo of your government ID and an address proof now to speed up KYC. You can also add them later from your profile.
+                    </p>
+                  </div>
+
+                  <DocUploadRow
+                    label="ID proof"
+                    icon={<FileText size={16} className="text-yellow-800" />}
+                    value={idProofBase64}
+                    onPick={(e) => handleFileChange(e, setIdProofBase64)}
+                    onClear={() => setIdProofBase64('')}
+                  />
+
+                  <DocUploadRow
+                    label="Address proof"
+                    icon={<Home size={16} className="text-yellow-800" />}
+                    value={addressProofBase64}
+                    onPick={(e) => handleFileChange(e, setAddressProofBase64)}
+                    onClear={() => setAddressProofBase64('')}
+                  />
+                </div>
+              )}
+
+              {docsStatus && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex items-center gap-2">
+                  <Loader2 className="animate-spin h-4 w-4 text-yellow-700" />
+                  {docsStatus}
                 </div>
               )}
 
