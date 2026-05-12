@@ -46,7 +46,10 @@ const EditUserModal: React.FC<Props> = ({
   };
 
   const handleSubmit = () => {
-    onUpdate(formData);
+    // email and mobile are permanent fields and must never be sent on update,
+    // even by admin.
+    const { email: _email, mobile: _mobile, ...safePayload } = formData;
+    onUpdate(safePayload);
   };
 
   return (
@@ -77,16 +80,30 @@ const EditUserModal: React.FC<Props> = ({
             <input name="name" value={formData.name ?? ""} onChange={handleChange} className="input" />
           </div>
 
-          {/* Email */}
+          {/* Email (locked: cannot be changed once registered) */}
           <div>
             <label className="label">Email</label>
-            <input name="email" value={formData.email ?? ""} onChange={handleChange} className="input" />
+            <input
+              name="email"
+              value={formData.email ?? ""}
+              readOnly
+              disabled
+              className="input bg-slate-100 cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500 mt-1">Permanent — cannot be changed.</p>
           </div>
 
-          {/* Mobile */}
+          {/* Mobile (locked: cannot be changed once registered) */}
           <div>
             <label className="label">Mobile</label>
-            <input name="mobile" value={formData.mobile ?? ""} onChange={handleChange} className="input" />
+            <input
+              name="mobile"
+              value={formData.mobile ?? ""}
+              readOnly
+              disabled
+              className="input bg-slate-100 cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500 mt-1">Permanent — cannot be changed.</p>
           </div>
 
           {/* Telegram */}

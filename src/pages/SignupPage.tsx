@@ -183,7 +183,7 @@ const SignupPage = () => {
   const [idProofBase64, setIdProofBase64] = useState('');
   const [addressProofBase64, setAddressProofBase64] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -191,9 +191,21 @@ const SignupPage = () => {
 
   useEffect(() => {
     return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      liveStream?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [liveStream]);
+
+  // Attach the stream to the <video> element once it is rendered in the DOM.
+  // The video tag is mounted only after permissionsState becomes 'granted',
+  // so we wait until both the ref and the stream are available.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !liveStream) return;
+    if (video.srcObject !== liveStream) {
+      video.srcObject = liveStream;
+    }
+    video.play().catch(() => {});
+  }, [liveStream, permissionsState, livePhotoBase64]);
 
   const update = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -249,25 +261,30 @@ const SignupPage = () => {
     setErrorMessage('');
     setPermissionsState('requesting');
     try {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      setLiveStream((prev) => {
+        prev?.getTracks().forEach((t) => t.stop());
+        return null;
+      });
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setErrorMessage('Camera is not available. Please use a modern browser on an HTTPS page.');
+        setPermissionsState('denied');
+        return;
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: false,
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
 
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
-          () => setPermissionsState('granted'),
+          () => {
+            setLiveStream(stream);
+            setPermissionsState('granted');
+          },
           () => {
             stream.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
             setPermissionsState('denied');
           }
         );
@@ -294,8 +311,8 @@ const SignupPage = () => {
     ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
     setLivePhotoBase64(dataUrl);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    liveStream?.getTracks().forEach((t) => t.stop());
+    setLiveStream(null);
     if (videoRef.current) videoRef.current.srcObject = null;
     setErrorMessage('');
   };
@@ -653,6 +670,7 @@ const SignupPage = () => {
                     <>
                       <video
                         ref={videoRef}
+                        autoPlay
                         playsInline
                         muted
                         className="w-full max-h-72 rounded-xl bg-black object-cover border border-slate-200"

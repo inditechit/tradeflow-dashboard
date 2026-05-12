@@ -129,7 +129,6 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
-          mobile: form.mobile,
           country: form.country,
           state: form.state,
           city: form.city,
@@ -486,10 +485,13 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             <Input
               id="pf-mobile"
               value={form.mobile}
-              disabled={!canEdit}
-              onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value }))}
+              disabled
+              readOnly
               className={fieldInputClass}
             />
+            <p className="text-xs text-slate-500 mt-1">
+              Mobile number cannot be changed once registered.
+            </p>
           </div>
           <div className="space-y-0">
             <Label htmlFor="pf-country" className={fieldLabelClass}>
