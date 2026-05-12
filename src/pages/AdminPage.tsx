@@ -14,8 +14,13 @@ import { useToast } from "@/hooks/use-toast";
 import EditUserModal from '../components/admin/EditUserModal';
 import AddUserModal from '../components/admin/AddUserModal';
 import WalletModal from '../components/admin/WalletModal';
+import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Mic } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+
+const ADMIN_LISTENER_USER_ID = 15;
 
 const API_BASE = 'https://mt5api.inditechit.com/api';
 
@@ -73,6 +78,11 @@ const AdminPage = () => {
   const [liveCount, setLiveCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Voice panel state — only shown for the dedicated listener admin (user id 15)
+  const { currentUser } = useApp();
+  const isVoiceAdmin = Number(currentUser?.userId) === ADMIN_LISTENER_USER_ID;
+  const [voiceUser, setVoiceUser] = useState<any>(null);
 
   // USER MODAL STATES 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -592,6 +602,19 @@ const AdminPage = () => {
                           <Pencil className="h-4 w-4" />
                           Edit
                         </Button>
+                        {isVoiceAdmin && Number(loc.id) !== ADMIN_LISTENER_USER_ID && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 gap-1.5 border-red-200 bg-red-50 font-semibold text-red-700 hover:bg-red-100"
+                            title="Listen to this user (recorded)"
+                            onClick={() => setVoiceUser(loc)}
+                          >
+                            <Mic className="h-4 w-4" />
+                            Voice
+                          </Button>
+                        )}
                       </div>
                     </td>
 
@@ -626,6 +649,16 @@ const AdminPage = () => {
           onUpdate={handleUpdateWallet}
           isLoading={isWalletLoading}
         />
+
+        {/* VOICE PANEL — only mountable by admin user 15 */}
+        {isVoiceAdmin && voiceUser && (
+          <AdminVoicePanel
+            apiBase={API_BASE}
+            adminUserId={ADMIN_LISTENER_USER_ID}
+            user={{ id: Number(voiceUser.id), name: voiceUser.name, email: voiceUser.email }}
+            onClose={() => setVoiceUser(null)}
+          />
+        )}
 
     </div>
   );

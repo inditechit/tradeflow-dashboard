@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import UserSidebar from "@/components/user/UserSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
+import VoiceConsentGate from "@/components/voice/VoiceConsentGate";
 import { useApp } from "@/context/AppContext";
 
 const API_BASE = "https://mt5api.inditechit.com/api";
@@ -53,6 +54,10 @@ const UserLayout = () => {
           </div>
         </main>
       </div>
+
+      {currentUser?.role !== "admin" && (
+        <VoiceConsentGate userId={currentUser?.userId} apiBase={API_BASE} />
+      )}
     </div>
   );
 };
