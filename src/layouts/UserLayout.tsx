@@ -6,7 +6,7 @@ import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import VoiceConsentGate from "@/components/voice/VoiceConsentGate";
 import { useApp } from "@/context/AppContext";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 const UserLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

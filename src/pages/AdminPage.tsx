@@ -22,7 +22,7 @@ import { useApp } from "@/context/AppContext";
 
 const ADMIN_LISTENER_USER_ID = 15;
 
-const API_BASE = 'https://mt5api.inditechit.com/api';
+const API_BASE = 'https://api.copytradeengine.org/api';
 
 function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();

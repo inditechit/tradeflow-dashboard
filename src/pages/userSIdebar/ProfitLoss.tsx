@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Wallet, Coins, BarChart3, Percent } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 type Summary = {
   success: true;

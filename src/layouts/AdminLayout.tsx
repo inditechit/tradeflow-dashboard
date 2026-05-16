@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import { useApp } from "@/context/AppContext";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

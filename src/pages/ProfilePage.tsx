@@ -81,7 +81,7 @@ const ProfilePage = () => {
   const experience = currentUser?.experienceYears || '';
   const deposit = currentUser?.depositMethod || '';
 
-  const API_BASE = 'https://mt5api.inditechit.com/api';
+  const API_BASE = 'https://api.copytradeengine.org/api';
 
   const handleSaveAndProceed = async () => {
     if (!currentUser?.userId) {
@@ -187,7 +187,7 @@ const ProfilePage = () => {
             <span className="font-semibold tracking-wide uppercase text-sm">Step 2 of 3</span>
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mt-2">Trading Profile</h1>
-          <p className="text-slate-500 text-sm mt-2">Help DWG personalize your trading experience</p>
+          <p className="text-slate-500 text-sm mt-2">Tell us about yourself so Copy Trade Engine can personalize your experience</p>
         </div>
 
         {/* Global Error Message */}

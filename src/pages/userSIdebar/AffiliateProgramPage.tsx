@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Copy, Users, Wallet } from "lucide-react";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 const AffiliateProgramPage = () => {
   const raw = typeof window !== "undefined" ? localStorage.getItem("mt5_user") : null;

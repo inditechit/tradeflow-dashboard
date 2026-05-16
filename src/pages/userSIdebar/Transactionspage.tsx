@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 const UserTransactions = () => {
   const { toast } = useToast();

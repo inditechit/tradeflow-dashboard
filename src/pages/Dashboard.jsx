@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
-const SOCKET_URL = "https://astroapi.inditechit.com";
+const API_BASE = "https://api.copytradeengine.org/api";
+const SOCKET_URL = "https://api.copytradeengine.org";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],

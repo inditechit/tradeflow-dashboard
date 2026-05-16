@@ -14,7 +14,7 @@ const Recharge = () => {
 
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
-  const API_BASE = 'https://mt5api.inditechit.com/api';
+  const API_BASE = 'https://api.copytradeengine.org/api';
 
   const handleRecharge = async () => {
     if (!amount) return alert("Enter amount");

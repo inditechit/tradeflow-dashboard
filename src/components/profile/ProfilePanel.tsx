@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 /** Light fields — global theme uses dark `background`; profile cards are light paper. */
 const fieldInputClass =

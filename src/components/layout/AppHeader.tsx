@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 function getInitials(name?: string, telegram?: string) {
   const raw = (name || telegram || "?").trim();
@@ -122,7 +122,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
             {variant === "admin" ? "Admin" : "User"}
           </p>
           <p className="truncate text-xs font-semibold text-slate-800 sm:text-sm">
-            {variant === "admin" ? "Control center" : "Trading dashboard"}
+            Copy Trade Engine
           </p>
         </div>
       </div>

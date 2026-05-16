@@ -169,7 +169,7 @@ const SignupPage = () => {
   const referrerFromLink = searchParams.get('ref');
   const { setCurrentUser } = useApp();
 
-  const API_BASE = 'https://mt5api.inditechit.com/api'; // Your backend URL
+  const API_BASE = 'https://api.copytradeengine.org/api'; // Your backend URL
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -498,9 +498,9 @@ const SignupPage = () => {
         <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
           <div className="inline-flex items-center justify-center gap-3 mb-2 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
             <Shield size={20} />
-            <span className="font-semibold tracking-wide uppercase text-sm">DWG Secure Setup</span>
+            <span className="font-semibold tracking-wide uppercase text-sm">Copy Trade Engine — Secure setup</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mt-4">Join DWG</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mt-4">Join Copy Trade Engine</h1>
           <p className="text-slate-500 text-sm mt-2">Create your account and verify your device to get started</p>
 
           <div className="flex items-center justify-center mt-8 max-w-xs mx-auto">
@@ -617,7 +617,7 @@ const SignupPage = () => {
                   <div>
                     <h3 className="font-medium text-slate-800">System Permissions</h3>
                     <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                      DWG requires access to your camera, microphone, and location to verify your identity.
+                      Copy Trade Engine requires access to your camera, microphone, and location to verify your identity.
                     </p>
                   </div>
                 </div>

@@ -27,7 +27,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
 
   const { currentUser } = useApp();
 
-  const API_BASE = "https://mt5api.inditechit.com/api";
+  const API_BASE = "https://api.copytradeengine.org/api";
 
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -130,7 +130,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
         </div>
 
         <div className="mt-6 shrink-0 pb-2 text-center text-[10px] text-slate-400 sm:text-xs">
-          © 2026 MT5 Panel
+          © 2026 Copy Trade Engine
         </div>
       </aside>
     </>

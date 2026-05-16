@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 type AdminSidebarProps = {
   mobileOpen: boolean;
@@ -131,7 +131,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
         </div>
 
         <div className="mt-6 shrink-0 pb-2 text-center text-[10px] text-slate-400 sm:text-xs">
-          © 2026 MT5 Panel
+          © 2026 Copy Trade Engine
         </div>
       </aside>
     </>

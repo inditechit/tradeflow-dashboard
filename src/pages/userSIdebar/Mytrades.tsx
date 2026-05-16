@@ -4,8 +4,8 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
-const SOCKET_URL = "https://astroapi.inditechit.com";
+const API_BASE = "https://api.copytradeengine.org/api";
+const SOCKET_URL = "https://api.copytradeengine.org";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],

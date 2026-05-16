@@ -4,7 +4,7 @@ import { RefreshCw, Loader2, Users, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = "https://mt5api.inditechit.com/api";
+const API_BASE = "https://api.copytradeengine.org/api";
 
 type PaymentRow = {
   id: number;

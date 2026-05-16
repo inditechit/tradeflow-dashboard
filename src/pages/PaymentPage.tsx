@@ -23,7 +23,7 @@ const PaymentPage = () => {
   const [paymentVerified, setPaymentVerified] = useState(false);
 
   const [selectedMethod, setSelectedMethod] = useState<'USD' | 'INR' | 'AED'>('USD');
-  const API_BASE = 'https://mt5api.inditechit.com/api';
+  const API_BASE = 'https://api.copytradeengine.org/api';
 
   const [copied, setCopied] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);

@@ -124,7 +124,7 @@ const DashboardPage = () => {
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
 
-  const API_BASE = 'https://mt5api.inditechit.com/api';
+  const API_BASE = 'https://api.copytradeengine.org/api';
 
   const joinMs = useMemo(() => {
     const iso = currentUser?.createdAt;
