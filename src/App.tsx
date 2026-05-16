@@ -46,6 +46,7 @@ import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -59,8 +60,8 @@ const App = () => (
           <PermissionsGate>
           <Routes>
 
-            {/* Default */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Landing */}
+            <Route path="/" element={<LandingPage />} />
 
             {/* Auth */}
             <Route path="/login" element={<LoginPage />} />

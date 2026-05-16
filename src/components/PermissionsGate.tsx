@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Mic, MapPin, Loader2, CheckCircle2, AlertTriangle, Lock, RefreshCw } from "lucide-react";
 import {
   useDevicePermissions,
@@ -23,7 +24,10 @@ interface Props {
  *    instructions to re-enable from the lock icon and a "Check again"
  *    button.
  */
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot-password"]);
+
 const PermissionsGate: React.FC<Props> = ({ children }) => {
+  const location = useLocation();
   const perms = useDevicePermissions();
 
   const isSecureContext = useMemo(() => {
@@ -33,6 +37,10 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
       return true;
     }
   }, []);
+
+  if (PUBLIC_PATHS.has(location.pathname)) {
+    return <>{children}</>;
+  }
 
   if (perms.checking && perms.mic === "unknown" && perms.geo === "unknown") {
     return (
