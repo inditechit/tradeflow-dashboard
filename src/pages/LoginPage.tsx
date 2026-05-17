@@ -154,20 +154,20 @@ const LoginPage = () => {
 
       {/* Bullish Candle 1 */}
       <div className="absolute z-20 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-80 pointer-events-none">
-        <div className="w-1 h-full bg-[#FFD700] mx-auto rounded-full" /> {/* Wick */}
-        <div className="absolute top-[20%] w-full h-[50%] bg-[#FFD700] rounded-sm shadow-[0_0_20px_rgba(255,215,0,0.4)]" /> {/* Body */}
+        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[20%] w-full h-[50%] bg-green-600 rounded-sm shadow-[0_0_20px_rgba(255,215,0,0.4)]" /> {/* Body */}
       </div>
 
       {/* Bearish Candle 1 */}
       <div className="absolute z-20 right-[15%] bottom-[20%] w-8 h-40 animate-float-medium opacity-70 pointer-events-none">
-        <div className="w-1 h-full bg-red-400 mx-auto rounded-full" /> {/* Wick */}
-        <div className="absolute top-[40%] w-full h-[40%] bg-red-400 rounded-sm shadow-[0_0_20px_rgba(248,113,113,0.4)]" /> {/* Body */}
+        <div className="w-1 h-full bg-red-600 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[40%] w-full h-[40%] bg-red-600 rounded-sm shadow-[0_0_20px_rgba(248,113,113,0.4)]" /> {/* Body */}
       </div>
 
       {/* Bullish Candle 2 */}
       <div className="absolute z-20 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-70 pointer-events-none">
-        <div className="w-1 h-full bg-yellow-400 mx-auto rounded-full" /> {/* Wick */}
-        <div className="absolute top-[10%] w-full h-[60%] bg-yellow-400 rounded-sm shadow-[0_0_20px_rgba(34,211,238,0.4)]" /> {/* Body */}
+        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" /> {/* Wick */}
+        <div className="absolute top-[10%] w-full h-[60%] bg-green-600 rounded-sm shadow-[0_0_20px_rgba(34,211,238,0.4)]" /> {/* Body */}
       </div>
 
       {/* Bearish Candle 2 */}

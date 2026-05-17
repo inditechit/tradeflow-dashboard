@@ -442,7 +442,7 @@ const SignupPage = () => {
     {/* --- CLEAN STRAIGHT BACKGROUND STRIPS --- */}
 
 {/* Top Strip (Crypto) */}
-<div className="absolute z-0 w-full h-[60px] top-[5%] left-0 bg-white/60 border-y border-slate-300/50 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
+<div className="absolute z-0 w-full h-[60px] top-[1.5%] left-0 bg-white/60 border-y border-slate-300/50 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
   <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
   <div className="w-full opacity-90">
     <TradingViewTicker symbols={cryptoSymbols} />
@@ -458,7 +458,7 @@ const SignupPage = () => {
 </div> */}
 
 {/* Bottom Strip (Forex) */}
-<div className="absolute z-0 w-full h-[60px] bottom-[5%] left-0 bg-white/30 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
+<div className="absolute z-0 w-full h-[60px] bottom-[1.5%] left-0 bg-white/30 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
   <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
   <div className="w-full opacity-70">
     <TradingViewTicker symbols={forexSymbols} />
@@ -468,21 +468,21 @@ const SignupPage = () => {
       {/* 3. Floating Graphic Candlesticks */}
       
       {/* Bullish Candle 1 */}
-      <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-50">
-        <div className="w-1 h-full bg-[#FFD700] mx-auto rounded-full" />
-        <div className="absolute top-[20%] w-full h-[50%] bg-[#FFD700] rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
+      <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-60">
+        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" />
+        <div className="absolute top-[20%] w-full h-[50%] bg-green-600 rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
       </div>
 
       {/* Bearish Candle 1 */}
-      <div className="absolute z-0 right-[15%] bottom-[20%] w-8 h-40 animate-float-medium opacity-40">
-        <div className="w-1 h-full bg-red-400 mx-auto rounded-full" />
-        <div className="absolute top-[40%] w-full h-[40%] bg-red-400 rounded-sm shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
+      <div className="absolute z-0 right-[15%] bottom-[20%] w-8 h-40 animate-float-medium opacity-60">
+        <div className="w-1 h-full bg-red-600 mx-auto rounded-full" />
+        <div className="absolute top-[40%] w-full h-[40%] bg-red-600 rounded-sm shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
       </div>
 
       {/* Bullish Candle 2 */}
-      <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-40">
-        <div className="w-1 h-full bg-yellow-400 mx-auto rounded-full" />
-        <div className="absolute top-[10%] w-full h-[60%] bg-yellow-400 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+      <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-60">
+        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" />
+        <div className="absolute top-[10%] w-full h-[60%] bg-green-600 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
       </div>
 
       {/* Bearish Candle 2 */}
@@ -507,6 +507,10 @@ const SignupPage = () => {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>1</div>
             <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-[#FFD700]' : 'bg-slate-100'}`}></div>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>2</div>
+          </div>
+
+       <div className="mt-8 text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-yellow-400 uppercase tracking-widest drop-shadow-sm">
+            {step === 1 ? 'SIGNUP' : 'VERIFICATION'}
           </div>
         </div>
 
