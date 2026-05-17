@@ -1,41 +1,81 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, PurchasedPackage } from '@/context/AppContext';
-import { Plane, Globe, Video, Sparkles, Check } from 'lucide-react';
+import { Calendar, TrendingUp, Shield, Crown, Sparkles, Check } from 'lucide-react';
 
 const packages = [
   {
-    id: 'india-tour',
-    name: 'India Business Tour',
-    duration: '7 Days',
-    price: 612,
-    icon: Plane,
-    description: 'Exclusive guided tour across major Indian financial hubs and trading centers.',
-    features: ['Guided financial tour', 'Networking events', 'Local market insights'],
-    popular: false,
-  },
-  {
-    id: 'intl-tour',
-    name: 'International Tour',
+    id: '1-month',
+    name: '1 Month Pack',
     duration: '1 Month',
-    price: 3000,
-    
-    icon: Globe,
-    description: 'Global forex trading exposure across 5 major international countries.',
-    features: ['5-country access', 'Global trading floors', 'VIP accommodation'],
-    popular: true, // Highlights the middle card
-  },
-  {
-    id: 'meet-guru',
-    name: 'Consult with Guruji',
-    duration: '1 Session',
-    price: 100,
-    icon: Video,
-    description: 'One-on-one private mentorship session with our lead trading expert.',
-    features: ['1-on-1 strategy call', 'Portfolio review', 'Q&A session'],
+    originalPrice: 300,
+    price: 255,
+    icon: Calendar,
+    description: 'Begin copy trading with essential tools and a focused portfolio.',
+    features: [
+      'JACKPOT ROBOT',
+      'Mirror up to 2 strategies',
+      'Live trade feed',
+      'Wallet & transaction history',
+      'Email support',
+    ],
     popular: false,
   },
-];
+  {
+    id: '3-month',
+    name: '3 Month Pack',
+    duration: '3 Months',
+    originalPrice: 900,
+    price: 666,
+    icon: TrendingUp,
+    description: 'Scale with more strategies, affiliate access, and priority sync.',
+    features: [
+      'JACKPOT ROBOT',
+      'Mirror up to 5 strategies',
+      'Priority trade sync',
+      'P/L & trade history',
+      'Priority support',
+    ],
+    popular: false,
+  },
+  {
+    id: '6-month',
+    name: '6 Month Pack',
+    duration: '6 Months',
+    originalPrice: 1800,
+    price: 1110,
+    icon: Shield,
+    description: 'Higher limits, allocation controls, and daily settlement reports.',
+    features: [
+      'JACKPOT ROBOT',
+      'Mirror up to 12 strategies',
+      'Advanced allocation',
+      'Daily settlement reports',
+      'Withdrawal priority',
+    ],
+    popular: false,
+  },
+  {
+    id: '1-year',
+    name: '1 Year Pack',
+    subtitle: 'JACKPOT HEDGE PORTFOLIO',
+    duration: '12 Months',
+    originalPrice: 10800,
+    price: 2200,
+    icon: Crown,
+    description: 'Maximum capacity, custom allocation, and white-glove onboarding.',
+    features: [
+      'JACKPOT ROBOT',
+      'HEDGE ROBOT',
+      'PORTFOLIO ROBOT',
+      'High accuracy robot',
+      'Less drawdown',
+      'Profit factor upto 5',
+      '24/7 priority support',
+    ],
+    popular: true,
+  },
+] as const;
 
 const PackagesPage = () => {
   const navigate = useNavigate();
@@ -46,7 +86,7 @@ const PackagesPage = () => {
       id: pkg.id,
       name: pkg.name,
       price: pkg.price,
-      icon: pkg.icon.name, // Storing icon name as string for context
+      icon: pkg.icon.name, 
       purchasedAt: '',
     };
     setSelectedPackage(selected);
@@ -71,7 +111,7 @@ const PackagesPage = () => {
       </div>
 
       {/* Pricing Grid */}
-      <div className="grid lg:grid-cols-3 gap-8 w-full max-w-6xl items-center">
+      <div className="grid lg:grid-cols-4 sm:grid-cols-2 gap-6 w-full max-w-7xl items-center">
         {packages.map((pkg) => {
           const Icon = pkg.icon;
           const isPopular = pkg.popular;
@@ -79,62 +119,85 @@ const PackagesPage = () => {
           return (
             <div
               key={pkg.id}
-              className={`relative bg-white rounded-xl p-8 transition-all duration-300 flex flex-col h-full border
+              className={`relative bg-white rounded-xl p-6 transition-all duration-300 flex flex-col h-full border
                 ${isPopular 
-                  ? 'border-2 border-[#FFD700] shadow-sm lg:-translate-y-2' 
+                  ? 'border-2 border-[#FFD700] shadow-lg shadow-yellow-900/10 lg:-translate-y-2' 
                   : 'border-slate-200 shadow-sm hover:border-slate-300 hover:-translate-y-1'
                 }`}
             >
               {/* "Most Popular" Badge */}
               {isPopular && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#FFD700] text-black px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FFD700] text-black px-4 py-0.5 rounded-full text-xs font-bold tracking-wider uppercase whitespace-nowrap shadow-sm">
                   Most Popular
                 </div>
               )}
 
-              {/* Card Header */}
-              <div className="mb-6">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-6 
-                  ${isPopular ? 'bg-[#FFD700] text-black shadow-sm' : 'bg-[#F2F2F2] text-neutral-900'}`}
-                >
-                  <Icon size={28} />
-                </div>
-                <div className="text-neutral-900 font-semibold text-sm mb-1">{pkg.duration}</div>
-                <h3 className="text-2xl font-bold text-slate-800 leading-tight">{pkg.name}</h3>
-              </div>
-
-              {/* Price */}
-              <div className="mb-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900">${pkg.price.toLocaleString()}</span>
-                <span className="text-slate-500 text-sm font-medium">/ one-time</span>
-              </div>
-
-              <p className="text-slate-600 text-sm mb-8 leading-relaxed">
-                {pkg.description}
-              </p>
-
-              {/* Features List */}
-              <div className="flex-1 space-y-3 mb-8">
-                {pkg.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="mt-0.5 bg-[#FFF9E6] text-yellow-700 rounded-full p-0.5">
-                      <Check size={14} strokeWidth={3} />
-                    </div>
-                    <span className="text-slate-600 text-sm">{feature}</span>
+              {/* Flex-1 container to push the button to the bottom */}
+              <div className="flex-1">
+                {/* Card Header */}
+                <div className="mb-6">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 
+                    ${isPopular ? 'bg-[#FFD700] text-black shadow-sm' : 'bg-slate-100 text-slate-700'}`}
+                  >
+                    <Icon size={24} />
                   </div>
-                ))}
+                  
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-xl font-bold text-slate-900 leading-tight">{pkg.name}</h3>
+                    {"subtitle" in pkg && pkg.subtitle && (
+                      <span className="w-fit rounded bg-neutral-900 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-[#FFD700]">
+                        {pkg.subtitle}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="mb-4 flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-slate-900">${pkg.price}</span>
+                  <span className="text-lg font-medium text-slate-400 line-through">${pkg.originalPrice}</span>
+                </div>
+
+                <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                  {pkg.description}
+                </p>
+
+                {/* Features List */}
+                <div className="space-y-2.5 mb-8">
+                  {pkg.features.map((feature, idx) => {
+                    const isHighlightedFeature = feature.includes("ROBOT");
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`flex items-start gap-2 text-sm rounded transition-all ${
+                          isHighlightedFeature 
+                            ? "text-neutral-900 font-bold bg-yellow-100/70 border border-yellow-300 p-1.5 shadow-sm" 
+                            : "text-slate-600"
+                        }`}
+                      >
+                        <Check 
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${
+                            isHighlightedFeature ? "text-yellow-800" : "text-yellow-700"
+                          }`} 
+                          strokeWidth={3} 
+                        />
+                        <span>{feature}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Action Button */}
               <button
                 onClick={() => handleSelect(pkg)}
-                className={`w-full py-4 rounded-xl text-base font-bold transition-all mt-auto
+                className={`w-full py-3 rounded-xl text-sm font-bold transition-all mt-auto
                   ${isPopular 
-                    ? 'bg-[#FFD700] text-black shadow-lg shadow-black/25 hover:bg-[#E6C200] hover:-translate-y-0.5' 
-                    : 'bg-[#F2F2F2] text-neutral-900 hover:bg-[#E8E8E8]'
+                    ? 'bg-[#FFD700] text-black hover:bg-[#E6C200]' 
+                    : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
                   }`}
               >
-                Select {pkg.name.split(' ')[0]}
+                Select {pkg.name}
               </button>
             </div>
           );

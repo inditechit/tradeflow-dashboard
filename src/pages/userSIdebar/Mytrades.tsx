@@ -199,17 +199,41 @@ const Mytrades = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-        <div className="min-h-[300px]">
-          {loading && openTrades.length === 0 ? (
-            <div className="p-10 text-center text-slate-500">
-              <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
-              Loading trades...
-            </div>
-          ) : openTrades.length === 0 ? (
-            <div className="p-10 text-center text-slate-500">
-              No open trades found
-            </div>
+     <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+  <div className="min-h-[300px]">
+    {loading && openTrades.length === 0 ? (
+      <div className="p-10 text-center text-slate-500">
+        <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
+        Loading trades...
+      </div>
+    ) : openTrades.length === 0 ? (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="relative">
+          {/* Glow Background */}
+          <div className="absolute inset-0 rounded-full bg-yellow-400/30 blur-2xl animate-pulse"></div>
+
+          {/* Icon Circle */}
+          <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-slate-900 border border-yellow-500 shadow-lg shadow-yellow-500/40">
+            <RefreshCw className="w-9 h-9 text-yellow-400 animate-spin" />
+          </div>
+        </div>
+
+        <h2 className="mt-6 text-2xl font-bold text-slate-800">
+          Waiting for Open Trades
+        </h2>
+
+        <p className="mt-2 max-w-md text-sm text-slate-500 leading-relaxed">
+          If your wallet has been recharged successfully, open trades will
+          automatically appear here once they become available.
+        </p>
+
+        {/* Animated Dots */}
+        <div className="flex gap-2 mt-5">
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce [animation-delay:0.2s]"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce [animation-delay:0.4s]"></span>
+        </div>
+      </div>
           ) : (
             openTrades.map((trade, i) => {
               const ticket = String(trade.ticket_id ?? "");

@@ -10,62 +10,78 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { only } from "node:test";
 
 const PLANS = [
   {
-    id: "starter",
-    name: "Starter",
-    price: 99,
+    id: "1-month",
+    name: "1 Month Pack",
+    originalPrice: 300,
+    price: 255,
     description: "Begin copy trading with essential tools and a focused portfolio.",
     features: [
+      "JACKPOT ROBOT",
       "Mirror up to 2 strategies",
       "Live trade feed",
       "Wallet & transaction history",
       "Email support",
+      "High accuracy robot",
+      "Profit factor upto 2.5",
     ],
     popular: false,
   },
   {
-    id: "growth",
-    name: "Growth",
-    price: 299,
+    id: "3-month",
+    name: "3 Month Pack",
+    originalPrice: 900,
+    price: 666,
     description: "Scale with more strategies, affiliate access, and priority sync.",
     features: [
+      "JACKPOT ROBOT",
       "Mirror up to 5 strategies",
       "Priority trade sync",
       "P/L & trade history",
-      "Affiliate program",
       "Priority support",
+      "High accuracy robot",
+      "Profit factor upto 3",
     ],
-    popular: true,
+    popular: false,
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: 599,
+    id: "6-month",
+    name: "6 Month Pack",
+    originalPrice: 1800,
+    price: 1110,
     description: "Higher limits, allocation controls, and daily settlement reports.",
     features: [
+      "JACKPOT ROBOT",
       "Mirror up to 12 strategies",
       "Advanced allocation",
       "Daily settlement reports",
       "Withdrawal priority",
-      "Account manager",
+      "High accuracy robot",
+      "Profit factor upto 4",
     ],
     popular: false,
   },
   {
-    id: "elite",
-    name: "Elite",
-    price: 999,
+    id: "1-year",
+    name: "1 Year Pack",
+    subtitle: "JACKPOT HEDGE PORTFOLIO",
+    originalPrice: 10800,
+    price: 2200,
     description: "Maximum capacity, custom allocation, and white-glove onboarding.",
     features: [
-      "Unlimited strategy mirrors",
-      "Custom volume allocation",
-      "API-ready reporting",
+      "JACKPOT ROBOT",
+      "HEDGE ROBOT",
+      "PORTFOLIO ROBOT",
+      "High accuracy robot",
+      "Less drawdown",
+      "Profit factor upto 5",
       "24/7 priority support",
-      "Onboarding call",
+      "50% performance fee is charged only when the account achieves new net positive performance.",
     ],
-    popular: false,
+    popular: true,
   },
 ] as const;
 
@@ -225,35 +241,66 @@ export default function LandingPage() {
                 Choose the tier that fits your copy-trading goals. Upgrade anytime from your dashboard.
               </p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid h-full gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {PLANS.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-md ${
+                  className={`relative flex flex-col h-full rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-md ${
                     plan.popular
                       ? "border-2 border-[#FFD700] shadow-lg shadow-yellow-900/10 lg:-translate-y-1"
                       : "border-slate-200"
                   }`}
                 >
                   {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#FFD700] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#FFD700] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
                       Most popular
                     </span>
                   )}
-                  <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
-                    <span className="text-sm text-slate-500">/ month</span>
+                  
+                  {/* flex-1 added here to keep the top content grouped together and push the button down */}
+                  <div className="flex-1">
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                      {"subtitle" in plan && plan.subtitle && (
+                        <span className="w-fit rounded bg-neutral-900 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-[#FFD700]">
+                          {plan.subtitle}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="mt-4 flex items-baseline gap-2">
+                      <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
+                      <span className="text-lg font-medium text-slate-400 line-through">${plan.originalPrice}</span>
+                    </div>
+                    
+                    {/* flex-1 removed from the p tag so it doesn't stretch and create gaps */}
+                    <p className="mt-3 text-sm leading-relaxed text-slate-600">{plan.description}</p>
+                    
+                    <ul className="mt-6 space-y-2.5">
+                      {plan.features.map((feature) => {
+                        const isHighlightedFeature = feature.includes("ROBOT");
+                        return (
+                          <li 
+                            key={feature} 
+                            className={`flex items-start gap-2 text-sm rounded transition-all ${
+                              isHighlightedFeature 
+                                ? "text-neutral-900 font-bold bg-yellow-100/70 border border-yellow-300 p-1.5 shadow-sm" 
+                                : "text-slate-600"
+                            }`}
+                          >
+                            <Check 
+                              className={`mt-0.5 h-4 w-4 shrink-0 ${
+                                isHighlightedFeature ? "text-yellow-800" : "text-yellow-700"
+                              }`} 
+                              strokeWidth={3} 
+                            />
+                            <span>{feature}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">{plan.description}</p>
-                  <ul className="mt-6 space-y-2.5">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm text-slate-600">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-yellow-700" strokeWidth={3} />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
+                  
                   <Button
                     asChild
                     className={`mt-8 w-full ${

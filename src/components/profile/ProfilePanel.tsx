@@ -542,6 +542,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             />
           </div>
         </div>
+    
+    {currentUser?.role === "admin" && (
         <div className="mt-6 space-y-0">
           <Label htmlFor="pf-addr" className={fieldLabelClass}>
             Full address
@@ -554,6 +556,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             className={fieldInputClass}
           />
         </div>
+    )}
 
         <div
           id="trc20-payout"
