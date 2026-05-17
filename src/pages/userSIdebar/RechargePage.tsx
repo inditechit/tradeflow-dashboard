@@ -29,7 +29,7 @@ const Recharge = () => {
       const res = await axios.post(`${API_BASE}/recharge`, {
         userId,
         amount: Number(amount),
-        payment_method: "USD"
+        payment_method: "USDT"
       });
 
       setPaymentData(res.data);
@@ -124,67 +124,78 @@ const Recharge = () => {
         </div>
 
         {/* RIGHT */}
-        <div className="border rounded-xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold mb-4">
-            Payment Details
-          </h2>
-
-          {!paymentData && (
-            <p className="text-gray-500 text-sm">
-              Enter amount and proceed to see payment instructions
-            </p>
-          )}
-
-          {paymentData && (
+        <div className="border rounded-xl p-6 shadow-sm flex flex-col h-full">
+          {paymentVerified ? (
+            /* ✅ SUCCESS UI (Replaces everything on the right) */
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-10 animate-pulse">
+              <div className="w-24 h-24 bg-[#00baf2] rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h2 className="text-3xl font-bold text-[#21c17a] mb-2">Payment Successful!</h2>
+              <p className="text-gray-600 font-medium">Your recharge has been verified securely.</p>
+            </div>
+          ) : (
+            /* ⏳ PENDING UI */
             <>
-              <p className="mb-2">
-                Amount:{" "}
-                <b>{Number(paymentData.amount).toFixed(0)} USD</b>
-              </p>
+              <h2 className="text-xl font-semibold mb-4">
+                Payment Details
+              </h2>
 
-              {/* QR */}
-              <div className="flex flex-col items-center my-4">
-                <QRCodeCanvas
-                  value={paymentData.wallet}
-                  size={180}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Scan QR to pay
+              {!paymentData && (
+                <p className="text-gray-500 text-sm">
+                  Enter amount and proceed to see payment instructions
                 </p>
-              </div>
-
-              {/* WALLET */}
-              <p className="mb-2 font-medium">
-                Send USD to this wallet:
-              </p>
-
-              <div className="bg-gray-100 p-3 rounded text-sm break-all">
-                {paymentData.wallet}
-              </div>
-
-              {/* WARNING */}
-              <p className="text-[12px] text-red-500 mt-3">
-                Send exact amount. Do not round.
-              </p>
-
-              <div className="mt-4 text-yellow-700 text-sm">
-                Payment will be verified automatically or by admin.
-              </div>
-
-              {/* ✅ ONLY THIS UI ADDED (minimal change) */}
-
-              {/* ⏳ WAITING */}
-              {isChecking && !paymentVerified && (
-                <div className="mt-3 text-blue-600 text-sm">
-                  ⏳ Waiting for payment verification...
-                </div>
               )}
 
-              {/* ✅ VERIFIED */}
-              {paymentVerified && (
-                <div className="mt-3 text-yellow-700 font-semibold text-sm">
-                  ✅ Payment Verified Successfully
-                </div>
+              {paymentData && (
+                <>
+                  <p className="mb-2">
+                    Amount:{" "}
+                    <b>{Number(paymentData.amount).toFixed(0)} USD</b>
+                  </p>
+
+                  {/* QR */}
+                  <div className="flex flex-col items-center my-4">
+                    <QRCodeCanvas
+                      value={paymentData.wallet}
+                      size={180}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Scan QR to pay
+                    </p>
+                  </div>
+
+                  {/* WALLET */}
+                  <p className="mb-2 font-medium">
+                    Send USD to this wallet:
+                  </p>
+
+                  <div className="bg-gray-100 p-3 rounded text-sm break-all">
+                    {paymentData.wallet}
+                  </div>
+
+                  {/* WARNING */}
+                  <p className="text-[12px] text-red-500 mt-3">
+                    Send exact amount. Do not round.
+                  </p>
+
+                  <div className="mt-4 text-yellow-700 text-sm">
+                    Payment will be verified automatically or by admin.
+                  </div>
+
+                  {/* ⏳ WAITING */}
+                  {isChecking && (
+                    <div className="mt-3 text-blue-600 text-sm flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Waiting for payment verification...
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

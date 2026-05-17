@@ -102,6 +102,7 @@ const Transactions = () => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Method</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Package</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500">Sweep Status</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500">Created</th>
               </tr>
             </thead>
@@ -155,6 +156,15 @@ const Transactions = () => {
                       className={`px-3 py-1 text-xs rounded-lg border ${getStatusStyle(p.status)}`}
                     >
                       {p.status}
+                    </span>
+                  </td>
+
+                  {/* Sweep Status */}
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-3 py-1 text-xs rounded-lg border ${getStatusStyle(p.sweep_status)}`}
+                    >
+                      {p.sweep_status}
                     </span>
                   </td>
 

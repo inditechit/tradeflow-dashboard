@@ -16,6 +16,7 @@ type PaymentRow = {
   tx_hash: string | null;
   package_id: string;
   payment_method: string | null;
+  sweep_status: string | null;
   created_at: string;
 };
 
@@ -241,6 +242,7 @@ const AdminRechargesPage = () => {
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Amount</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Method</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Status</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Sweep Status</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Created</th>
               </tr>
             </thead>
@@ -263,6 +265,13 @@ const AdminRechargesPage = () => {
                         className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${statusPillClass(p.status)}`}
                       >
                         {p.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 sm:px-6 sm:py-4">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${statusPillClass(p.sweep_status)}`}
+                      >
+                        {p.sweep_status}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
