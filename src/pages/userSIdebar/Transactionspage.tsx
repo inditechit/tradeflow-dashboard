@@ -81,13 +81,12 @@ const UserTransactions = () => {
   };
 
 
-
   const getStatusStyle = (status) => {
-    switch (status) {
+    switch (status) { 
       case "pending":
         return "bg-yellow-50 text-yellow-600 border-yellow-200";
       case "success":
-        return "bg-[#FFF9E6] text-yellow-700 border-yellow-200";
+        return "bg-green-50 text-green-600 border-green-200";
       case "failed":
         return "bg-red-50 text-red-600 border-red-200";
       default:
@@ -198,9 +197,7 @@ const UserTransactions = () => {
 
                   {/* Status */}
                   <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 text-xs rounded-lg border ${getStatusStyle(p.status)}`}
-                    >
+                    <span className={`px-3 py-1 text-xs rounded-lg border ${getStatusStyle(p.status)}`}>
                       {p.status}
                     </span>
                   </td>
