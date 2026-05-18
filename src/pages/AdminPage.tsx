@@ -292,6 +292,55 @@ const AdminPage = () => {
     return matchName && matchEmail && matchKyc;
   });
 
+
+  const getRiskStyle = (riskLevel: string) => {
+  switch (riskLevel) {
+    case 'LOW':
+      return 'bg-green-100 text-green-800 border-green-300';
+    case 'MEDIUM':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'HIGH':
+      return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'SUPER_HIGH':
+      return 'bg-red-100 text-red-800 border-red-300';
+    default:
+      return 'bg-slate-100 text-slate-800 border-slate-300';
+  }
+};
+
+const renderRiskBadges = (riskData: any) => {
+  if (!riskData) return "—";
+
+  let parsedRisks: string[] = [];
+
+  try {
+    // If it's a JSON string, parse it. If it's already an array, just use it.
+    parsedRisks = typeof riskData === 'string' ? JSON.parse(riskData) : riskData;
+  } catch (error) {
+    // Fallback just in case parsing fails
+    return <span className="text-slate-500">{String(riskData)}</span>;
+  }
+
+  // If it parsed correctly but it's empty, show the dash
+  if (!Array.isArray(parsedRisks) || parsedRisks.length === 0) {
+    return "—";
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {parsedRisks.map((risk, index) => (
+        <span
+          key={index}
+          className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border ${getRiskStyle(risk)}`}
+        >
+          {/* This removes the underscore from SUPER_HIGH to make it "SUPER HIGH" */}
+          {risk.replace('_', ' ')}
+        </span>
+      ))}
+    </div>
+  );
+};
+
   return (
     <div className="w-full min-w-0 font-sans">
       {/* Header */}
@@ -481,6 +530,9 @@ const AdminPage = () => {
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Dollar cut
                 </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Risk Profile
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Actions
                 </th>
@@ -640,6 +692,11 @@ const AdminPage = () => {
                   {/* Dollar Cut */}
                   <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
                     {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
+                  </td>
+
+                  {/* Risk Profile */}
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {renderRiskBadges(loc.risk)}
                   </td>
 
                   {/* Actions */}
