@@ -128,7 +128,7 @@ const Recharge = () => {
           {paymentVerified ? (
             /* ✅ SUCCESS UI (Replaces everything on the right) */
             <div className="flex-1 flex flex-col items-center justify-center text-center py-10 animate-pulse">
-              <div className="w-24 h-24 bg-[#00baf2] rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
+              <div className="w-24 h-24 bg-yellow-300 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
                 <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
                 </svg>
