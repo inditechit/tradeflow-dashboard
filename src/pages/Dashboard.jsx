@@ -15,7 +15,7 @@ import {
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
 
 const API_BASE = "https://api.copytradeengine.org/api";
-const SOCKET_URL = "https://api.copytradeengine.org";
+const SOCKET_URL = "https://astroapi.inditechit.com";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
