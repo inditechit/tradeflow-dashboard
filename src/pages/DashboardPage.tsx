@@ -207,7 +207,7 @@ const DashboardPage = () => {
       return;
     }
     loadFinance();
-    const interval = setInterval(loadFinance, 60000);
+    const interval = setInterval(loadFinance, 10000);
     return () => clearInterval(interval);
   }, [currentUser?.userId, currentUser?.role, loadFinance]);
 

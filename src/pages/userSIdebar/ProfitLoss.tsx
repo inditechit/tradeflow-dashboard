@@ -1,8 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Wallet, Coins, BarChart3, Percent } from "lucide-react";
+import { io } from "socket.io-client";
 import { useApp } from "@/context/AppContext";
+import {
+  sumLiveProfitLoss,
+  rowNetPl,
+  type UserTradeRowLike,
+} from "@/utils/userTradePl";
 
 const API_BASE = "https://api.copytradeengine.org/api";
+const SOCKET_URL = "https://astroapi.inditechit.com";
+const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
 type Summary = {
   success: true;
@@ -18,20 +26,7 @@ type Summary = {
   fee_per_lot_usd: number;
 };
 
-type UserTradeRow = {
-  ticket_id: string;
-  symbol?: string;
-  allocated_volume?: string | number | null;
-  user_investment_amount?: string | number | null;
-  user_volume_share?: string | number | null;
-  proportional_fee?: string | number | null;
-  admin_profit_percentage?: string | number | null;
-  final_profit_loss?: string | number | null;
-  wallet_settled_at?: string | null;
-  user_estimated_net_pl?: number | null;
-  user_estimated_live_pl?: number | null;
-  mt5_status?: string | null;
-};
+type UserTradeRow = UserTradeRowLike;
 
 function fmtUsd(n: number, currency = "USD") {
   const code = String(currency || "USD").toUpperCase();
@@ -53,8 +48,10 @@ const ProfitLoss = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
+  const myTicketIdsRef = useRef<Set<string>>(new Set());
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!currentUser?.userId) return;
     const uid = currentUser.userId;
     try {
@@ -66,25 +63,73 @@ const ProfitLoss = () => {
       const sData = await sRes.json();
       const tData = await tRes.json();
       if (sData?.success) setSummary(sData as Summary);
-      if (tData?.success && Array.isArray(tData.trades)) setRows(tData.trades);
+      if (tData?.success && Array.isArray(tData.trades)) {
+        const list = tData.trades as UserTradeRow[];
+        const tickets = new Set<string>();
+        for (const t of list) {
+          const ticket = String(t.ticket_id ?? "");
+          if (ticket) tickets.add(ticket);
+        }
+        myTicketIdsRef.current = tickets;
+        setRows(list);
+      }
     } catch (err) {
       console.error("ProfitLoss fetch:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser?.userId]);
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const poll = setInterval(refresh, 5000);
+    return () => clearInterval(poll);
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!currentUser?.userId) return;
+
+    const applyLiveProfit = (ticket: string, raw: number) => {
+      if (!myTicketIdsRef.current.has(ticket)) return;
+      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      setRows((prev) =>
+        prev.map((t) =>
+          String(t.ticket_id ?? "") === ticket ? { ...t, mt5_total_profit: raw } : t
+        )
+      );
+    };
+
+    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+      const ticket = String(payload.ticket ?? "");
+      const raw = Number(payload.profit);
+      if (!ticket || !Number.isFinite(raw)) return;
+      applyLiveProfit(ticket, raw);
+    };
+
+    socket.on("mt5live", onLive);
+    socket.on("mt5data", onLive);
+    return () => {
+      socket.off("mt5live", onLive);
+      socket.off("mt5data", onLive);
+    };
   }, [currentUser?.userId]);
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id))),
-    [rows],
+    [rows]
   );
 
   const currency = summary?.currency || "USD";
+
+  const liveFromTrades = useMemo(
+    () => sumLiveProfitLoss(rows, liveRawByTicket),
+    [rows, liveRawByTicket]
+  );
+
+  const livePl =
+    liveFromTrades.net !== 0 || Object.keys(liveRawByTicket).length > 0
+      ? liveFromTrades.net
+      : Number(summary?.live_pl ?? 0);
 
   const cards = [
     {
@@ -113,9 +158,9 @@ const ProfitLoss = () => {
     },
     {
       title: "Live (open) P/L",
-      value: fmtUsd(summary?.live_pl ?? 0, currency),
+      value: fmtUsd(livePl, currency),
       icon: Percent,
-      tone: (summary?.live_pl ?? 0) >= 0 ? "profit" : "loss",
+      tone: livePl >= 0 ? "profit" : "loss",
     },
     {
       title: "Fees paid",
@@ -165,9 +210,7 @@ const ProfitLoss = () => {
                 <span className="text-xs font-bold uppercase tracking-wide">{c.title}</span>
               </div>
               <p className={`text-2xl font-extrabold tabular-nums ${toneCls}`}>{c.value}</p>
-              {c.footer && (
-                <p className="mt-1 text-xs text-slate-400">{c.footer}</p>
-              )}
+              {c.footer && <p className="mt-1 text-xs text-slate-400">{c.footer}</p>}
             </div>
           );
         })}
@@ -213,15 +256,17 @@ const ProfitLoss = () => {
               ) : (
                 sortedRows.map((r) => {
                   const settled = Boolean(r.wallet_settled_at);
+                  const ticket = String(r.ticket_id ?? "");
                   const pl = settled
                     ? Number(r.final_profit_loss ?? 0)
-                    : r.user_estimated_net_pl != null
-                      ? Number(r.user_estimated_net_pl)
-                      : Number(r.user_estimated_live_pl ?? 0);
+                    : rowNetPl(r, liveRawByTicket[ticket]);
                   const isProfit = pl >= 0;
                   const share = Number(r.user_volume_share ?? 0);
                   const vol = Number(r.allocated_volume ?? 0);
-                  const invested = Number(r.user_investment_amount ?? 0);
+                  const invested =
+                    Number(r.user_investment_amount || 0) > 0
+                      ? Number(r.user_investment_amount)
+                      : Number(r.user_bal || 0);
                   const fee = Number(r.proportional_fee ?? 0);
                   const pct = Number(r.admin_profit_percentage ?? 0);
 
