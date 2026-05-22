@@ -44,7 +44,7 @@ const TradingViewChart = memo(() => {
 
       "height": 400,
 
-      "symbol": "BINANCE:BTCUSDT",
+      "symbol": "OANDA:XAUUSD",
 
       "interval": "D",
 
