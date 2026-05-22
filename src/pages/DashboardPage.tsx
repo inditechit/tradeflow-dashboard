@@ -1,13 +1,12 @@
-import React, { useEffect, useState, useRef, memo, useMemo } from 'react';
+import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { 
   Plane, Globe, Video, User, LogOut, 
   Loader2, CheckCircle2, Clock, Plus, TrendingUp,
-  Wallet, Percent,
+  Wallet, CircleDollarSign,
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
-import { tradeEventMs } from '@/utils/mt5TradeDates';
 
 // --- TradingView Component (Memoized for performance) ---
 const TradingViewChart = memo(() => {
@@ -120,42 +119,61 @@ const DashboardPage = () => {
   const [error, setError] = useState('');
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
-  const [tradesFeed, setTradesFeed] = useState<Record<string, unknown>[]>([]);
+  const [realisedNet, setRealisedNet] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
 
   const API_BASE = 'https://api.copytradeengine.org/api';
 
-  const joinMs = useMemo(() => {
-    const iso = currentUser?.createdAt;
-    if (!iso) return null;
-    const ms = Date.parse(String(iso));
-    return Number.isFinite(ms) ? ms : null;
-  }, [currentUser?.createdAt]);
+  const walletBalance = Number(wallet?.balance ?? 0);
+  const currency = wallet?.currency || "USD";
+  const combinedTotal = walletBalance + realisedNet;
 
-  /** Settled trades: stored P/L. Open trades: live estimate from your row only */
-  const yourShareSinceJoin = useMemo(() => {
-    if (tradesFeed.length === 0) return 0;
-    let sum = 0;
-    for (const r of tradesFeed as Record<string, unknown>[]) {
-      if (joinMs != null) {
-        const ev = tradeEventMs({
-          status: r.mt5_status as string | undefined,
-          open_time: r.open_time as string | null,
-          close_time: r.close_time as string | null,
-        });
-        if (ev == null || ev < joinMs) continue;
+  const loadFinance = useCallback(async () => {
+    if (!currentUser?.userId || currentUser.role === 'admin') return;
+
+    setLoadingFinance(true);
+    try {
+      const uid = currentUser.userId;
+
+      const [wRes, pRes, assignRes, summaryRes] = await Promise.all([
+        fetch(`${API_BASE}/user/wallet/${uid}`),
+        fetch(`${API_BASE}/user/profit/${uid}`),
+        fetch(`${API_BASE}/user/trade-assign/${uid}`),
+        fetch(`${API_BASE}/user/summary/${uid}`),
+      ]);
+
+      const wData = await wRes.json();
+      const pData = await pRes.json();
+      const assignData = await assignRes.json();
+      const summaryData = await summaryRes.json();
+
+      if (wData.success && wData.wallet) {
+        setWallet(wData.wallet);
       }
-      if (r.wallet_settled_at) {
-        sum += Number(r.final_profit_loss ?? 0);
-      } else if (r.user_estimated_net_pl != null) {
-        sum += Number(r.user_estimated_net_pl);
+
+      if (pData.success) {
+        const joinFromApi = pData.created_at || pData.joined_at || pData.signup_date;
+        if (joinFromApi && !currentUser.createdAt) {
+          updateUser({ createdAt: String(joinFromApi) });
+        }
+      }
+
+      const funded =
+        summaryData?.funded !== false && assignData?.funded !== false && Number(wData?.wallet?.balance ?? assignData?.balance ?? 0) > 0;
+      setAssignFunded(funded);
+
+      if (summaryData?.success) {
+        setRealisedNet(Number(summaryData.realised_net ?? 0));
       } else {
-        sum += Number(r.user_estimated_live_pl ?? 0);
+        setRealisedNet(0);
       }
+    } catch (err) {
+      console.error('Finance load error:', err);
+    } finally {
+      setLoadingFinance(false);
     }
-    return sum;
-  }, [tradesFeed, joinMs]);
+  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser]);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -188,58 +206,10 @@ const DashboardPage = () => {
       setLoadingFinance(false);
       return;
     }
-
-    let cancelled = false;
-
-    const loadFinance = async () => {
-      setLoadingFinance(true);
-      try {
-        const uid = currentUser.userId;
-        
-        const [wRes, pRes, assignRes, userTradesRes] = await Promise.all([
-          fetch(`${API_BASE}/user/wallet/${uid}`),
-          fetch(`${API_BASE}/user/profit/${uid}`),
-          fetch(`${API_BASE}/user/trade-assign/${uid}`),
-          fetch(`${API_BASE}/user/trades/${uid}`),
-        ]);
-
-        const wData = await wRes.json();
-        const pData = await pRes.json();
-        const assignData = await assignRes.json();
-        const utData = await userTradesRes.json();
-
-        if (cancelled) return;
-
-        if (wData.success && wData.wallet) {
-          setWallet(wData.wallet);
-        }
-
-        if (pData.success) {
-          const joinFromApi = pData.created_at || pData.joined_at || pData.signup_date;
-          if (joinFromApi && !currentUser.createdAt) {
-            updateUser({ createdAt: String(joinFromApi) });
-          }
-        }
-
-        setAssignFunded(assignData?.funded !== false);
-
-        if (utData.success && Array.isArray(utData.trades)) {
-          setTradesFeed(utData.trades);
-        } else {
-          setTradesFeed([]);
-        }
-      } catch (err) {
-        console.error("Finance load error:", err);
-      } finally {
-        if (!cancelled) setLoadingFinance(false);
-      }
-    };
-
     loadFinance();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt]);
+    const interval = setInterval(loadFinance, 60000);
+    return () => clearInterval(interval);
+  }, [currentUser?.userId, currentUser?.role, loadFinance]);
 
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -301,56 +271,81 @@ const DashboardPage = () => {
 
         {currentUser?.role !== 'admin' && assignFunded === false && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <button
-              type="button"
-              className="font-semibold text-neutral-800 underline decoration-neutral-900"
-              onClick={() => navigate('/user/recharge')}
-            >
-              Add funds
-            </button>
+            {walletBalance <= 0 ? (
+              <p>
+                Wallet is empty — open trades are settled and you will not receive new trades until you{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-neutral-800 underline decoration-neutral-900"
+                  onClick={() => navigate('/user/recharge')}
+                >
+                  add funds
+                </button>
+                .
+              </p>
+            ) : (
+              <p>
+                <button
+                  type="button"
+                  className="font-semibold text-neutral-800 underline decoration-neutral-900"
+                  onClick={() => navigate('/user/recharge')}
+                >
+                  Add funds
+                </button>{' '}
+                to join live trades.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Wallet & trade P/L (user only) */}
+        {/* Wallet, realised net, combined (user only) */}
         {currentUser?.role !== 'admin' && (
-          <section className="grid gap-4 md:grid-cols-2">
+          <section className="grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <Wallet className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Wallet balance</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Wallet</span>
               </div>
               {loadingFinance && !wallet ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : wallet ? (
                 <p className="text-2xl font-extrabold tabular-nums text-slate-900">
-                  {wallet.currency}{' '}
-                  {Number(wallet.balance).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatMoneyAmount(walletBalance, currency)}
                 </p>
               ) : (
-                <p className="text-slate-500 text-sm">Could not load wallet</p>
+                <p className="text-slate-500 text-sm">Could not load</p>
               )}
+              <p className="mt-2 text-xs text-slate-500">Cash in your wallet</p>
             </div>
 
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8 md:col-span-1">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Trade P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Realised net</span>
               </div>
-              {loadingFinance && tradesFeed.length === 0 ? (
+              {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p
-                  className={`text-2xl font-extrabold tabular-nums ${
-                    yourShareSinceJoin >= 0 ? "text-yellow-700" : "text-red-600"
-                  }`}
-                >
-                  {yourShareSinceJoin > 0 ? "+" : ""}
-                  {formatMoneyAmount(yourShareSinceJoin, wallet?.currency || "USD")}
+                <p className={`text-2xl font-extrabold tabular-nums ${realisedNet >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                  {realisedNet > 0 ? '+' : ''}{formatMoneyAmount(realisedNet, currency)}
                 </p>
               )}
+              <p className="mt-2 text-xs text-slate-500">Settled closed trades</p>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50/80 to-white p-6 shadow-sm shadow-neutral-900/8">
+              <div className="mb-2 flex items-center gap-2 text-slate-500">
+                <CircleDollarSign className="h-5 w-5 text-neutral-900" />
+                <span className="text-xs font-bold uppercase tracking-wide">Wallet + P/L</span>
+              </div>
+              {loadingFinance ? (
+                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
+              ) : (
+                <p className={`text-2xl font-extrabold tabular-nums ${combinedTotal >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                  {formatMoneyAmount(combinedTotal, currency)}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-slate-500">Wallet plus realised P/L</p>
             </div>
           </section>
         )}

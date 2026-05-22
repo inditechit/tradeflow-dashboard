@@ -3,6 +3,12 @@ import { io } from "socket.io-client";
 import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
+import {
+  applyUserRules,
+  isOpenTrade,
+  resolveEffectiveSlice,
+  type UserTradeRowLike,
+} from "@/utils/userTradePl";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 const SOCKET_URL = "https://astroapi.inditechit.com";
@@ -11,23 +17,9 @@ const socket = io(SOCKET_URL, {
   transports: ["websocket"],
 });
 
-type UserTradeRow = {
-  ticket_id?: unknown;
-  symbol?: unknown;
+type UserTradeRow = UserTradeRowLike & {
   price?: unknown;
-  mt5_status?: unknown;
-  allocated_volume?: unknown;
-  total_trade_volume?: unknown;
-  mt5_volume?: unknown;
-  user_volume_share?: unknown;
-  user_investment_amount?: unknown;
-  proportional_fee?: unknown;
-  admin_profit_percentage?: unknown;
-  wallet_settled_at?: unknown;
   user_estimated_live_pl?: unknown;
-  user_estimated_net_pl?: unknown;
-  final_profit_loss?: unknown;
-  mt5_total_profit?: unknown;
 };
 
 type UserSlice = {
@@ -38,27 +30,12 @@ type UserSlice = {
   netFromApi: number | null;
 };
 
-/**
- * Apply the same rules the backend uses on settlement so the live UI
- * matches what will actually hit the wallet on close.
- */
-function applyUserRules(rawPl: number, fee: number, pct: number): number {
-  if (!Number.isFinite(rawPl)) return 0;
-  if (rawPl <= 0) return rawPl;
-  const net = rawPl - fee;
-  if (net <= 0) return net;
-  return net * (pct / 100);
-}
-
 function buildSliceMap(utRows: UserTradeRow[]): Record<string, UserSlice> {
   const out: Record<string, UserSlice> = {};
   for (const t of utRows) {
     const ticket = String(t.ticket_id ?? "");
     if (!ticket) continue;
-    const V = Number(t.mt5_volume || t.total_trade_volume || 0);
-    const v_i = Number(t.allocated_volume || 0);
-    const fee = Number(t.proportional_fee || 0);
-    const pct = Number(t.admin_profit_percentage ?? 0);
+    const { v_i, V, fee, pct } = resolveEffectiveSlice(t);
     const netFromApi =
       t.user_estimated_net_pl == null ? null : Number(t.user_estimated_net_pl);
     out[ticket] = {
@@ -125,29 +102,41 @@ const Mytrades = () => {
     if (!currentUser?.userId) return;
 
     fetchBoard();
+    const poll = setInterval(fetchBoard, 5000);
 
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
+    const applyLiveProfit = (ticket: string, raw: number) => {
+      if (!myTicketIdsRef.current.has(ticket)) return;
+      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      setRows((prev) =>
+        prev.map((t) =>
+          String(t.ticket_id ?? "") === ticket
+            ? { ...t, mt5_total_profit: raw }
+            : t
+        )
+      );
+    };
+
     socket.on("mt5live", (live: { ticket?: unknown; profit?: unknown }) => {
       const ticket = String(live.ticket ?? "");
-      if (!myTicketIdsRef.current.has(ticket)) return;
       const raw = Number(live.profit);
-      if (!Number.isFinite(raw)) return;
-      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      if (!ticket || !Number.isFinite(raw)) return;
+      applyLiveProfit(ticket, raw);
     });
 
     socket.on("mt5data", (trade: { ticket?: unknown; profit?: unknown }) => {
       const ticket = String(trade.ticket ?? "");
-      if (!myTicketIdsRef.current.has(ticket)) return;
       const raw = Number(trade.profit);
-      if (!Number.isFinite(raw)) return;
-      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      if (!ticket || !Number.isFinite(raw)) return;
+      applyLiveProfit(ticket, raw);
     });
 
     return () => {
+      clearInterval(poll);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("mt5live");
@@ -156,10 +145,7 @@ const Mytrades = () => {
   }, [currentUser?.userId, fetchBoard]);
 
   const openTrades = useMemo(
-    () =>
-      rows.filter(
-        (t) => String(t.mt5_status ?? "").toUpperCase() === "OPEN"
-      ),
+    () => rows.filter((t) => isOpenTrade(t)),
     [rows]
   );
 
@@ -239,26 +225,33 @@ const Mytrades = () => {
               const ticket = String(trade.ticket_id ?? "");
               const sm = shareMap[ticket];
               const rawLiveSocket = liveRawByTicket[ticket];
-              const ratio = myRatiosRef.current[ticket] ?? 0;
+              const slice = resolveEffectiveSlice(trade);
 
               const mt5Profit = Number(trade.mt5_total_profit || 0);
               const rawLive = Number.isFinite(rawLiveSocket) ? rawLiveSocket : mt5Profit;
-              const userRawLive = ratio > 0 ? rawLive * ratio : 0;
+              const userRawLive =
+                slice.V > 0 && slice.v_i > 0 ? rawLive * (slice.v_i / slice.V) : 0;
 
-              const fee = sm?.fee ?? Number(trade.proportional_fee || 0);
-              const pct = sm?.pct ?? Number(trade.admin_profit_percentage ?? 0);
+              const fee = sm?.fee ?? slice.fee;
+              const pct = sm?.pct ?? slice.pct;
 
               const settled = trade.wallet_settled_at != null;
-              const settledPl = Number(trade.final_profit_loss || 0);
+              let settledPl = Number(trade.final_profit_loss || 0);
+              if (
+                settled &&
+                settledPl === 0 &&
+                slice.V > 0 &&
+                slice.v_i > 0 &&
+                Math.abs(mt5Profit) > 0.0001
+              ) {
+                settledPl = applyUserRules(userRawLive, fee, pct);
+              }
 
-              const liveNet = applyUserRules(userRawLive, fee, pct);
-
-              const displayPl = settled ? settledPl : liveNet;
+              const displayPl = settled
+                ? settledPl
+                : applyUserRules(userRawLive, fee, pct);
               const isProfit = displayPl >= 0;
-              const yourVol =
-                sm && sm.v_i > 0
-                  ? sm.v_i
-                  : Number(trade.allocated_volume || 0);
+              const yourVol = slice.v_i > 0 ? slice.v_i : Number(trade.allocated_volume || 0);
               const investment = Number(trade.user_investment_amount || 0);
 
               return (
