@@ -230,11 +230,11 @@ const ProfitLoss = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share</th>
+                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share</th> */}
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th>
+                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th> */}
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Admin %</th>
+                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Admin %</th> */}
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
@@ -274,21 +274,21 @@ const ProfitLoss = () => {
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {share > 0 ? `${(share * 100).toFixed(2)}%` : "—"}
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {vol > 0 ? vol.toFixed(4) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {invested > 0 ? fmtUsd(invested, currency) : "—"}
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {fee > 0 ? fmtUsd(fee, currency) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {pct > 0 ? `${pct.toFixed(2)}%` : "—"}
-                      </td>
+                      </td> */}
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
                           isProfit ? "text-yellow-700" : "text-red-600"
