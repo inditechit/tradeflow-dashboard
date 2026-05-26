@@ -267,7 +267,7 @@ const DashboardPage = () => {
                 >
                   add funds
                 </button>
-                .
+            
               </p>
             ) : (
               <p>
@@ -300,7 +300,12 @@ const DashboardPage = () => {
               ) : (
                 <p className="text-slate-500 text-sm">Could not load</p>
               )}
-              <p className="mt-2 text-xs text-slate-500">Cash in your wallet</p>
+            <button 
+                  onClick={() => navigate('/user/recharge')}
+                  className="flex items-center gap-1 bg-[#ecd888] mt-4 hover:bg-[#FFD700] text-gray-800 hover:text-black border border-yellow-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                >
+                  <Plus size={14} /> Add Fund
+                </button>
             </div>
 
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">

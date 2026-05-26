@@ -51,7 +51,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     // { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
     { name: "History", icon: BarChart3, path: "/user/pnl" },
     { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
-    { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
+    // { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },
     { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
