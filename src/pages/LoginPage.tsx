@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail, Loader2, Shield } from "lucide-react"; // Changed AtSign to Mail
 import { useApp } from "@/context/AppContext";
+import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 // Added a unique `widgetId` prop to prevent conflicts when rendering multiple widgets
@@ -75,8 +76,14 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
 const LoginPage = () => {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
+  const { isReady, role } = useVerifiedSession();
 
   const API_BASE = "https://api.copytradeengine.org/api";
+
+  useEffect(() => {
+    if (!isReady || !role) return;
+    navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
+  }, [isReady, role, navigate]);
 
   // 1. Changed state from telegram to email
   const [form, setForm] = useState({

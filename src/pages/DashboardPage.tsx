@@ -442,7 +442,7 @@ const DashboardPage = () => {
                         onClick={() => handleContinueJourney(txn)}
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#E6C200]"
                       >
-                        Continue journey
+                        Proceed to payment
                         <ArrowRight size={16} />
                       </button>
                     )}

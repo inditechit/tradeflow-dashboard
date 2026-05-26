@@ -37,7 +37,8 @@ import AffiliateProgramPage from "./pages/userSIdebar/AffiliateProgramPage";
 import AffiliateRulesAdminPage from "./pages/AffiliateRulesAdminPage";
 import AdminReferralsPage from "./pages/AdminReferralsPage";
 import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
-import AdminRoute from "./components/admin/AdminRoute";
+import AdminRoute from "./components/auth/AdminRoute";
+import UserRoute from "./components/auth/UserRoute";
 import My_Profile from "./pages/userSIdebar/My_Profile";
 import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
 import AdminProfilePage from "./pages/AdminProfilePage";
@@ -74,7 +75,14 @@ const App = () => (
             <Route path="/payment" element={<PaymentPage />} />
 
             {/* ✅ USER ROUTES (Nested with Outlet) */} 
-            <Route path="/user" element={<UserLayout />}>
+            <Route
+              path="/user"
+              element={
+                <UserRoute>
+                  <UserLayout />
+                </UserRoute>
+              }
+            >
 
               {/* Default → /user/dashboard */}
               <Route index element={<Navigate to="dashboard" replace />} />
