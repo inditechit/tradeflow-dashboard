@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
@@ -165,8 +165,6 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
 
 const SignupPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const referrerFromLink = searchParams.get('ref');
   const { setCurrentUser } = useApp();
 
   const API_BASE = 'https://api.copytradeengine.org/api'; // Your backend URL
@@ -188,6 +186,21 @@ const SignupPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [docsStatus, setDocsStatus] = useState<string>('');
+
+  // Handle URL parsing and cleaning immediately on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refValue = params.get('ref');
+
+    if (refValue) {
+      // Secretly save to sessionStorage
+      sessionStorage.setItem('referrer_code', refValue);
+
+      // Remove 'ref' from URL without a full page reload
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -373,6 +386,8 @@ const SignupPage = () => {
     setDocsStatus('');
     setIsSubmitting(true);
 
+    const storedRef = sessionStorage.getItem('referrer_code');
+
     try {
       const payload = {
         ...form,
@@ -381,7 +396,7 @@ const SignupPage = () => {
         state: '',
         city: '',
         pincode: '',
-        ...(referrerFromLink ? { ref: referrerFromLink } : {}),
+        ...(storedRef ? { ref: storedRef } : {}),
       };
 
       const response = await fetch(`${API_BASE}/signup`, {
