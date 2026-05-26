@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, AtSign, Loader2, Shield } from "lucide-react";
+import { Lock, Mail, Loader2, Shield } from "lucide-react"; // Changed AtSign to Mail
 import { useApp } from "@/context/AppContext";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
@@ -78,8 +78,9 @@ const LoginPage = () => {
 
   const API_BASE = "https://api.copytradeengine.org/api";
 
+  // 1. Changed state from telegram to email
   const [form, setForm] = useState({
-    telegram: "",
+    email: "",
     password: "",
   });
 
@@ -91,13 +92,15 @@ const LoginPage = () => {
     setErrorMessage("");
   };
 
-  const isValid = form.telegram.trim() !== "" && form.password.trim() !== "";
+  // 2. Updated validation to check email
+  const isValid = form.email.trim() !== "" && form.password.trim() !== "";
 
   const handleLogin = async () => {
     setErrorMessage("");
 
     if (!isValid) {
-      setErrorMessage("Telegram username and password are required");
+      // 3. Updated error message
+      setErrorMessage("Email and password are required");
       return;
     }
 
@@ -109,13 +112,13 @@ const LoginPage = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(form), // This now naturally sends { email, password }
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setCurrentUser((prev) => ({
+        setCurrentUser((prev: any) => ({
           ...(prev || {}),
           userId: String(data.userId),
           telegram: data.telegram ?? prev?.telegram,
@@ -218,11 +221,13 @@ const LoginPage = () => {
 
           {/* Form */}
           <div className="p-8 space-y-6">
+            {/* 4. Changed Input to Email */}
             <InputField
-              icon={AtSign}
-              placeholder="Telegram Username"
-              value={form.telegram}
-              onChange={(e: any) => update("telegram", e.target.value)}
+              icon={Mail}
+              type="email"
+              placeholder="Email Address"
+              value={form.email}
+              onChange={(e: any) => update("email", e.target.value)}
             />
 
             <InputField

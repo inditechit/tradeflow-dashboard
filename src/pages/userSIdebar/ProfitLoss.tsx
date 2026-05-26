@@ -26,7 +26,10 @@ type Summary = {
   fee_per_lot_usd: number;
 };
 
-type UserTradeRow = UserTradeRowLike;
+// Extended to explicitly ensure amt_invested exists safely on the type
+type UserTradeRow = UserTradeRowLike & {
+  amt_invested?: string | number;
+};
 
 function fmtUsd(n: number, currency = "USD") {
   const code = String(currency || "USD").toUpperCase();
@@ -230,11 +233,11 @@ const ProfitLoss = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share</th> */}
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
-                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th> */}
+                {/* NEW COLUMNS */}
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy Amount</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell Amount</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                {/* <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Admin %</th> */}
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
@@ -257,10 +260,18 @@ const ProfitLoss = () => {
                 sortedRows.map((r) => {
                   const settled = Boolean(r.wallet_settled_at);
                   const ticket = String(r.ticket_id ?? "");
+                  
+                  // Keep existing PL logic perfectly intact
                   const pl = settled
                     ? Number(r.final_profit_loss ?? 0)
                     : rowNetPl(r, liveRawByTicket[ticket]);
                   const isProfit = pl >= 0;
+                  
+                  // NEW CALCULATIONS: Buy and Sell Amounts
+                  const buyAmt = Number(r.amt_invested || 0);
+                  // Sell Amount is the initial investment PLUS the profit (or subtracting the loss if PL is negative)
+                  const sellAmt = buyAmt > 0 ? buyAmt + pl : 0;
+
                   const share = Number(r.user_volume_share ?? 0);
                   const vol = Number(r.allocated_volume ?? 0);
                   const invested =
@@ -274,21 +285,21 @@ const ProfitLoss = () => {
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
-                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {share > 0 ? `${(share * 100).toFixed(2)}%` : "—"}
-                      </td> */}
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {vol > 0 ? vol.toFixed(4) : "—"}
                       </td>
-                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {invested > 0 ? fmtUsd(invested, currency) : "—"}
-                      </td> */}
+                      
+                      {/* NEW BUY & SELL COLUMNS RENDERED HERE */}
+                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                        {buyAmt > 0 ? fmtUsd(buyAmt, currency) : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                        {sellAmt > 0 ? fmtUsd(sellAmt, currency) : "—"}
+                      </td>
+
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {fee > 0 ? fmtUsd(fee, currency) : "—"}
                       </td>
-                      {/* <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {pct > 0 ? `${pct.toFixed(2)}%` : "—"}
-                      </td> */}
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
                           isProfit ? "text-yellow-700" : "text-red-600"
