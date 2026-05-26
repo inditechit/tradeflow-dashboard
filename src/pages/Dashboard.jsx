@@ -325,6 +325,20 @@ const Dashboard = () => {
 
       {/* Summary metrics — MT4-style split: realized (closed) vs floating (open) */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+
+         {statCard(
+          <TrendingUp className="h-4 w-4 text-green-600" />,
+          "Realized profit",
+          fmtMoney(stats.realizedProfit),
+          "CLOSED trades with profit &gt; 0 only."
+        )}
+        {statCard(
+          <TrendingDown className="h-4 w-4 text-red-500" />,
+          "Realized loss",
+          fmtMoney(stats.realizedLoss),
+          "CLOSED trades with profit &lt; 0 (absolute sum)."
+        )}
+
         {statCard(
           <Wallet className="h-4 w-4" />,
           "Open notional (Σ vol×price)",
@@ -337,21 +351,10 @@ const Dashboard = () => {
           <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
           "Sum of profit on OPEN trades only (unrealized)."
         )}
-        {statCard(
-          <TrendingUp className="h-4 w-4 text-yellow-600" />,
-          "Realized profit (closed)",
-          fmtMoney(stats.realizedProfit),
-          "CLOSED trades with profit &gt; 0 only."
-        )}
-        {statCard(
-          <TrendingDown className="h-4 w-4 text-red-500" />,
-          "Realized loss (closed)",
-          fmtMoney(stats.realizedLoss),
-          "CLOSED trades with profit &lt; 0 (absolute sum)."
-        )}
+       
         {statCard(
           <PieChart className={`h-4 w-4 ${realizedColor}`} />,
-          "Net realized (closed)",
+          "Net Balance",
           <span className={realizedColor}>{fmtMoney(stats.realizedNet)}</span>,
           "Sum of profit on all CLOSED rows."
         )}
