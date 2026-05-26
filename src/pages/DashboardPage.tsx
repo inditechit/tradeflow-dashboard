@@ -80,7 +80,7 @@ const getPackageIcon = (name: string) => {
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser, setSelectedPackage, updateUser } = useApp();
+  const { currentUser, setSelectedPackage, updateUser, logout } = useApp();
   
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,9 +208,7 @@ const DashboardPage = () => {
   }, [currentUser]);
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('mt5_user');
-    localStorage.removeItem('mt5_packages'); 
+    logout();
     navigate('/login');
   };
 

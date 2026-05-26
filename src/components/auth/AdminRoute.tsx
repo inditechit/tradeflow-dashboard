@@ -6,17 +6,13 @@ type Props = { children: React.ReactNode };
 
 /** Admins only — regular users cannot open /admin URLs. */
 const AdminRoute = ({ children }: Props) => {
-  const { userId, role, isLoading, isReady, isInvalid } = useVerifiedSession();
-
-  if (!userId) {
-    return <Navigate to="/login" replace />;
-  }
+  const { userId, role, isLoading, isReady } = useVerifiedSession();
 
   if (isLoading) {
     return <AuthGateLoading />;
   }
 
-  if (isInvalid || !isReady) {
+  if (!isReady || !userId) {
     return <Navigate to="/login" replace />;
   }
 

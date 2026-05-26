@@ -6,6 +6,7 @@ import {
   ShieldCheck, ArrowRight, Copy, Check
 } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
+import { isTrialPackageId, TRIAL_TERMS } from "@/constants/packages";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -24,6 +25,11 @@ const PaymentPage = () => {
 
   const [copied, setCopied] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
+  const [trialTermsAccepted, setTrialTermsAccepted] = useState(
+    Boolean((location.state as { trialTermsAccepted?: boolean })?.trialTermsAccepted)
+  );
+
+  const isTrial = selectedPackage ? isTrialPackageId(selectedPackage.id) : false;
 
   const formatAmount = () => {
     if (!paymentData?.amount) return 0;
@@ -48,10 +54,20 @@ const PaymentPage = () => {
       const data = await res.json();
 
       if (data.success) {
+        if (data.activated || (isTrial && Number(data.amount) === 0)) {
+          addPackage({
+            ...selectedPackage,
+            purchasedAt: new Date().toISOString(),
+            transactionId: String(data.paymentId ?? ""),
+          });
+          setStep("success");
+          setTimeout(() => navigate("/user/dashboard"), 3000);
+          return;
+        }
         setPaymentData(data);
-        setStep('pay');
+        setStep("pay");
       } else {
-        setErrorMessage(data.error);
+        setErrorMessage(data.error ?? "Could not start payment");
       }
     } catch (err) {
       setErrorMessage('Failed to create payment');
@@ -196,33 +212,79 @@ const PaymentPage = () => {
           {/* STEP 1: TERMS */}
           {step === "terms" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="bg-[#FFF9E6] border border-yellow-200/80 rounded-xl p-6 flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-[#FFD700] flex items-center justify-center text-black shrink-0">
+              <div
+                className={`rounded-xl p-6 flex items-start gap-4 border ${
+                  isTrial
+                    ? "bg-emerald-50 border-emerald-200"
+                    : "bg-[#FFF9E6] border-yellow-200/80"
+                }`}
+              >
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                    isTrial ? "bg-emerald-500 text-white" : "bg-[#FFD700] text-black"
+                  }`}
+                >
                   <ShieldCheck size={24} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-2">
-                    Please review before proceeding
+                    {isTrial ? "Activate your 7-day trial" : "Please review before proceeding"}
                   </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    You are about to make a payment of{" "}
-                    <span className="font-semibold text-slate-800">
-                      ${paymentData ? formatAmount() : selectedPackage.price} USDT
-                    </span>
-                    . Once the transaction is successfully completed, it will be processed instantly.
-                  </p>
-                  <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
-                    By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset settlements, all processed transactions are final and strictly non-refundable.
-                  </p>
+                  {isTrial ? (
+                    <>
+                      <ul className="text-sm text-slate-700 space-y-2 mb-4">
+                        {TRIAL_TERMS.map((line) => (
+                          <li key={line} className="flex gap-2">
+                            <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-1 w-5 h-5 rounded border-emerald-400 text-emerald-600"
+                          checked={trialTermsAccepted}
+                          onChange={(e) => setTrialTermsAccepted(e.target.checked)}
+                        />
+                        <span className="text-sm font-semibold text-emerald-900">
+                          I accept the trial terms and want to activate now.
+                        </span>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        You are about to make a payment of{" "}
+                        <span className="font-semibold text-slate-800">
+                          ${paymentData ? formatAmount() : selectedPackage.price} USDT
+                        </span>
+                        . Once the transaction is successfully completed, it will be processed instantly.
+                      </p>
+                      <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
+                        By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset settlements, all processed transactions are final and strictly non-refundable.
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
               <button
                 onClick={handleCreatePayment}
-                disabled={isSubmitting}
-                className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/20 hover:bg-[#E6C200] hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
+                disabled={isSubmitting || (isTrial && !trialTermsAccepted)}
+                className={`w-full py-4 rounded-xl text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0 ${
+                  isTrial
+                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                    : "bg-[#FFD700] text-black hover:bg-[#E6C200] hover:-translate-y-0.5 shadow-black/20"
+                }`}
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : 'Proceed to Checkout'}
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" size={24} />
+                ) : isTrial ? (
+                  "Activate free trial"
+                ) : (
+                  "Proceed to Checkout"
+                )}
                 {!isSubmitting && <ArrowRight size={20} />}
               </button>
             </div>
@@ -305,7 +367,11 @@ const PaymentPage = () => {
                 </div>
               </div>
               <h2 className="text-3xl font-extrabold text-slate-800 mb-3">All Done!</h2>
-              <p className="text-slate-500 text-lg mb-8 max-w-sm mx-auto">Your payment has been successfully verified. Welcome aboard!</p>
+              <p className="text-slate-500 text-lg mb-8 max-w-sm mx-auto">
+                {isTrial
+                  ? "Your 7-day free trial is active. Welcome aboard!"
+                  : "Your payment has been successfully verified. Welcome aboard!"}
+              </p>
               <div className="flex items-center justify-center gap-3 text-neutral-900 font-semibold bg-[#FFF9E6] border border-yellow-200/80 w-max mx-auto px-6 py-3 rounded-full">
                 <Loader2 className="animate-spin" size={20} />
                 Redirecting to dashboard...

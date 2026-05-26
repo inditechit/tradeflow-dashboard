@@ -125,19 +125,19 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        setCurrentUser((prev: any) => ({
-          ...(prev || {}),
+        const role = data.role === "admin" ? "admin" : "user";
+        setCurrentUser({
           userId: String(data.userId),
-          telegram: data.telegram ?? prev?.telegram,
-          name: data.name ?? prev?.name,
-          email: data.email ?? prev?.email,
-          role: data.role,
+          telegram: data.telegram ?? undefined,
+          name: data.name ?? undefined,
+          email: data.email ?? form.email,
+          role,
           ...(data.created_at || data.createdAt
             ? { createdAt: String(data.created_at ?? data.createdAt) }
             : {}),
-        }));
+        });
 
-        if (data.role === "admin") {
+        if (role === "admin") {
           navigate("/admin/dashboard");
         } else {
           navigate("/user/dashboard");

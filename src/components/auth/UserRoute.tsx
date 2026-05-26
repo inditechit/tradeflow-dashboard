@@ -6,17 +6,13 @@ type Props = { children: React.ReactNode };
 
 /** Logged-in traders only — admins are sent to the admin app. */
 const UserRoute = ({ children }: Props) => {
-  const { userId, role, isLoading, isReady, isInvalid } = useVerifiedSession();
-
-  if (!userId) {
-    return <Navigate to="/login" replace />;
-  }
+  const { userId, role, isLoading, isReady } = useVerifiedSession();
 
   if (isLoading) {
     return <AuthGateLoading />;
   }
 
-  if (isInvalid || !isReady) {
+  if (!isReady || !userId) {
     return <Navigate to="/login" replace />;
   }
 

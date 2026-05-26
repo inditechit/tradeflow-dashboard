@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 import {
   ArrowRight,
   BarChart3,
@@ -10,80 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { only } from "node:test";
-
-const PLANS = [
-  {
-    id: "1-month",
-    name: "1 Month Pack",
-    originalPrice: 300,
-    price: 255,
-    description: "Begin copy trading with essential tools and a focused portfolio.",
-    features: [
-      "JACKPOT ROBOT",
-      "Mirror up to 2 strategies",
-      "Live trade feed",
-      "Wallet & transaction history",
-      "Email support",
-      "High accuracy robot",
-      "Profit factor upto 2.5",
-    ],
-    popular: false,
-  },
-  {
-    id: "3-month",
-    name: "3 Month Pack",
-    originalPrice: 900,
-    price: 666,
-    description: "Scale with more strategies, affiliate access, and priority sync.",
-    features: [
-      "JACKPOT ROBOT",
-      "Mirror up to 5 strategies",
-      "Priority trade sync",
-      "P/L & trade history",
-      "Priority support",
-      "High accuracy robot",
-      "Profit factor upto 3",
-    ],
-    popular: false,
-  },
-  {
-    id: "6-month",
-    name: "6 Month Pack",
-    originalPrice: 1800,
-    price: 1110,
-    description: "Higher limits, allocation controls, and daily settlement reports.",
-    features: [
-      "JACKPOT ROBOT",
-      "Mirror up to 12 strategies",
-      "Advanced allocation",
-      "Daily settlement reports",
-      "Withdrawal priority",
-      "High accuracy robot",
-      "Profit factor upto 4",
-    ],
-    popular: false,
-  },
-  {
-    id: "1-year",
-    name: "1 Year Pack",
-    subtitle: "JACKPOT HEDGE PORTFOLIO",
-    originalPrice: 10800,
-    price: 2200,
-    description: "Maximum capacity, custom allocation, and white-glove onboarding.",
-    features: [
-      "JACKPOT ROBOT",
-      "HEDGE ROBOT",
-      "PORTFOLIO ROBOT",
-      "High accuracy robot",
-      "Less drawdown",
-      "Profit factor upto 5",
-      "24/7 priority support",
-      "50% performance fee is charged only when the account achieves new net positive performance.",
-    ],
-    popular: true,
-  },
-] as const;
+import { SUBSCRIPTION_PACKAGES } from "@/constants/packages";
 
 const HIGHLIGHTS = [
   {
@@ -109,6 +38,14 @@ const HIGHLIGHTS = [
 ];
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+  const { isReady, role } = useVerifiedSession();
+
+  useEffect(() => {
+    if (!isReady || !role) return;
+    navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
+  }, [isReady, role, navigate]);
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
@@ -241,19 +178,26 @@ export default function LandingPage() {
                 Choose the tier that fits your copy-trading goals. Upgrade anytime from your dashboard.
               </p>
             </div>
-            <div className="grid h-full gap-6 sm:grid-cols-2 xl:grid-cols-4">
-              {PLANS.map((plan) => (
+            <div className="grid h-full gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {SUBSCRIPTION_PACKAGES.map((plan) => (
                 <div
                   key={plan.id}
                   className={`relative flex flex-col h-full rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-md ${
                     plan.popular
                       ? "border-2 border-[#FFD700] shadow-lg shadow-yellow-900/10 lg:-translate-y-1"
-                      : "border-slate-200"
+                      : plan.isTrial
+                        ? "border-2 border-emerald-300 shadow-md"
+                        : "border-slate-200"
                   }`}
                 >
                   {plan.popular && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#FFD700] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
                       Most popular
+                    </span>
+                  )}
+                  {plan.isTrial && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+                      Free trial
                     </span>
                   )}
                   
@@ -269,8 +213,16 @@ export default function LandingPage() {
                     </div>
                     
                     <div className="mt-4 flex items-baseline gap-2">
-                      <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
-                      <span className="text-lg font-medium text-slate-400 line-through">${plan.originalPrice}</span>
+                      {plan.isTrial ? (
+                        <span className="text-4xl font-extrabold text-emerald-600">FREE</span>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
+                          <span className="text-lg font-medium text-slate-400 line-through">
+                            ${plan.originalPrice}
+                          </span>
+                        </>
+                      )}
                     </div>
                     
                     {/* flex-1 removed from the p tag so it doesn't stretch and create gaps */}
@@ -306,10 +258,12 @@ export default function LandingPage() {
                     className={`mt-8 w-full ${
                       plan.popular
                         ? "bg-[#FFD700] text-black hover:bg-[#E6C200]"
-                        : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                        : plan.isTrial
+                          ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                          : "bg-slate-100 text-slate-900 hover:bg-slate-200"
                     }`}
                   >
-                    <Link to="/signup">Get {plan.name}</Link>
+                    <Link to="/signup">{plan.isTrial ? "Start free trial" : `Get ${plan.name}`}</Link>
                   </Button>
                 </div>
               ))}

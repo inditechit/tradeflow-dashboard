@@ -423,13 +423,17 @@ const SignupPage = () => {
         }
 
         const user: UserData = {
-          ...form,
-          userId: data.userId,
+          name: form.name,
+          mobile: form.mobile,
+          telegram: form.telegram,
+          email: form.email,
+          userId: String(data.userId),
+          role: "user",
           createdAt: new Date().toISOString(),
           emailVerified: true,
           photoCaptured: true,
-          experienceYears: '',
-          depositMethod: '',
+          experienceYears: "",
+          depositMethod: "USDT",
         };
         setCurrentUser(user);
         navigate('/packages');

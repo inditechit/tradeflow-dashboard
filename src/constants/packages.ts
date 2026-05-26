@@ -1,31 +1,118 @@
-import { Calendar, TrendingUp, Shield, Crown } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Calendar, TrendingUp, Shield, Crown, Gift } from "lucide-react";
 
-export const SUBSCRIPTION_PACKAGES = [
+export type SubscriptionPackage = {
+  id: string;
+  name: string;
+  duration: string;
+  originalPrice: number;
+  price: number;
+  icon: LucideIcon;
+  description: string;
+  features: string[];
+  popular: boolean;
+  subtitle?: string;
+  /** Free trial — terms + no USDT payment */
+  isTrial?: boolean;
+};
+
+export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
+  {
+    id: "7-day-trial",
+    name: "FREE 7-DAY TRIAL",
+    duration: "7 Days",
+    originalPrice: 0,
+    price: 0,
+    icon: Gift,
+    description: "Try copy trading free for 7 days. Fund stays locked during the trial.",
+    features: [
+      "Fund remains locked for 7 days",
+      "60% fee only on positive performance",
+      "No positive performance = No fee",
+      "Terms acceptance required before activation",
+    ],
+    popular: false,
+    isTrial: true,
+  },
   {
     id: "1-month",
     name: "1 Month Pack",
+    duration: "1 Month",
+    originalPrice: 300,
     price: 255,
     icon: Calendar,
+    description: "Begin copy trading with essential tools and a focused portfolio.",
+    features: [
+      "JACKPOT ROBOT",
+      "Mirror up to 2 strategies",
+      "Live trade feed",
+      "Wallet & transaction history",
+      "Email support",
+    ],
+    popular: false,
   },
   {
     id: "3-month",
     name: "3 Month Pack",
+    duration: "3 Months",
+    originalPrice: 900,
     price: 666,
     icon: TrendingUp,
+    description: "Scale with more strategies, affiliate access, and priority sync.",
+    features: [
+      "JACKPOT ROBOT",
+      "Mirror up to 5 strategies",
+      "Priority trade sync",
+      "P/L & trade history",
+      "Priority support",
+    ],
+    popular: false,
   },
   {
     id: "6-month",
     name: "6 Month Pack",
+    duration: "6 Months",
+    originalPrice: 1800,
     price: 1110,
     icon: Shield,
+    description: "Higher limits, allocation controls, and daily settlement reports.",
+    features: [
+      "JACKPOT ROBOT",
+      "Mirror up to 12 strategies",
+      "Advanced allocation",
+      "Daily settlement reports",
+      "Withdrawal priority",
+    ],
+    popular: false,
   },
   {
     id: "1-year",
     name: "1 Year Pack",
+    subtitle: "JACKPOT HEDGE PORTFOLIO",
+    duration: "12 Months",
+    originalPrice: 10800,
     price: 2200,
     icon: Crown,
+    description: "Maximum capacity, custom allocation, and white-glove onboarding.",
+    features: [
+      "JACKPOT ROBOT",
+      "HEDGE ROBOT",
+      "PORTFOLIO ROBOT",
+      "High accuracy robot",
+      "Less drawdown",
+      "Profit factor upto 5",
+      "24/7 priority support",
+    ],
+    popular: true,
   },
-] as const;
+];
+
+export const TRIAL_TERMS = [
+  "Your wallet fund remains locked for the full 7-day trial period.",
+  "A 60% performance fee applies only on positive performance during/after the trial.",
+  "If there is no positive performance, no performance fee is charged.",
+  "You must accept these terms before the trial can be activated.",
+];
 
 export function getPackageById(id: string) {
   return SUBSCRIPTION_PACKAGES.find((p) => p.id === id);
@@ -33,4 +120,8 @@ export function getPackageById(id: string) {
 
 export function packageDisplayName(packageId: string, fallback?: string) {
   return getPackageById(packageId)?.name ?? fallback ?? packageId;
+}
+
+export function isTrialPackageId(id: string) {
+  return id === "7-day-trial";
 }

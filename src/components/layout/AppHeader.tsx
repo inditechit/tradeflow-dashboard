@@ -32,7 +32,7 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
-  const { currentUser, setCurrentUser } = useApp();
+  const { currentUser, logout } = useApp();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
@@ -88,9 +88,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const initials = getInitials(currentUser.name, currentUser.telegram);
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem("mt5_user");
-    localStorage.removeItem("mt5_packages");
+    logout();
     navigate("/login");
   };
 
