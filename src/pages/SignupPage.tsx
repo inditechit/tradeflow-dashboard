@@ -432,7 +432,7 @@ const SignupPage = () => {
           depositMethod: '',
         };
         setCurrentUser(user);
-        navigate('/profile');
+        navigate('/packages');
       } else {
         setErrorMessage(data.error || 'Failed to create account.');
         setIsSubmitting(false);

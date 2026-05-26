@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
   AlertTriangle, QrCode, Loader2, CheckCircle,
@@ -9,7 +9,9 @@ import { QRCodeCanvas } from "qrcode.react";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, selectedPackage, addPackage } = useApp();
+  const resumeStartedRef = useRef(false);
 
   const [step, setStep] = useState<'terms' | 'pay' | 'success'>('terms');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,6 +98,13 @@ const PaymentPage = () => {
 
     return () => clearInterval(interval);
   }, [step, paymentData]);
+
+  useEffect(() => {
+    const resume = Boolean((location.state as { resumePayment?: boolean })?.resumePayment);
+    if (!resume || !selectedPackage || !currentUser?.userId || resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    handleCreatePayment();
+  }, [location.state, selectedPackage, currentUser?.userId]);
 
   const handleCopyAmount = () => {
     if (!paymentData?.amount) return;

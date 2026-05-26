@@ -5,6 +5,10 @@ import { useApp } from "@/context/AppContext";
 import {
   sumLiveProfitLoss,
   rowNetPl,
+  resolveMt5BuySellPrices,
+  fmtMt5Price,
+  isOpenTrade,
+  parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 
@@ -26,10 +30,7 @@ type Summary = {
   fee_per_lot_usd: number;
 };
 
-// Extended to explicitly ensure amt_invested exists safely on the type
-type UserTradeRow = UserTradeRowLike & {
-  amt_invested?: string | number;
-};
+type UserTradeRow = UserTradeRowLike;
 
 function fmtUsd(n: number, currency = "USD") {
   const code = String(currency || "USD").toUpperCase();
@@ -53,6 +54,7 @@ const ProfitLoss = () => {
   const [loading, setLoading] = useState(false);
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
   const myTicketIdsRef = useRef<Set<string>>(new Set());
+  const entryPriceByTicketRef = useRef<Record<string, number>>({});
 
   const refresh = useCallback(async () => {
     if (!currentUser?.userId) return;
@@ -74,6 +76,14 @@ const ProfitLoss = () => {
           if (ticket) tickets.add(ticket);
         }
         myTicketIdsRef.current = tickets;
+        for (const t of list) {
+          const ticket = String(t.ticket_id ?? "");
+          const px = parseMt5Price(t.price);
+          if (!ticket || !px || !isOpenTrade(t)) continue;
+          if (entryPriceByTicketRef.current[ticket] == null) {
+            entryPriceByTicketRef.current[ticket] = px;
+          }
+        }
         setRows(list);
       }
     } catch (err) {
@@ -92,21 +102,38 @@ const ProfitLoss = () => {
   useEffect(() => {
     if (!currentUser?.userId) return;
 
-    const applyLiveProfit = (ticket: string, raw: number) => {
-      if (!myTicketIdsRef.current.has(ticket)) return;
-      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+    const applyLive = (payload: {
+      ticket?: unknown;
+      profit?: unknown;
+      price?: unknown;
+    }) => {
+      const ticket = String(payload.ticket ?? "");
+      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
+
+      const raw = Number(payload.profit);
+      if (Number.isFinite(raw)) {
+        setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      }
+
+      const livePx = parseMt5Price(payload.price);
+
       setRows((prev) =>
-        prev.map((t) =>
-          String(t.ticket_id ?? "") === ticket ? { ...t, mt5_total_profit: raw } : t
-        )
+        prev.map((t) => {
+          if (String(t.ticket_id ?? "") !== ticket) return t;
+          const next = { ...t };
+          if (Number.isFinite(raw)) next.mt5_total_profit = raw;
+          if (livePx != null) next.price = livePx;
+          return next;
+        })
       );
     };
 
-    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+    const onLive = (payload: { ticket?: unknown; profit?: unknown; price?: unknown }) => {
       const ticket = String(payload.ticket ?? "");
+      if (!ticket) return;
       const raw = Number(payload.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-      applyLiveProfit(ticket, raw);
+      if (!Number.isFinite(raw) && parseMt5Price(payload.price) == null) return;
+      applyLive(payload);
     };
 
     socket.on("mt5live", onLive);
@@ -223,7 +250,7 @@ const ProfitLoss = () => {
         <div className="px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
           <p className="text-xs text-slate-500 mt-1">
-            ~ rows are live estimates. Settled rows show what hit your wallet.
+            Buy = where you bought; sell = where you sold. P/L is your wallet share (after fees).
           </p>
         </div>
 
@@ -234,9 +261,8 @@ const ProfitLoss = () => {
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
-                {/* NEW COLUMNS */}
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy Amount</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell Amount</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy price</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell price</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
@@ -267,19 +293,13 @@ const ProfitLoss = () => {
                     : rowNetPl(r, liveRawByTicket[ticket]);
                   const isProfit = pl >= 0;
                   
-                  // NEW CALCULATIONS: Buy and Sell Amounts
-                  const buyAmt = Number(r.amt_invested || 0);
-                  // Sell Amount is the initial investment PLUS the profit (or subtracting the loss if PL is negative)
-                  const sellAmt = buyAmt > 0 ? buyAmt + pl : 0;
+                  const { buyPrice, sellPrice, buyIsLive, sellIsLive } = resolveMt5BuySellPrices(
+                    r,
+                    entryPriceByTicketRef.current
+                  );
 
-                  const share = Number(r.user_volume_share ?? 0);
                   const vol = Number(r.allocated_volume ?? 0);
-                  const invested =
-                    Number(r.user_investment_amount || 0) > 0
-                      ? Number(r.user_investment_amount)
-                      : Number(r.user_bal || 0);
                   const fee = Number(r.proportional_fee ?? 0);
-                  const pct = Number(r.admin_profit_percentage ?? 0);
 
                   return (
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
@@ -288,15 +308,26 @@ const ProfitLoss = () => {
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {vol > 0 ? vol.toFixed(4) : "—"}
                       </td>
-                      
-                      {/* NEW BUY & SELL COLUMNS RENDERED HERE */}
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {buyAmt > 0 ? fmtUsd(buyAmt, currency) : "—"}
+                        {buyPrice != null ? (
+                          <>
+                            {buyIsLive ? "~" : ""}
+                            {fmtMt5Price(buyPrice, r.symbol)}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {sellAmt > 0 ? fmtUsd(sellAmt, currency) : "—"}
+                        {sellPrice != null ? (
+                          <>
+                            {sellIsLive ? "~" : ""}
+                            {fmtMt5Price(sellPrice, r.symbol)}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
-
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {fee > 0 ? fmtUsd(fee, currency) : "—"}
                       </td>

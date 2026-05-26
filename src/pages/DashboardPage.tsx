@@ -4,100 +4,68 @@ import { useApp } from '@/context/AppContext';
 import { 
   Plane, Globe, Video, User, LogOut, 
   Loader2, CheckCircle2, Clock, Plus, TrendingUp,
-  Wallet, CircleDollarSign,
+  Wallet, CircleDollarSign, ArrowRight,
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
+import { getPackageById, packageDisplayName } from '@/constants/packages';
 
-// --- TradingView Component (Memoized for performance) ---
+type PaymentTxn = {
+  id: number | string;
+  package_id: string;
+  package_name?: string;
+  status: string;
+  amount: number | string;
+  payment_method?: string;
+  tx_hash?: string;
+};
+
+/** Free embed supports OANDA gold spot; FXCM:XAUUSD is not available in widgets. */
+const XAUUSD_SYMBOL = "OANDA:XAUUSD";
+
 const TradingViewChart = memo(() => {
   const container = useRef<HTMLDivElement>(null);
 
-
   useEffect(() => {
-
-    const scriptId = 'tradingview-widget-script';
-
-
-    // Clean up any existing script/iframe to force a fresh render with new height
-
-    if (container.current) {
-
-      container.current.innerHTML = "";
-
-    }
-
-
+    if (!container.current) return;
+    container.current.innerHTML = "";
 
     const script = document.createElement("script");
-
-    script.id = scriptId;
-
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-
     script.type = "text/javascript";
-
     script.async = true;
-
     script.innerHTML = JSON.stringify({
-
-      "width": "100%",
-
-      "height": 400,
-
-      "symbol": "BINANCE:BTCUSDT",
-
-      "interval": "D",
-
-      "timezone": "Etc/UTC",
-
-      "theme": "light",
-
-      "style": "1",
-
-      "locale": "en",
-
-      "enable_publishing": false,
-
-      "allow_symbol_change": true,
-
-      "calendar": false,
-
-      "support_host": "https://www.tradingview.com"
-
+      width: "100%",
+      height: 400,
+      symbol: XAUUSD_SYMBOL,
+      interval: "15",
+      timezone: "Etc/UTC",
+      theme: "light",
+      style: "1",
+      locale: "en",
+      enable_publishing: false,
+      allow_symbol_change: true,
+      calendar: false,
+      support_host: "https://www.tradingview.com",
+      disabled_features: ["header_compare"],
     });
 
-
-    if (container.current) {
-
-      container.current.appendChild(script);
-
-    }
-
-
+    container.current.appendChild(script);
 
     return () => {
-
-      if (container.current) {
-
-        container.current.innerHTML = "";
-
-      }
-
+      if (container.current) container.current.innerHTML = "";
     };
-
   }, []);
 
-  
   return (
-    <div 
-      className="tradingview-widget-container" 
-      ref={container} 
-      style={{ height: "600px", width: "100%", overflow: "hidden" }}
+    <div
+      className="tradingview-widget-container"
+      ref={container}
+      style={{ height: "520px", width: "100%", overflow: "hidden" }}
     >
-      <div 
-        className="tradingview-widget-container__widget" 
+      <div
+        className="tradingview-widget-container__widget"
         style={{ height: "100%", width: "100%" }}
-      ></div>
+      />
     </div>
   );
 });
@@ -112,7 +80,7 @@ const getPackageIcon = (name: string) => {
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser, updateUser } = useApp();
+  const { currentUser, setCurrentUser, setSelectedPackage, updateUser } = useApp();
   
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -120,6 +88,7 @@ const DashboardPage = () => {
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
   const [realisedNet, setRealisedNet] = useState(0);
+  const [livePl, setLivePl] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
 
@@ -127,7 +96,8 @@ const DashboardPage = () => {
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const currency = wallet?.currency || "USD";
-  const combinedTotal = walletBalance + realisedNet;
+  const profitLoss = realisedNet + livePl;
+  const equity = walletBalance + profitLoss;
 
   const loadFinance = useCallback(async () => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -165,8 +135,10 @@ const DashboardPage = () => {
 
       if (summaryData?.success) {
         setRealisedNet(Number(summaryData.realised_net ?? 0));
+        setLivePl(Number(summaryData.live_pl ?? 0));
       } else {
         setRealisedNet(0);
+        setLivePl(0);
       }
     } catch (err) {
       console.error('Finance load error:', err);
@@ -242,6 +214,22 @@ const DashboardPage = () => {
     navigate('/login');
   };
 
+  const handleContinueJourney = (txn: PaymentTxn) => {
+    const pkg = getPackageById(txn.package_id);
+    if (!pkg) {
+      navigate('/packages');
+      return;
+    }
+    setSelectedPackage({
+      id: pkg.id,
+      name: pkg.name,
+      price: Number(txn.amount) || pkg.price,
+      icon: pkg.icon.name,
+      purchasedAt: new Date().toISOString(),
+    });
+    navigate('/payment', { state: { resumePayment: true } });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -298,7 +286,6 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {/* Wallet, realised net, combined (user only) */}
         {currentUser?.role !== 'admin' && (
           <section className="grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
@@ -321,42 +308,54 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Realised net</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Profit/Loss</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${realisedNet >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
-                  {realisedNet > 0 ? '+' : ''}{formatMoneyAmount(realisedNet, currency)}
+                <p className={`text-2xl font-extrabold tabular-nums ${profitLoss >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                  {profitLoss > 0 ? '+' : ''}{formatMoneyAmount(profitLoss, currency)}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-500">Settled closed trades</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Realised {formatMoneyAmount(realisedNet, currency)}
+                {livePl !== 0 ? ` · Open ~${formatMoneyAmount(livePl, currency)}` : ''}
+              </p>
             </div>
 
             <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50/80 to-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <CircleDollarSign className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Wallet + P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Equity</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${combinedTotal >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
-                  {formatMoneyAmount(combinedTotal, currency)}
+                <p className={`text-2xl font-extrabold tabular-nums ${equity >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                  {formatMoneyAmount(equity, currency)}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-500">Wallet plus realised P/L</p>
+              <p className="mt-2 text-xs text-slate-500">Wallet + profit/loss</p>
             </div>
           </section>
         )}
 
-        {/* Market Analysis Section - High Impact Chart */}
         <section>
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="text-neutral-900" size={24} />
-            <h2 className="text-xl font-bold text-slate-800">Market Analysis</h2>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="text-neutral-900" size={24} />
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
+                <p className="text-xs text-slate-500">
+                  Gold spot (XAU/USD) · OANDA feed
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
+              XAUUSD
+            </span>
           </div>
-          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-lg overflow-hidden">
+          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
             <TradingViewChart />
           </div>
         </section>
@@ -398,15 +397,20 @@ const DashboardPage = () => {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {transactions
+              {(transactions as PaymentTxn[])
               .filter((txn) => txn.package_id !== "recharge") 
-              .map((txn, i) => (
+              .map((txn, i) => {
+                const pkgMeta = getPackageById(txn.package_id);
+                const isPending = txn.status !== 'success';
+                const title = packageDisplayName(txn.package_id, txn.package_name);
+
+                return (
                 <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
                   <div className="absolute top-0 left-0 w-full h-1 bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 bg-yellow-50 text-neutral-900 rounded-xl flex items-center justify-center border border-yellow-200">
-                      {getPackageIcon(txn.package_name)}
+                      {pkgMeta ? <pkgMeta.icon size={24} /> : getPackageIcon(title)}
                     </div>
                     {txn.status === 'success' ? (
                       <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-[#FFF9E6] text-yellow-700 border border-yellow-200">
@@ -420,24 +424,32 @@ const DashboardPage = () => {
                   </div>
                   
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{txn.package_name}</h3>
-                    {txn.payment_method !== "INR" && (
-                      <p className="text-slate-400 text-xs font-mono mb-4">
-                        TXN: {txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "Processing..."}
-                      </p>
-                    )}
+                    <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{title}</h3>
+                    <p className="text-slate-400 text-xs font-mono mb-4">
+                      {isPending
+                        ? 'Payment not completed'
+                        : `TXN: ${txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "—"}`}
+                    </p>
                     <div className="flex items-end justify-between mt-auto">
                       <p className="text-3xl font-extrabold text-slate-900">
-                        {txn.payment_method === "INR" ? "₹" : "$"}
-                        {txn.payment_method === "USD"
-                          ? Number(txn.amount).toFixed(0)
-                          : Number(txn.amount).toLocaleString()}
+                        ${Number(txn.amount).toFixed(0)}
+                        <span className="ml-1 text-sm font-semibold text-slate-500">USDT</span>
                       </p>
-                      <p className="text-xs text-slate-500 font-medium uppercase">{txn.payment_method}</p>
                     </div>
+                    {isPending && (
+                      <button
+                        type="button"
+                        onClick={() => handleContinueJourney(txn)}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#E6C200]"
+                      >
+                        Continue journey
+                        <ArrowRight size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </section>

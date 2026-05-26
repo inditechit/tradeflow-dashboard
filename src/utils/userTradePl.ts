@@ -12,6 +12,7 @@ export type UserTradeRowLike = {
   user_volume_share?: unknown;
   user_investment_amount?: unknown;
   user_bal?: unknown;
+  amt_invested?: unknown;
   sum_user_investment?: unknown;
   proportional_fee?: unknown;
   admin_profit_percentage?: unknown;
@@ -21,9 +22,137 @@ export type UserTradeRowLike = {
   final_profit_loss?: unknown;
   mt5_total_profit?: unknown;
   user_estimated_net_pl?: unknown;
+  price?: unknown;
+  mt5_type?: unknown;
+  close_time?: unknown;
 };
 
 const FEE_PER_LOT_USD = 30;
+
+export function parseMt5Price(raw: unknown): number | null {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function fmtMt5Price(n: number, symbol?: unknown): string {
+  const sym = String(symbol ?? "").toUpperCase();
+  let digits = 2;
+  if (sym.startsWith("XAU") || sym.startsWith("GOLD") || sym.includes("BTC")) {
+    digits = 2;
+  } else if (sym.length >= 6 && sym.length <= 7) {
+    digits = 5;
+  }
+  return n.toFixed(digits);
+}
+
+export function isTradeClosed(
+  r: UserTradeRowLike & { close_time?: unknown }
+): boolean {
+  if (r.wallet_settled_at != null) return true;
+  const st = String(r.mt5_status ?? "").toUpperCase();
+  if (st.includes("CLOSE")) return true;
+  const ct = r.close_time;
+  if (
+    ct != null &&
+    String(ct).trim() !== "" &&
+    String(ct) !== "0000-00-00 00:00:00"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isMt5BuyType(type: unknown): boolean {
+  const t = String(type ?? "").toUpperCase();
+  if (!t) return true;
+  if (t.includes("SELL")) return false;
+  return t.includes("BUY");
+}
+
+/** MT5 contract size per lot (broker default for XAU / FX). */
+export function contractSizeForSymbol(symbol?: unknown): number {
+  const sym = String(symbol ?? "").toUpperCase();
+  if (sym.startsWith("XAU") || sym.startsWith("GOLD")) return 100;
+  if (sym.length >= 6 && sym.length <= 7) return 100_000;
+  return 100;
+}
+
+/**
+ * Back-calculate entry from close price + MT5 profit.
+ * Long: profit = (close − open) × lots × contractSize → open = close − profit/(lots×size)
+ */
+export function deriveEntryPriceFromMt5(
+  closePrice: number,
+  profit: number,
+  volumeLots: number,
+  symbol?: unknown,
+  type?: unknown
+): number | null {
+  if (!(closePrice > 0) || !(volumeLots > 0) || !Number.isFinite(profit)) return null;
+  const divisor = volumeLots * contractSizeForSymbol(symbol);
+  if (!(divisor > 0)) return null;
+  const move = profit / divisor;
+  if (!Number.isFinite(move)) return null;
+  const entry = isMt5BuyType(type) ? closePrice - move : closePrice + move;
+  return entry > 0 && Number.isFinite(entry) ? entry : null;
+}
+
+/**
+ * Buy price = where you bought; sell price = where you sold.
+ * Long: buy at open, sell at close. Short: sell at open, buy at close.
+ */
+export function resolveMt5BuySellPrices(
+  r: UserTradeRowLike,
+  entryByTicket?: Record<string, number>
+): {
+  buyPrice: number | null;
+  sellPrice: number | null;
+  buyIsLive: boolean;
+  sellIsLive: boolean;
+} {
+  const exit = parseMt5Price(r.price);
+  const closed = isTradeClosed(r);
+  const isLong = isMt5BuyType(r.mt5_type);
+  const ticket = String(r.ticket_id ?? "");
+  const cached =
+    ticket && entryByTicket?.[ticket] != null && entryByTicket[ticket] > 0
+      ? entryByTicket[ticket]
+      : null;
+
+  const volumeLots = Number(r.mt5_volume || r.total_trade_volume || 0);
+  const mt5Profit = Number(r.mt5_total_profit ?? 0);
+
+  let entry = cached;
+  if (entry == null && exit != null && volumeLots > 0 && Number.isFinite(mt5Profit)) {
+    entry = deriveEntryPriceFromMt5(
+      exit,
+      mt5Profit,
+      volumeLots,
+      r.symbol,
+      r.mt5_type
+    );
+  }
+
+  if (!exit && entry == null) {
+    return { buyPrice: null, sellPrice: null, buyIsLive: false, sellIsLive: false };
+  }
+
+  if (isLong) {
+    return {
+      buyPrice: entry,
+      sellPrice: exit,
+      buyIsLive: false,
+      sellIsLive: !closed && exit != null,
+    };
+  }
+
+  return {
+    buyPrice: exit,
+    sellPrice: entry,
+    buyIsLive: !closed && exit != null,
+    sellIsLive: false,
+  };
+}
 
 /** Match backend /api/user/trades volume + fee + % resolution. */
 export function resolveEffectiveSlice(r: UserTradeRowLike) {
