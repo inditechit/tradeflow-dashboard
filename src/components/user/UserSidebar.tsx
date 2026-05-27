@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -11,21 +11,27 @@ import {
   ArrowDownToLine,
   LifeBuoy,
   BarChart3,
+  Package,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 type UserSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
 };
 
+const WITHDRAW_PATH = "/user/withdraw";
+const PACKAGES_PATH = "/packages";
+
 const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const [wallet, setWallet] = useState(null);
-
+  const navigate = useNavigate();
   const { currentUser } = useApp();
+  const { loading: subLoading, isExpired } = useSubscription();
 
   const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -104,20 +110,47 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
             </h2>
           </div>
 
+          {!subLoading && isExpired && (
+            <button
+              type="button"
+              onClick={() => {
+                navigate(PACKAGES_PATH);
+                onClose();
+              }}
+              className="mb-3 flex w-full items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+            >
+              <Package size={18} className="shrink-0" />
+              Renew package
+            </button>
+          )}
+
           <nav className="flex flex-col gap-1 sm:gap-2" aria-label="User navigation">
             {menu.map((item, i) => {
               const Icon = item.icon;
+              const locked =
+                !subLoading &&
+                isExpired &&
+                item.path !== WITHDRAW_PATH;
               return (
                 <NavLink
                   key={i}
                   to={item.path}
-                  onClick={() => onClose()}
+                  onClick={(e) => {
+                    if (locked) {
+                      e.preventDefault();
+                      return;
+                    }
+                    onClose();
+                  }}
+                  aria-disabled={locked}
                   className={({ isActive }) =>
                     cn(
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
-                      isActive
+                      locked && "pointer-events-none cursor-not-allowed opacity-40",
+                      isActive && !locked
                         ? "bg-[#FFD700] text-black"
-                        : "text-slate-600 hover:bg-white/80 active:bg-white",
+                        : !locked && "text-slate-600 hover:bg-white/80 active:bg-white",
+                      locked && "text-slate-400",
                     )
                   }
                 >

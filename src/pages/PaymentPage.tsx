@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
 import { isTrialPackageId, TRIAL_TERMS } from "@/constants/packages";
+import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -60,6 +61,7 @@ const PaymentPage = () => {
             purchasedAt: new Date().toISOString(),
             transactionId: String(data.paymentId ?? ""),
           });
+          notifySubscriptionRefresh();
           setStep("success");
           setTimeout(() => navigate("/user/dashboard"), 3000);
           return;
@@ -94,6 +96,7 @@ const PaymentPage = () => {
           purchasedAt: new Date().toISOString(),
           transactionId: paymentData.paymentId
         });
+        notifySubscriptionRefresh();
 
         setTimeout(() => {
           navigate('/user/dashboard');
