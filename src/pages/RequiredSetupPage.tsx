@@ -82,6 +82,7 @@ const RequiredSetupPage = () => {
     load();
   }, [load]);
 
+  const saveLocation = () => {
     const uid = currentUser?.userId;
     if (!uid) return;
     if (!("geolocation" in navigator)) {
