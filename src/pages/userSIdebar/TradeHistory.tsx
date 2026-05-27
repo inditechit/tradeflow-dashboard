@@ -3,22 +3,13 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
+import { rowNetPl, type UserTradeRowLike } from "@/utils/userTradePl";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
-type UserTradeRow = {
+type UserTradeRow = UserTradeRowLike & {
   ticket_id: string;
   assignment_id?: number;
-  symbol?: string;
-  allocated_volume?: string | number | null;
-  user_investment_amount?: string | number | null;
-  proportional_fee?: string | number | null;
-  admin_profit_percentage?: string | number | null;
-  mt5_status?: string | null;
-  final_profit_loss?: string | number | null;
-  wallet_settled_at?: string | null;
-  user_estimated_live_pl?: number | null;
-  user_estimated_net_pl?: number | null;
 };
 
 const TradeHistory = () => {
@@ -73,12 +64,7 @@ const TradeHistory = () => {
     return [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id)));
   }, [rows]);
 
-  const displayPl = (r: UserTradeRow) => {
-    if (r.wallet_settled_at) return Number(r.final_profit_loss ?? 0);
-    // user_estimated_net_pl already applies fee + admin % (matches what would hit wallet)
-    if (r.user_estimated_net_pl != null) return Number(r.user_estimated_net_pl);
-    return Number(r.user_estimated_live_pl ?? 0);
-  };
+  const displayPl = (r: UserTradeRow) => rowNetPl(r);
 
   return (
     <div className="mx-auto max-w-7xl p-4">

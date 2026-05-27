@@ -21,6 +21,8 @@ export type UserTradeRowLike = {
   wallet_settled_at?: unknown;
   final_profit_loss?: unknown;
   mt5_total_profit?: unknown;
+  user_net_pl?: unknown;
+  user_raw_pl?: unknown;
   user_estimated_net_pl?: unknown;
   price?: unknown;
   mt5_type?: unknown;
@@ -166,8 +168,9 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const sumInv = Number(r.sum_user_investment || 0);
   const derivedShare = sumInv > 0 ? userInv / sumInv : 0;
   const effectiveShare = storedShare > 0 ? storedShare : derivedShare;
-  const v_i =
+  let v_i =
     allocated > 0 ? allocated : V > 0 && effectiveShare > 0 ? V * effectiveShare : 0;
+  if (V > 0 && v_i > V) v_i = V;
   const fee =
     r.proportional_fee != null && Number(r.proportional_fee) > 0
       ? Number(r.proportional_fee)
@@ -205,11 +208,22 @@ export function rowNetPl(
       ? liveMt5Profit
       : Number(r.mt5_total_profit || 0);
 
+  const apiNet = r.user_net_pl == null ? null : Number(r.user_net_pl);
+  if (apiNet != null && Number.isFinite(apiNet)) {
+    return apiNet;
+  }
+
   if (r.wallet_settled_at != null) {
     const settled = Number(r.final_profit_loss ?? 0);
-    if (settled !== 0 || !(V > 0 && v_i > 0) || Math.abs(P) < 0.0001) {
+    if (!(V > 0 && v_i > 0) || Math.abs(P) < 0.0001) {
       return settled;
     }
+    const userRaw = P * (v_i / V);
+    const recomputed = applyUserRules(userRaw, fee, pct);
+    if (Math.abs(settled - recomputed) > 0.02) {
+      return recomputed;
+    }
+    return settled;
   }
 
   if (!(V > 0 && v_i > 0)) return 0;
@@ -221,10 +235,10 @@ export function rowNetPl(
     return computed;
   }
 
-  const apiNet =
+  const estimatedNet =
     r.user_estimated_net_pl == null ? null : Number(r.user_estimated_net_pl);
-  if (apiNet != null && Number.isFinite(apiNet) && r.wallet_settled_at == null) {
-    return apiNet;
+  if (estimatedNet != null && Number.isFinite(estimatedNet)) {
+    return estimatedNet;
   }
 
   return computed;

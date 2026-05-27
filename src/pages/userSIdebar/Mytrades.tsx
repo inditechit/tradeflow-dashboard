@@ -4,9 +4,9 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import {
-  applyUserRules,
   isOpenTrade,
   resolveEffectiveSlice,
+  rowNetPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
@@ -221,33 +221,13 @@ const Mytrades = () => {
           ) : (
             openTrades.map((trade, i) => {
               const ticket = String(trade.ticket_id ?? "");
-              const sm = shareMap[ticket];
               const rawLiveSocket = liveRawByTicket[ticket];
               const slice = resolveEffectiveSlice(trade);
 
-              const mt5Profit = Number(trade.mt5_total_profit || 0);
-              const rawLive = Number.isFinite(rawLiveSocket) ? rawLiveSocket : mt5Profit;
-              const userRawLive =
-                slice.V > 0 && slice.v_i > 0 ? rawLive * (slice.v_i / slice.V) : 0;
-
-              const fee = sm?.fee ?? slice.fee;
-              const pct = sm?.pct ?? slice.pct;
-
-              const settled = trade.wallet_settled_at != null;
-              let settledPl = Number(trade.final_profit_loss || 0);
-              if (
-                settled &&
-                settledPl === 0 &&
-                slice.V > 0 &&
-                slice.v_i > 0 &&
-                Math.abs(mt5Profit) > 0.0001
-              ) {
-                settledPl = applyUserRules(userRawLive, fee, pct);
-              }
-
-              const displayPl = settled
-                ? settledPl
-                : applyUserRules(userRawLive, fee, pct);
+              const displayPl = rowNetPl(
+                trade,
+                Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined
+              );
               const isProfit = displayPl >= 0;
               const yourVol = slice.v_i > 0 ? slice.v_i : Number(trade.allocated_volume || 0);
               const investment = Number(trade.user_investment_amount || 0);

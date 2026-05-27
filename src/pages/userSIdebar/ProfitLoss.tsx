@@ -283,13 +283,8 @@ const ProfitLoss = () => {
                 </tr>
               ) : (
                 sortedRows.map((r) => {
-                  const settled = Boolean(r.wallet_settled_at);
                   const ticket = String(r.ticket_id ?? "");
-                  
-                  // Keep existing PL logic perfectly intact
-                  const pl = settled
-                    ? Number(r.final_profit_loss ?? 0)
-                    : rowNetPl(r, liveRawByTicket[ticket]);
+                  const pl = rowNetPl(r, liveRawByTicket[ticket]);
                   const isProfit = pl >= 0;
                   
                   const { buyPrice, sellPrice, buyIsLive, sellIsLive } = resolveMt5BuySellPrices(
