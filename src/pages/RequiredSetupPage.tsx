@@ -13,7 +13,12 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
-import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
+import {
+  notifyProfileComplianceRefresh,
+  PROFILE_COMPLIANCE_REFRESH_EVENT,
+} from "@/utils/profileComplianceEvents";
+import { ProfilePanel } from "@/components/profile/ProfilePanel";
+import { computeProfileCompletionPercent } from "@/utils/profileCompletion";
 import {
   isProfileComplianceComplete,
   type ProfileRecord,
@@ -80,6 +85,13 @@ const RequiredSetupPage = () => {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
+    const onRefresh = () => load();
+    window.addEventListener(PROFILE_COMPLIANCE_REFRESH_EVENT, onRefresh);
+    return () =>
+      window.removeEventListener(PROFILE_COMPLIANCE_REFRESH_EVENT, onRefresh);
   }, [load]);
 
   const saveLocation = () => {
@@ -158,6 +170,7 @@ const RequiredSetupPage = () => {
   }
 
   const p = profile ?? {};
+  const profilePct = profile ? computeProfileCompletionPercent(profile) : 0;
   const rows = [
     {
       label: "Name, email, mobile, Telegram",
@@ -166,7 +179,7 @@ const RequiredSetupPage = () => {
         filled(p.email) &&
         filled(p.mobile) &&
         filled(p.telegram),
-      hint: "Edit on Profile if anything is missing.",
+      hint: "Use the profile section below or My profile in the sidebar.",
     },
     {
       label: "USDT TRC20 withdrawal address",
@@ -186,13 +199,28 @@ const RequiredSetupPage = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-xl py-6 sm:py-10">
+    <div className="mx-auto max-w-5xl space-y-8 py-6 sm:py-10">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h1 className="text-2xl font-bold text-slate-900">Required setup</h1>
         <p className="mt-2 text-sm text-slate-600">
           With an active package, the following must be completed for compliance. This applies to
           all accounts, including Google sign-in.
         </p>
+
+        {profile ? (
+          <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-sm font-medium text-slate-700">Profile completion</span>
+              <span className="text-2xl font-bold tabular-nums text-slate-900">{profilePct}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-[#FFD700] transition-[width] duration-300"
+                style={{ width: `${Math.min(100, Math.max(0, profilePct))}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -242,13 +270,28 @@ const RequiredSetupPage = () => {
           </Button>
         </div>
 
-        <Button asChild variant="secondary" className="mt-4 w-full">
-          <Link to="/user/profile" className="inline-flex items-center justify-center gap-2">
-            <User className="h-4 w-4" />
-            Open full profile
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={() =>
+              document.getElementById("profile-form")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })
+            }
+          >
+            <User className="mr-2 h-4 w-4" />
+            Jump to profile form
+          </Button>
+          <Button asChild variant="outline" className="flex-1">
+            <Link to="/user/profile" className="inline-flex items-center justify-center gap-2">
+              Open profile page
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
 
         {profile && isProfileComplianceComplete(profile) ? (
           <Button
@@ -264,6 +307,23 @@ const RequiredSetupPage = () => {
           </Button>
         ) : null}
       </div>
+
+      {currentUser?.userId ? (
+        <div
+          id="profile-form"
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 md:p-8"
+        >
+          <h2 className="mb-2 text-xl font-bold text-slate-900">Your profile</h2>
+          <p className="mb-6 text-sm text-slate-600">
+            Fill in contact, address, USDT payout wallet, and any documents. Saving here updates
+            your checklist above.
+          </p>
+          <ProfilePanel
+            targetUserId={String(currentUser.userId)}
+            showAdminExtras={currentUser.role === "admin"}
+          />
+        </div>
+      ) : null}
 
       <LiveCameraCaptureDialog
         open={cameraOpen}
