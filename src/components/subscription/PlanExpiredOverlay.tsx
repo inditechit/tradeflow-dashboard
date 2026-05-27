@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Package, ArrowDownToLine } from "lucide-react";
+import { AlertTriangle, Package, ArrowDownToLine, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { packageDisplayName } from "@/constants/packages";
@@ -17,15 +17,17 @@ function formatExpiry(iso: string | null) {
   }
 }
 
-/** Non-dismissible overlay when subscription has ended. */
+/** Non-dismissible overlay when there is no active package or the plan has expired. */
 const PlanExpiredOverlay = () => {
   const navigate = useNavigate();
-  const { expiresAt, segments } = useSubscription();
+  const { expiresAt, segments, restrictionReason } = useSubscription();
 
   const lastPlan = segments.length ? segments[segments.length - 1] : null;
   const planLabel = lastPlan
     ? packageDisplayName(lastPlan.packageId, lastPlan.packageName)
     : "your plan";
+
+  const isExpiredOnly = restrictionReason === "expired";
 
   return (
     <div
@@ -50,29 +52,42 @@ const PlanExpiredOverlay = () => {
           id="plan-expired-title"
           className="text-xl font-bold text-slate-900 sm:text-2xl"
         >
-          Plan expired
+          {isExpiredOnly ? "Plan expired" : "Activate a package"}
         </h2>
 
         <p id="plan-expired-desc" className="mt-3 text-sm leading-relaxed text-slate-600">
-          {planLabel} ended on{" "}
-          <span className="font-semibold text-slate-800">
-            {formatExpiry(expiresAt)}
-          </span>
-          . Trading and wallet features are locked until you renew. You can still
-          withdraw funds or purchase a new package.
+          {isExpiredOnly ? (
+            <>
+              {planLabel} ended on{" "}
+              <span className="font-semibold text-slate-800">
+                {formatExpiry(expiresAt)}
+              </span>
+              . Most areas are locked until you renew. You can still use{" "}
+              <span className="font-semibold">Dashboard</span> and{" "}
+              <span className="font-semibold">Withdraw</span>, or buy a new package below.
+            </>
+          ) : (
+            <>
+              You need an <span className="font-semibold">active trading package</span> to use
+              History, wallet tools, affiliate, support, and profile. Open{" "}
+              <span className="font-semibold">Dashboard</span> or{" "}
+              <span className="font-semibold">Withdraw</span> anytime, or choose a package to unlock
+              everything.
+            </>
+          )}
         </p>
 
-        {segments.length > 1 && (
+        {isExpiredOnly && segments.length > 1 && (
           <p className="mt-2 text-xs text-slate-500">
             {segments.length} plan purchases on your account — access follows your
             combined subscription period.
           </p>
         )}
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Button
             type="button"
-            className="w-full bg-[#FFD700] font-semibold text-black hover:bg-[#e6c200]"
+            className="w-full bg-[#FFD700] font-semibold text-black hover:bg-[#e6c200] sm:flex-1"
             onClick={() => navigate("/packages")}
           >
             <Package className="mr-2 h-4 w-4" />
@@ -81,11 +96,20 @@ const PlanExpiredOverlay = () => {
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full sm:flex-1"
+            onClick={() => navigate("/user/dashboard")}
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:flex-1"
             onClick={() => navigate("/user/withdraw")}
           >
             <ArrowDownToLine className="mr-2 h-4 w-4" />
-            Go to withdraw
+            Withdraw
           </Button>
         </div>
       </div>

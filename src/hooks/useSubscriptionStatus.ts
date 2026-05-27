@@ -13,18 +13,26 @@ export type SubscriptionSegment = {
   durationDays: number;
 };
 
+export type RestrictionReason = "none" | "no_package" | "expired";
+
 export type SubscriptionStatus = {
   loading: boolean;
+  /** True only after a successful /user/subscription response (avoids locking on network errors). */
+  fetchOk: boolean;
   hasSubscription: boolean;
   isActive: boolean;
   isExpired: boolean;
   expiresAt: string | null;
   segments: SubscriptionSegment[];
   activeSegment: SubscriptionSegment | null;
+  /** No active plan (never bought, or stacked period ended) — full app gated except dashboard + withdraw + onboarding. */
+  accessRestricted: boolean;
+  restrictionReason: RestrictionReason;
   refetch: () => void;
 };
 
-const EMPTY: Omit<SubscriptionStatus, "loading" | "refetch"> = {
+const EMPTY: Omit<SubscriptionStatus, "loading" | "refetch" | "accessRestricted" | "restrictionReason"> = {
+  fetchOk: false,
   hasSubscription: false,
   isActive: false,
   isExpired: false,
@@ -55,6 +63,7 @@ export function useSubscriptionStatus(): SubscriptionStatus {
         return;
       }
       setData({
+        fetchOk: true,
         hasSubscription: Boolean(json.hasSubscription),
         isActive: Boolean(json.isActive),
         isExpired: Boolean(json.isExpired),
@@ -84,5 +93,19 @@ export function useSubscriptionStatus(): SubscriptionStatus {
     };
   }, [fetchStatus]);
 
-  return { loading, ...data, refetch: fetchStatus };
+  const accessRestricted =
+    !loading && data.fetchOk && !data.isActive;
+  const restrictionReason: RestrictionReason = !accessRestricted
+    ? "none"
+    : data.isExpired
+      ? "expired"
+      : "no_package";
+
+  return {
+    loading,
+    ...data,
+    accessRestricted,
+    restrictionReason,
+    refetch: fetchStatus,
+  };
 }

@@ -6,9 +6,10 @@ import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import VoiceConsentGate from "@/components/voice/VoiceConsentGate";
 import { useApp } from "@/context/AppContext";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { ProfileComplianceProvider } from "@/context/ProfileComplianceContext";
 import SubscriptionExpiredGuard from "@/components/subscription/SubscriptionExpiredGuard";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import ComplianceRequiredGuard from "@/components/compliance/ComplianceRequiredGuard";
+import { API_BASE } from "@/config/api";
 
 const UserLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -46,24 +47,28 @@ const UserLayout = () => {
 
   return (
     <SubscriptionProvider>
-      <div className="flex h-[100dvh] min-h-0 bg-white">
-        <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <ProfileComplianceProvider>
+        <div className="flex h-[100dvh] min-h-0 bg-white">
+          <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
-          <AppHeader variant="user" onMenuClick={() => setMobileNavOpen(true)} />
-          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
-            <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
-              <SubscriptionExpiredGuard>
-                <Outlet />
-              </SubscriptionExpiredGuard>
-            </div>
-          </main>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
+            <AppHeader variant="user" onMenuClick={() => setMobileNavOpen(true)} />
+            <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
+              <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
+                <SubscriptionExpiredGuard>
+                  <ComplianceRequiredGuard>
+                    <Outlet />
+                  </ComplianceRequiredGuard>
+                </SubscriptionExpiredGuard>
+              </div>
+            </main>
+          </div>
+
+          {currentUser?.role !== "admin" && (
+            <VoiceConsentGate userId={currentUser?.userId} apiBase={API_BASE} />
+          )}
         </div>
-
-        {currentUser?.role !== "admin" && (
-          <VoiceConsentGate userId={currentUser?.userId} apiBase={API_BASE} />
-        )}
-      </div>
+      </ProfileComplianceProvider>
     </SubscriptionProvider>
   );
 };

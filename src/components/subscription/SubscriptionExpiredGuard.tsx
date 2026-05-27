@@ -3,16 +3,25 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import PlanExpiredOverlay from "./PlanExpiredOverlay";
 
 const WITHDRAW_PATH = "/user/withdraw";
+const DASHBOARD_PATH = "/user/dashboard";
+const POST_SIGNUP_PATH = "/user/post-signup";
 
 type Props = { children: React.ReactNode };
 
-/** Blocks main content with a non-skippable modal when the stacked plan has expired. */
+function pathAllowed(pathname: string) {
+  const dash = pathname === DASHBOARD_PATH || pathname.startsWith(`${DASHBOARD_PATH}/`);
+  const w = pathname === WITHDRAW_PATH || pathname.startsWith(`${WITHDRAW_PATH}/`);
+  const onboard =
+    pathname === POST_SIGNUP_PATH || pathname.startsWith(`${POST_SIGNUP_PATH}/`);
+  return dash || w || onboard;
+}
+
+/** Blocks main content with a non-skippable modal when there is no active package or plan expired. */
 const SubscriptionExpiredGuard = ({ children }: Props) => {
   const { pathname } = useLocation();
-  const { loading, isExpired } = useSubscription();
+  const { loading, accessRestricted } = useSubscription();
 
-  const onWithdrawPage = pathname === WITHDRAW_PATH || pathname.startsWith(`${WITHDRAW_PATH}/`);
-  const showOverlay = !loading && isExpired && !onWithdrawPage;
+  const showOverlay = !loading && accessRestricted && !pathAllowed(pathname);
 
   return (
     <div className="relative min-h-[12rem]">

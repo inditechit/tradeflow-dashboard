@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
+import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -129,6 +130,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
+          mobile: form.mobile.trim(),
           country: form.country,
           state: form.state,
           city: form.city,
@@ -141,6 +143,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       if (data.success) {
         toast({ title: "Saved", description: "Profile details updated." });
         load();
+        notifyProfileComplianceRefresh();
       } else {
         toast({ title: "Save failed", description: data.error ?? "Try again", variant: "destructive" });
       }
@@ -167,6 +170,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       if (data.success) {
         toast({ title: "Uploaded", description: "Document saved." });
         load();
+        notifyProfileComplianceRefresh();
       } else {
         toast({ title: "Upload failed", description: data.error ?? "", variant: "destructive" });
       }
@@ -485,12 +489,15 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             <Input
               id="pf-mobile"
               value={form.mobile}
-              disabled
-              readOnly
+              disabled={!canEdit || Boolean(String(profile?.mobile ?? "").trim())}
+              readOnly={Boolean(String(profile?.mobile ?? "").trim())}
+              onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value }))}
               className={fieldInputClass}
             />
             <p className="text-xs text-slate-500 mt-1">
-              Mobile number cannot be changed once registered.
+              {String(profile?.mobile ?? "").trim()
+                ? "Mobile number cannot be changed once saved."
+                : "Add your mobile number here (required for compliance)."}
             </p>
           </div>
           <div className="space-y-0">

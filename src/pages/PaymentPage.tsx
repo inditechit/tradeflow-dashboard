@@ -8,6 +8,7 @@ import {
 import { QRCodeCanvas } from "qrcode.react";
 import { isTrialPackageId, TRIAL_TERMS } from "@/constants/packages";
 import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
+import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ const PaymentPage = () => {
             transactionId: String(data.paymentId ?? ""),
           });
           notifySubscriptionRefresh();
+          notifyProfileComplianceRefresh();
           setStep("success");
           setTimeout(() => navigate("/user/dashboard"), 3000);
           return;
@@ -97,6 +99,7 @@ const PaymentPage = () => {
           transactionId: paymentData.paymentId
         });
         notifySubscriptionRefresh();
+        notifyProfileComplianceRefresh();
 
         setTimeout(() => {
           navigate('/user/dashboard');

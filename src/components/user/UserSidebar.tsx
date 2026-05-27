@@ -12,12 +12,15 @@ import {
   LifeBuoy,
   BarChart3,
   Package,
+  ShieldAlert,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useProfileCompliance } from "@/context/ProfileComplianceContext";
+import { API_BASE } from "@/config/api";
 
 type UserSidebarProps = {
   mobileOpen: boolean;
@@ -25,15 +28,43 @@ type UserSidebarProps = {
 };
 
 const WITHDRAW_PATH = "/user/withdraw";
+const DASHBOARD_PATH = "/user/dashboard";
+const PROFILE_PATH = "/user/profile";
+const REQUIRED_SETUP_PATH = "/user/required-setup";
 const PACKAGES_PATH = "/packages";
 
 const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const [wallet, setWallet] = useState(null);
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { loading: subLoading, isExpired } = useSubscription();
+  const { loading: subLoading, fetchOk: subOk, isActive, accessRestricted } =
+    useSubscription();
+  const { loading: cLoading, fetchOk: cOk, complete: cComplete } =
+    useProfileCompliance();
 
-  const API_BASE = "https://api.copytradeengine.org/api";
+  const complianceLocked =
+    !subLoading &&
+    Boolean(subOk) &&
+    isActive &&
+    !accessRestricted &&
+    !cLoading &&
+    cOk &&
+    !cComplete;
+
+  const pathUnlocked = (path: string) => {
+    if (subLoading || cLoading) return true;
+    if (accessRestricted) {
+      return path === WITHDRAW_PATH || path === DASHBOARD_PATH;
+    }
+    if (complianceLocked) {
+      return (
+        path === WITHDRAW_PATH ||
+        path === PROFILE_PATH ||
+        path === REQUIRED_SETUP_PATH
+      );
+    }
+    return true;
+  };
 
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -110,7 +141,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
             </h2>
           </div>
 
-          {!subLoading && isExpired && (
+          {!subLoading && accessRestricted && (
             <button
               type="button"
               onClick={() => {
@@ -120,17 +151,29 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
               className="mb-3 flex w-full items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
             >
               <Package size={18} className="shrink-0" />
-              Renew package
+              Buy a package
+            </button>
+          )}
+
+          {!subLoading && !accessRestricted && complianceLocked && (
+            <button
+              type="button"
+              onClick={() => {
+                navigate(REQUIRED_SETUP_PATH);
+                onClose();
+              }}
+              className="mb-3 flex w-full items-center gap-3 rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-100"
+            >
+              <ShieldAlert size={18} className="shrink-0" />
+              Required setup
             </button>
           )}
 
           <nav className="flex flex-col gap-1 sm:gap-2" aria-label="User navigation">
             {menu.map((item, i) => {
               const Icon = item.icon;
-              const locked =
-                !subLoading &&
-                isExpired &&
-                item.path !== WITHDRAW_PATH;
+              const unlocked = pathUnlocked(item.path);
+              const locked = !unlocked;
               return (
                 <NavLink
                   key={i}

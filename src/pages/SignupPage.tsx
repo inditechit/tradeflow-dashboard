@@ -436,7 +436,8 @@ const SignupPage = () => {
           depositMethod: "USDT",
         };
         setCurrentUser(user);
-        navigate('/packages');
+        setIsSubmitting(false);
+        navigate('/user/post-signup');
       } else {
         setErrorMessage(data.error || 'Failed to create account.');
         setIsSubmitting(false);
@@ -476,7 +477,7 @@ const SignupPage = () => {
         depositMethod: "USDT",
       };
       setCurrentUser(user);
-      navigate(data.isNewUser ? "/packages" : "/user/dashboard");
+      navigate(data.isNewUser ? "/user/post-signup" : "/user/dashboard");
     } catch (error) {
       console.error(error);
       setErrorMessage("Google signup failed. Please try again.");
