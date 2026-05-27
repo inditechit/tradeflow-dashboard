@@ -62,17 +62,18 @@ const PlanExpiredOverlay = () => {
               <span className="font-semibold text-slate-800">
                 {formatExpiry(expiresAt)}
               </span>
-              . Most areas are locked until you renew. You can still use{" "}
-              <span className="font-semibold">Dashboard</span> and{" "}
-              <span className="font-semibold">Withdraw</span>, or buy a new package below.
+              . You can browse any page from the menu, but you need an active package to use
+              those features. <span className="font-semibold">Dashboard</span> and{" "}
+              <span className="font-semibold">Withdraw</span> stay available without renewing — or
+              buy a new package below.
             </>
           ) : (
             <>
               You need an <span className="font-semibold">active trading package</span> to use
-              History, wallet tools, affiliate, support, and profile. Open{" "}
-              <span className="font-semibold">Dashboard</span> or{" "}
-              <span className="font-semibold">Withdraw</span> anytime, or choose a package to unlock
-              everything.
+              History, wallet tools, affiliate, support, and profile. You can still open any page
+              from the menu; this dialog stays until you buy a package.{" "}
+              <span className="font-semibold">Dashboard</span> and{" "}
+              <span className="font-semibold">Withdraw</span> work without a purchase.
             </>
           )}
         </p>

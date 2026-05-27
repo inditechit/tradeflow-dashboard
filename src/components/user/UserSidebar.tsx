@@ -27,9 +27,6 @@ type UserSidebarProps = {
   onClose: () => void;
 };
 
-const WITHDRAW_PATH = "/user/withdraw";
-const DASHBOARD_PATH = "/user/dashboard";
-const PROFILE_PATH = "/user/profile";
 const REQUIRED_SETUP_PATH = "/user/required-setup";
 const PACKAGES_PATH = "/packages";
 
@@ -50,21 +47,6 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     !cLoading &&
     cOk &&
     !cComplete;
-
-  const pathUnlocked = (path: string) => {
-    if (subLoading || cLoading) return true;
-    if (accessRestricted) {
-      return path === WITHDRAW_PATH || path === DASHBOARD_PATH;
-    }
-    if (complianceLocked) {
-      return (
-        path === WITHDRAW_PATH ||
-        path === PROFILE_PATH ||
-        path === REQUIRED_SETUP_PATH
-      );
-    }
-    return true;
-  };
 
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -172,28 +154,17 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
           <nav className="flex flex-col gap-1 sm:gap-2" aria-label="User navigation">
             {menu.map((item, i) => {
               const Icon = item.icon;
-              const unlocked = pathUnlocked(item.path);
-              const locked = !unlocked;
               return (
                 <NavLink
                   key={i}
                   to={item.path}
-                  onClick={(e) => {
-                    if (locked) {
-                      e.preventDefault();
-                      return;
-                    }
-                    onClose();
-                  }}
-                  aria-disabled={locked}
+                  onClick={() => onClose()}
                   className={({ isActive }) =>
                     cn(
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
-                      locked && "pointer-events-none cursor-not-allowed opacity-40",
-                      isActive && !locked
+                      isActive
                         ? "bg-[#FFD700] text-black"
-                        : !locked && "text-slate-600 hover:bg-white/80 active:bg-white",
-                      locked && "text-slate-400",
+                        : "text-slate-600 hover:bg-white/80 active:bg-white",
                     )
                   }
                 >
