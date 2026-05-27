@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { SUBSCRIPTION_REFRESH_EVENT } from "@/utils/subscriptionEvents";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
 
 export type SubscriptionSegment = {
   paymentId: number;

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail, Loader2, Shield } from "lucide-react"; // Changed AtSign to Mail
+import { GoogleLogin } from "@react-oauth/google";
 import { useApp } from "@/context/AppContext";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
+import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 // Added a unique `widgetId` prop to prevent conflicts when rendering multiple widgets
@@ -78,8 +80,6 @@ const LoginPage = () => {
   const { setCurrentUser } = useApp();
   const { isReady, role } = useVerifiedSession();
 
-  const API_BASE = "https://api.copytradeengine.org/api";
-
   useEffect(() => {
     if (!isReady || !role) return;
     navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
@@ -150,6 +150,37 @@ const LoginPage = () => {
     }
 
     setIsSubmitting(false);
+  };
+
+  const handleGoogleLogin = async (credential: string) => {
+    setErrorMessage("");
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        setErrorMessage(data?.error || "Google login failed");
+        return;
+      }
+      const appRole = data.role === "admin" ? "admin" : "user";
+      setCurrentUser({
+        userId: String(data.userId),
+        telegram: data.telegram ?? undefined,
+        name: data.name ?? undefined,
+        email: data.email ?? undefined,
+        role: appRole,
+        ...(data.created_at ? { createdAt: String(data.created_at) } : {}),
+      });
+      navigate(appRole === "admin" ? "/admin/dashboard" : "/user/dashboard");
+    } catch {
+      setErrorMessage("Google login failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -262,6 +293,33 @@ const LoginPage = () => {
               {isSubmitting && <Loader2 className="animate-spin" size={20} />}
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-slate-400">or</span>
+              </div>
+            </div>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={(resp) => {
+                    if (resp.credential) handleGoogleLogin(resp.credential);
+                    else setErrorMessage("Google did not return a login token.");
+                  }}
+                  onError={() => setErrorMessage("Google login popup failed.")}
+                  useOneTap={false}
+                  text="signin_with"
+                />
+              </div>
+            ) : (
+              <p className="text-center text-xs text-slate-400">
+                Google login is disabled (missing client ID).
+              </p>
+            )}
 
             <div className="text-center text-sm text-slate-500">
               Don't have an account?{" "}

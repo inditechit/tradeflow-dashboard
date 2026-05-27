@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
+import { GoogleLogin } from "@react-oauth/google";
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
   User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
@@ -166,8 +168,6 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
 const SignupPage = () => {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
-
-  const API_BASE = 'https://api.copytradeengine.org/api'; // Your backend URL
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -448,6 +448,43 @@ const SignupPage = () => {
     }
   };
 
+  const handleGoogleSignup = async (credential: string) => {
+    setErrorMessage("");
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        setErrorMessage(data?.error || "Google signup failed.");
+        return;
+      }
+      const user: UserData = {
+        name: data.name ?? "",
+        mobile: "",
+        telegram: data.telegram ?? "",
+        email: data.email ?? "",
+        userId: String(data.userId),
+        role: data.role === "admin" ? "admin" : "user",
+        createdAt: data.created_at ? String(data.created_at) : new Date().toISOString(),
+        emailVerified: true,
+        photoCaptured: false,
+        experienceYears: "",
+        depositMethod: "USDT",
+      };
+      setCurrentUser(user);
+      navigate(data.isNewUser ? "/packages" : "/user/dashboard");
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Google signup failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const isStep1Valid = form.name.trim() !== '' && form.mobile.trim() !== '' && form.telegram.trim() !== '' && form.password.trim() !== '';
 
   return (
@@ -573,6 +610,33 @@ const SignupPage = () => {
                 >
                   Continue to Verification <ArrowRight size={20} />
                 </button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-3 text-slate-400">or</span>
+                  </div>
+                </div>
+
+                {GOOGLE_CLIENT_ID ? (
+                  <div className="flex justify-center">
+                    <GoogleLogin
+                      onSuccess={(resp) => {
+                        if (resp.credential) handleGoogleSignup(resp.credential);
+                        else setErrorMessage("Google did not return a signup token.");
+                      }}
+                      onError={() => setErrorMessage("Google signup popup failed.")}
+                      useOneTap={false}
+                      text="signup_with"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-center text-xs text-slate-400">
+                    Google signup is disabled (missing client ID).
+                  </p>
+                )}
 
                 <div className="text-center text-sm text-slate-500">
                   Already have an account?{" "}

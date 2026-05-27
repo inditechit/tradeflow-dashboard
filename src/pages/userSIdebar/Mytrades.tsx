@@ -9,9 +9,7 @@ import {
   resolveEffectiveSlice,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
-
-const API_BASE = "https://api.copytradeengine.org/api";
-const SOCKET_URL = "https://astroapi.inditechit.com";
+import { API_BASE, SOCKET_URL } from "@/config/api";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],

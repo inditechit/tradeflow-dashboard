@@ -11,9 +11,8 @@ import {
   parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
+import { API_BASE, SOCKET_URL } from "@/config/api";
 
-const API_BASE = "https://api.copytradeengine.org/api";
-const SOCKET_URL = "https://astroapi.inditechit.com";
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
 type Summary = {
