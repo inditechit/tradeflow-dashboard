@@ -8,6 +8,11 @@ import {
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
+import { API_BASE, SOCKET_URL } from '@/config/api';
+import { io } from 'socket.io-client';
+import { applyUserRules, resolveEffectiveSlice } from '@/utils/userTradePl';
+
+const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
 type PaymentTxn = {
   id: number | string;
@@ -91,8 +96,7 @@ const DashboardPage = () => {
   const [livePl, setLivePl] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
-
-  const API_BASE = 'https://api.copytradeengine.org/api';
+  const liveTicketRef = useRef<{ ticket: string; v_i: number; V: number; fee: number; pct: number } | null>(null);
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const currency = wallet?.currency || "USD";
@@ -140,12 +144,40 @@ const DashboardPage = () => {
         setRealisedNet(0);
         setLivePl(0);
       }
+
+      const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
+      const tradesData = await tradesRes.json();
+      if (tradesData?.success && Array.isArray(tradesData.trades)) {
+        const open = tradesData.trades.find(
+          (t: { wallet_settled_at?: unknown; mt5_status?: string }) =>
+            !t.wallet_settled_at && !String(t.mt5_status ?? '').toUpperCase().includes('CLOSE')
+        );
+        if (open?.ticket_id) {
+          const slice = resolveEffectiveSlice(open);
+          liveTicketRef.current = {
+            ticket: String(open.ticket_id),
+            v_i: slice.v_i,
+            V: slice.V,
+            fee: slice.fee,
+            pct: slice.pct,
+          };
+        } else {
+          liveTicketRef.current = null;
+        }
+      }
     } catch (err) {
       console.error('Finance load error:', err);
     } finally {
       setLoadingFinance(false);
     }
   }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser]);
+
+  const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
+    const ctx = liveTicketRef.current;
+    if (!ctx || ctx.ticket !== ticket || !(ctx.V > 0 && ctx.v_i > 0)) return;
+    const userRaw = rawProfit * (ctx.v_i / ctx.V);
+    setLivePl(applyUserRules(userRaw, ctx.fee, ctx.pct));
+  }, []);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -180,8 +212,22 @@ const DashboardPage = () => {
     }
     loadFinance();
     const interval = setInterval(loadFinance, 10000);
-    return () => clearInterval(interval);
-  }, [currentUser?.userId, currentUser?.role, loadFinance]);
+
+    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+      const ticket = String(payload.ticket ?? '');
+      const raw = Number(payload.profit);
+      if (!ticket || !Number.isFinite(raw)) return;
+      applyLiveMt5Profit(ticket, raw);
+    };
+    socket.on('mt5live', onLive);
+    socket.on('mt5data', onLive);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('mt5live', onLive);
+      socket.off('mt5data', onLive);
+    };
+  }, [currentUser?.userId, currentUser?.role, loadFinance, applyLiveMt5Profit]);
 
   useEffect(() => {
     if (!currentUser?.userId) return;

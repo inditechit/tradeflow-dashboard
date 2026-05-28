@@ -27,6 +27,7 @@ export type UserTradeRowLike = {
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
+  mt5_status?: unknown;
 };
 
 const FEE_PER_LOT_USD = 30;
@@ -259,9 +260,17 @@ export function sumUserTradeNetPl(
 }
 
 export function isOpenTrade(r: UserTradeRowLike): boolean {
-  if (r.wallet_settled_at != null) return false;
   const st = String(r.mt5_status ?? "").toUpperCase();
-  return st.includes("OPEN");
+  if (st.includes("CLOSE")) return false;
+  const ct = r.close_time;
+  const hasClose =
+    ct != null &&
+    String(ct).trim() !== "" &&
+    String(ct) !== "0000-00-00 00:00:00";
+  if (hasClose) return false;
+  if (st.includes("OPEN")) return true;
+  if (r.wallet_settled_at != null) return false;
+  return true;
 }
 
 /** Split live (open, unsettled) P/L into profit and loss buckets. */

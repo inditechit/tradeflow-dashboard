@@ -150,14 +150,21 @@ const ProfitLoss = () => {
 
   const currency = summary?.currency || "USD";
 
-  const liveFromTrades = useMemo(
+  const liveFromSocket = useMemo(
     () => sumLiveProfitLoss(rows, liveRawByTicket),
     [rows, liveRawByTicket]
   );
 
-  const livePl =
-    liveFromTrades.net !== 0 || Object.keys(liveRawByTicket).length > 0
-      ? liveFromTrades.net
+  const liveFromApi = useMemo(
+    () => sumLiveProfitLoss(rows),
+    [rows]
+  );
+
+  const hasSocketLive = Object.keys(liveRawByTicket).length > 0;
+  const livePl = hasSocketLive
+    ? liveFromSocket.net
+    : liveFromApi.net !== 0
+      ? liveFromApi.net
       : Number(summary?.live_pl ?? 0);
 
   const cards = [
@@ -284,6 +291,7 @@ const ProfitLoss = () => {
               ) : (
                 sortedRows.map((r) => {
                   const ticket = String(r.ticket_id ?? "");
+                  const open = isOpenTrade(r);
                   const pl = rowNetPl(r, liveRawByTicket[ticket]);
                   const isProfit = pl >= 0;
                   
@@ -330,18 +338,18 @@ const ProfitLoss = () => {
                           isProfit ? "text-yellow-700" : "text-red-600"
                         }`}
                       >
-                        {settled ? "" : "~"}
+                        {open ? "~" : ""}
                         {fmtUsd(pl, currency)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            settled
-                              ? "border border-slate-200 bg-slate-100 text-slate-700"
-                              : "bg-[#FFF9E6] text-neutral-900"
+                            open
+                              ? "bg-[#FFF9E6] text-neutral-900"
+                              : "border border-slate-200 bg-slate-100 text-slate-700"
                           }`}
                         >
-                          {settled ? "Settled" : r.mt5_status ?? "Open"}
+                          {open ? (r.mt5_status ?? "Open") : "Closed"}
                         </span>
                       </td>
                     </tr>
