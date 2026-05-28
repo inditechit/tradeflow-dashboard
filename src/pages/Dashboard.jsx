@@ -49,8 +49,25 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [accountMetrics, setAccountMetrics] = useState(null);
+  const [platformTotals, setPlatformTotals] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  const fetchPlatformTotals = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/users`);
+      const data = await res.json();
+      if (data.success && data.totals) {
+        setPlatformTotals({
+          sumWallets: Number(data.totals.sum_wallet_balances_usd ?? 0),
+          liveUsers: Number(data.totals.live_users ?? 0),
+          totalUsers: Number(data.totals.total_users ?? 0),
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   const fetchAccountMetrics = async () => {
     const paths = ["/admin/mt5-metrics", "/mt5-metrics"];
@@ -94,6 +111,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchTrades();
     fetchAccountMetrics();
+    fetchPlatformTotals();
 
     socket.on("mt5data", (trade) => {
       setTrades((prev) => {
@@ -314,13 +332,27 @@ const Dashboard = () => {
         )}
       </div>
 
-      <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        <strong>Important:</strong> These numbers are from the <strong>master MT5 trading account</strong> (full
-        lot size, all tickets in the feed). User dashboards show each investor&apos;s{" "}
-        <strong>proportional slice</strong> and platform <strong>wallet</strong> (recharges / withdraw) — they
-        will not match MT5 Balance/Equity on the phone app. User wallets are updated on withdraw or when equity
-        hits zero, not on every trade close.
+      <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <strong>Two different views:</strong> Rows below = <strong>master MT5</strong> (broker account). User
+        app cards = each user&apos;s <strong>wallet + their % of trades</strong>. They are linked but not equal
+        dollar amounts.
       </p>
+      {platformTotals && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          {statCard(
+            <Wallet className="h-4 w-4 text-emerald-700" />,
+            "All user wallets (platform)",
+            fmtMoney(platformTotals.sumWallets),
+            `Sum of in-app balances · ${platformTotals.liveUsers} users online`
+          )}
+          {statCard(
+            <PieChart className="h-4 w-4 text-yellow-700" />,
+            "Master floating P/L (open)",
+            <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
+            "Full broker position profit — compare trend, not 1:1 with one user"
+          )}
+        </div>
+      )}
 
       {/* Summary metrics — MT4-style split: realized (closed) vs floating (open) */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">

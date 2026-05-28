@@ -93,21 +93,21 @@ const DashboardPage = () => {
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
   const [livePl, setLivePl] = useState(0);
-  const [equityPl, setEquityPl] = useState(0);
-  const [equityTotal, setEquityTotal] = useState(0);
   const [pendingClosedPl, setPendingClosedPl] = useState(0);
   const [openPositionCount, setOpenPositionCount] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
-  const liveTicketRef = useRef<{ ticket: string; v_i: number; V: number; fee: number; pct: number } | null>(null);
+  const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
+  const openPlByTicketRef = useRef<Record<string, number>>({});
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const currency = wallet?.currency || "USD";
+  const tradePl = livePl + pendingClosedPl;
+  const equity = walletBalance + tradePl;
   const profitLoss = livePl;
-  const equity =
-    !loadingFinance && (equityTotal !== 0 || equityPl !== 0)
-      ? equityTotal
-      : walletBalance + equityPl;
+
+  const sumOpenPl = () =>
+    Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
 
   const loadFinance = useCallback(async () => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -146,43 +146,37 @@ const DashboardPage = () => {
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
       const tradesData = await tradesRes.json();
 
-      let openLiveSum = 0;
+      const nextOpenPl: Record<string, number> = {};
+      const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       let openCount = 0;
       if (tradesData?.success && Array.isArray(tradesData.trades)) {
         for (const t of tradesData.trades) {
           if (isTradeClosed(t)) continue;
           openCount += 1;
-          openLiveSum += rowNetPl(t);
-        }
-        const firstOpen = tradesData.trades.find((t) => !isTradeClosed(t));
-        if (firstOpen?.ticket_id) {
-          const slice = resolveEffectiveSlice(firstOpen);
-          liveTicketRef.current = {
-            ticket: String(firstOpen.ticket_id),
+          const ticket = String(t.ticket_id ?? '');
+          if (!ticket) continue;
+          nextOpenPl[ticket] = rowNetPl(t);
+          const slice = resolveEffectiveSlice(t);
+          nextSlice[ticket] = {
             v_i: slice.v_i,
             V: slice.V,
             fee: slice.fee,
             pct: slice.pct,
           };
-        } else {
-          liveTicketRef.current = null;
         }
-      } else {
-        liveTicketRef.current = null;
       }
+      openPlByTicketRef.current = nextOpenPl;
+      liveTicketRef.current = nextSlice;
       setOpenPositionCount(openCount);
 
       if (summaryData?.success) {
         const apiLive = Number(summaryData.live_pl ?? 0);
-        setLivePl(openCount > 0 ? openLiveSum : apiLive);
-        setEquityPl(Number(summaryData.equity_pl ?? 0));
-        setEquityTotal(Number(summaryData.equity ?? 0));
-        setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
+        const apiPending = Number(summaryData.pending_closed_pl ?? 0);
+        setPendingClosedPl(apiPending);
+        setLivePl(openCount > 0 ? sumOpenPl() : apiLive);
       } else {
-        setLivePl(openLiveSum);
-        setEquityPl(0);
-        setEquityTotal(0);
         setPendingClosedPl(0);
+        setLivePl(sumOpenPl());
       }
     } catch (err) {
       console.error('Finance load error:', err);
@@ -192,10 +186,13 @@ const DashboardPage = () => {
   }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser]);
 
   const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
-    const ctx = liveTicketRef.current;
-    if (!ctx || ctx.ticket !== ticket || !(ctx.V > 0 && ctx.v_i > 0)) return;
+    const ctx = liveTicketRef.current[ticket];
+    if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
     const userRaw = rawProfit * (ctx.v_i / ctx.V);
-    setLivePl(applyUserRules(userRaw, ctx.fee, ctx.pct));
+    openPlByTicketRef.current[ticket] = applyUserRules(userRaw, ctx.fee, ctx.pct);
+    setLivePl(
+      Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0),
+    );
   }, []);
 
   useEffect(() => {
@@ -387,11 +384,8 @@ const DashboardPage = () => {
               )}
               <p className="mt-2 text-xs text-slate-500">
                 {openPositionCount > 0
-                  ? `${openPositionCount} open position(s) · your share of master P/L`
-                  : 'No open copy positions right now'}
-                {pendingClosedPl !== 0
-                  ? ` · ${pendingClosedPl >= 0 ? '+' : ''}${formatMoneyAmount(pendingClosedPl, currency)} closed (not in wallet yet)`
-                  : ''}
+                  ? `${openPositionCount} open · your proportional share`
+                  : 'No open positions'}
               </p>
             </div>
 
@@ -408,13 +402,12 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Wallet {formatMoneyAmount(walletBalance, currency)}
-                {equityPl !== 0
-                  ? ` · trade component ${equityPl >= 0 ? '+' : ''}${formatMoneyAmount(equityPl, currency)} (avg profit − avg loss, after fee & %)`
+                {formatMoneyAmount(walletBalance, currency)} wallet
+                {livePl !== 0 ? ` + ${formatMoneyAmount(livePl, currency)} open` : ''}
+                {pendingClosedPl !== 0
+                  ? ` + ${formatMoneyAmount(pendingClosedPl, currency)} closed (pending)`
                   : ''}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                Not the same as MT5 master account — this is your copy-trade wallet only.
+                {' '}= equity
               </p>
             </div>
           </section>
