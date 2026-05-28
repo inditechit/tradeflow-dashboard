@@ -253,9 +253,9 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto p-4">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Market Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Master MT5 Dashboard</h1>
           <p className="text-slate-500 text-sm">
-            Live trade monitoring &amp; aggregates
+            Broker master account trades only — not user wallet balances
             {dateFilterActive && (
               <span className="text-slate-700">
                 {" "}
@@ -314,11 +314,12 @@ const Dashboard = () => {
         )}
       </div>
 
-      <p className="mb-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-black">
-        Metrics include only trades whose{" "}
-        <strong>close time</strong> (closed) or <strong>open time</strong> (open) falls in the
-        range above (local timezone). If <code className="rounded bg-amber-100/80 px-1">close_time</code>{" "}
-        is missing on a closed row, open time is used. Feed-only sums; not full MT4 equity.
+      <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <strong>Important:</strong> These numbers are from the <strong>master MT5 trading account</strong> (full
+        lot size, all tickets in the feed). User dashboards show each investor&apos;s{" "}
+        <strong>proportional slice</strong> and platform <strong>wallet</strong> (recharges / withdraw) — they
+        will not match MT5 Balance/Equity on the phone app. User wallets are updated on withdraw or when equity
+        hits zero, not on every trade close.
       </p>
 
       {/* Summary metrics — MT4-style split: realized (closed) vs floating (open) */}
@@ -352,9 +353,9 @@ const Dashboard = () => {
        
         {statCard(
           <PieChart className={`h-4 w-4 ${realizedColor}`} />,
-          "Net Balance",
+          "Closed P/L (master)",
           <span className={realizedColor}>{fmtMoney(stats.realizedNet)}</span>,
-          "Sum of profit on all CLOSED rows."
+          "Sum of profit on CLOSED master tickets in date range."
         )}
         {statCard(
           <PieChart className={`h-4 w-4 ${combinedColor}`} />,

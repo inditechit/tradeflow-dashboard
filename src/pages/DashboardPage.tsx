@@ -10,7 +10,7 @@ import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { io } from 'socket.io-client';
-import { applyUserRules, resolveEffectiveSlice } from '@/utils/userTradePl';
+import { applyUserRules, resolveEffectiveSlice, isTradeClosed, rowNetPl } from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -95,6 +95,8 @@ const DashboardPage = () => {
   const [livePl, setLivePl] = useState(0);
   const [equityPl, setEquityPl] = useState(0);
   const [equityTotal, setEquityTotal] = useState(0);
+  const [pendingClosedPl, setPendingClosedPl] = useState(0);
+  const [openPositionCount, setOpenPositionCount] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
   const liveTicketRef = useRef<{ ticket: string; v_i: number; V: number; fee: number; pct: number } | null>(null);
@@ -141,27 +143,22 @@ const DashboardPage = () => {
         summaryData?.funded !== false && assignData?.funded !== false && Number(wData?.wallet?.balance ?? assignData?.balance ?? 0) > 0;
       setAssignFunded(funded);
 
-      if (summaryData?.success) {
-        setLivePl(Number(summaryData.live_pl ?? 0));
-        setEquityPl(Number(summaryData.equity_pl ?? 0));
-        setEquityTotal(Number(summaryData.equity ?? 0));
-      } else {
-        setLivePl(0);
-        setEquityPl(0);
-        setEquityTotal(0);
-      }
-
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
       const tradesData = await tradesRes.json();
+
+      let openLiveSum = 0;
+      let openCount = 0;
       if (tradesData?.success && Array.isArray(tradesData.trades)) {
-        const open = tradesData.trades.find(
-          (t: { wallet_settled_at?: unknown; mt5_status?: string }) =>
-            !t.wallet_settled_at && !String(t.mt5_status ?? '').toUpperCase().includes('CLOSE')
-        );
-        if (open?.ticket_id) {
-          const slice = resolveEffectiveSlice(open);
+        for (const t of tradesData.trades) {
+          if (isTradeClosed(t)) continue;
+          openCount += 1;
+          openLiveSum += rowNetPl(t);
+        }
+        const firstOpen = tradesData.trades.find((t) => !isTradeClosed(t));
+        if (firstOpen?.ticket_id) {
+          const slice = resolveEffectiveSlice(firstOpen);
           liveTicketRef.current = {
-            ticket: String(open.ticket_id),
+            ticket: String(firstOpen.ticket_id),
             v_i: slice.v_i,
             V: slice.V,
             fee: slice.fee,
@@ -170,6 +167,22 @@ const DashboardPage = () => {
         } else {
           liveTicketRef.current = null;
         }
+      } else {
+        liveTicketRef.current = null;
+      }
+      setOpenPositionCount(openCount);
+
+      if (summaryData?.success) {
+        const apiLive = Number(summaryData.live_pl ?? 0);
+        setLivePl(openCount > 0 ? openLiveSum : apiLive);
+        setEquityPl(Number(summaryData.equity_pl ?? 0));
+        setEquityTotal(Number(summaryData.equity ?? 0));
+        setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
+      } else {
+        setLivePl(openLiveSum);
+        setEquityPl(0);
+        setEquityTotal(0);
+        setPendingClosedPl(0);
       }
     } catch (err) {
       console.error('Finance load error:', err);
@@ -373,7 +386,12 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Open trades only · wallet updates on withdraw or if equity reaches zero
+                {openPositionCount > 0
+                  ? `${openPositionCount} open position(s) · your share of master P/L`
+                  : 'No open copy positions right now'}
+                {pendingClosedPl !== 0
+                  ? ` · ${pendingClosedPl >= 0 ? '+' : ''}${formatMoneyAmount(pendingClosedPl, currency)} closed (not in wallet yet)`
+                  : ''}
               </p>
             </div>
 
@@ -391,7 +409,12 @@ const DashboardPage = () => {
               )}
               <p className="mt-2 text-xs text-slate-500">
                 Wallet {formatMoneyAmount(walletBalance, currency)}
-                {equityPl !== 0 ? ` ${equityPl >= 0 ? "+" : ""}${formatMoneyAmount(equityPl, currency)} trades` : ""}
+                {equityPl !== 0
+                  ? ` · trade component ${equityPl >= 0 ? '+' : ''}${formatMoneyAmount(equityPl, currency)} (avg profit − avg loss, after fee & %)`
+                  : ''}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Not the same as MT5 master account — this is your copy-trade wallet only.
               </p>
             </div>
           </section>
