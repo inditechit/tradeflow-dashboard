@@ -92,16 +92,20 @@ const DashboardPage = () => {
   const [error, setError] = useState('');
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
-  const [realisedNet, setRealisedNet] = useState(0);
   const [livePl, setLivePl] = useState(0);
+  const [equityPl, setEquityPl] = useState(0);
+  const [equityTotal, setEquityTotal] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
   const liveTicketRef = useRef<{ ticket: string; v_i: number; V: number; fee: number; pct: number } | null>(null);
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const currency = wallet?.currency || "USD";
-  const profitLoss = realisedNet + livePl;
-  const equity = walletBalance + profitLoss;
+  const profitLoss = livePl;
+  const equity =
+    !loadingFinance && (equityTotal !== 0 || equityPl !== 0)
+      ? equityTotal
+      : walletBalance + equityPl;
 
   const loadFinance = useCallback(async () => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -138,11 +142,13 @@ const DashboardPage = () => {
       setAssignFunded(funded);
 
       if (summaryData?.success) {
-        setRealisedNet(Number(summaryData.realised_net ?? 0));
         setLivePl(Number(summaryData.live_pl ?? 0));
+        setEquityPl(Number(summaryData.equity_pl ?? 0));
+        setEquityTotal(Number(summaryData.equity ?? 0));
       } else {
-        setRealisedNet(0);
         setLivePl(0);
+        setEquityPl(0);
+        setEquityTotal(0);
       }
 
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
@@ -357,7 +363,7 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Profit/Loss</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Live P/L</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
@@ -367,8 +373,7 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Realised {formatMoneyAmount(realisedNet, currency)}
-                {livePl !== 0 ? ` · Open ~${formatMoneyAmount(livePl, currency)}` : ''}
+                Open trades only · wallet updates on withdraw or if equity reaches zero
               </p>
             </div>
 
@@ -384,7 +389,10 @@ const DashboardPage = () => {
                   {formatMoneyAmount(equity, currency)}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-500">Wallet + profit/loss</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Wallet {formatMoneyAmount(walletBalance, currency)}
+                {equityPl !== 0 ? ` ${equityPl >= 0 ? "+" : ""}${formatMoneyAmount(equityPl, currency)} trades` : ""}
+              </p>
             </div>
           </section>
         )}

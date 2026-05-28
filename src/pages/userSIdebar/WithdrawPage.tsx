@@ -35,6 +35,7 @@ const WithdrawPage = () => {
   const userId = currentUser?.userId;
 
   const [balance, setBalance] = useState<number | null>(null);
+  const [withdrawableEquity, setWithdrawableEquity] = useState<number | null>(null);
   const [payoutSaved, setPayoutSaved] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
   const [amount, setAmount] = useState("");
@@ -48,10 +49,11 @@ const WithdrawPage = () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [wRes, pRes, rRes] = await Promise.all([
+      const [wRes, pRes, rRes, summaryRes] = await Promise.all([
         fetch(`${API_BASE}/user/wallet/${userId}`),
         fetch(`${API_BASE}/user/profile/${userId}`),
         fetch(`${API_BASE}/user/withdraw/${userId}`),
+        fetch(`${API_BASE}/user/summary/${userId}`),
       ]);
       const wData = await wRes.json();
       if (wData.success && wData.wallet) {
@@ -72,6 +74,12 @@ const WithdrawPage = () => {
         setRows(rData.requests);
       } else {
         setRows([]);
+      }
+      const summaryData = await summaryRes.json();
+      if (summaryData?.success) {
+        setWithdrawableEquity(Number(summaryData.equity ?? 0));
+      } else {
+        setWithdrawableEquity(null);
       }
     } catch {
       toast({ title: "Could not load data", variant: "destructive" });
@@ -141,8 +149,15 @@ const WithdrawPage = () => {
       });
       return;
     }
-    if (balance != null && amt > balance) {
-      toast({ title: "Insufficient balance", variant: "destructive" });
+    const maxOut =
+      withdrawableEquity != null ? withdrawableEquity : balance ?? 0;
+    if (amt > maxOut) {
+      toast({
+        title: "Insufficient equity",
+        description:
+          "Trade profit/loss is added to your wallet when you withdraw. Lower the amount.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
@@ -194,13 +209,26 @@ const WithdrawPage = () => {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2 text-slate-700">
-            <Wallet className="h-5 w-5 text-neutral-900" />
-            <span className="text-sm font-medium">Wallet balance</span>
+        <div className="mb-6 space-y-3 border-b border-slate-100 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Wallet className="h-5 w-5 text-neutral-900" />
+              <span className="text-sm font-medium">Wallet (deposits)</span>
+            </div>
+            <p className="text-xl font-bold tabular-nums text-slate-900">
+              {loading ? "…" : `USD ${(balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </p>
           </div>
-          <p className="text-2xl font-bold tabular-nums text-slate-900">
-            {loading ? "…" : `USD ${(balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm font-medium text-slate-700">Withdrawable equity</span>
+            <p className="text-2xl font-bold tabular-nums text-emerald-800">
+              {loading
+                ? "…"
+                : `USD ${(withdrawableEquity ?? balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            Trade P/L is moved into your wallet when you submit a withdrawal. If equity hits zero, wallet is cleared.
           </p>
         </div>
 
