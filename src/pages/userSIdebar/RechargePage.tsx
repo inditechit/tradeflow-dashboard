@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { QRCodeCanvas } from "qrcode.react";
 
+const MIN_RECHARGE_USD = 10;
+const MAX_RECHARGE_USD = 3000;
+
 const Recharge = () => {
   const [amount, setAmount] = useState("");
   const [method] = useState("USD");
@@ -19,8 +22,12 @@ const Recharge = () => {
   const handleRecharge = async () => {
     if (!amount) return alert("Enter amount");
 
-    if (Number(amount) < 10) {
-      return alert("Minimum 10 USD required");
+    const amountUsd = Number(amount);
+    if (amountUsd < MIN_RECHARGE_USD) {
+      return alert(`Minimum ${MIN_RECHARGE_USD} USD required`);
+    }
+    if (amountUsd > MAX_RECHARGE_USD) {
+      return alert(`Maximum ${MAX_RECHARGE_USD} USD per recharge`);
     }
 
     try {
@@ -28,7 +35,7 @@ const Recharge = () => {
 
       const res = await axios.post(`${API_BASE}/recharge`, {
         userId,
-        amount: Number(amount),
+        amount: amountUsd,
         payment_method: "USDT"
       });
 
@@ -95,13 +102,15 @@ const Recharge = () => {
             </label>
             <input
               type="number"
+              min={MIN_RECHARGE_USD}
+              max={MAX_RECHARGE_USD}
               className="w-full border rounded-lg p-4 text-lg focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
             <p className="text-sm text-gray-500 mt-2">
-              Minimum 10 USD recharge
+              {MIN_RECHARGE_USD}–{MAX_RECHARGE_USD.toLocaleString()} USD per recharge
             </p>
           </div>
 
@@ -116,7 +125,12 @@ const Recharge = () => {
 
           <button
             onClick={handleRecharge}
-            disabled={loading}
+            disabled={
+              loading ||
+              !amount ||
+              Number(amount) < MIN_RECHARGE_USD ||
+              Number(amount) > MAX_RECHARGE_USD
+            }
             className="w-full bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition"
           >
             {loading ? "Processing..." : "Proceed to Pay"}

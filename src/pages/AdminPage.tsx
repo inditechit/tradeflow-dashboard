@@ -19,10 +19,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mic } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-
-const ADMIN_LISTENER_USER_ID = 15;
-
-const API_BASE = 'https://api.copytradeengine.org/api';
+import { API_BASE } from "@/config/api";
 
 function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();
@@ -83,10 +80,11 @@ const AdminPage = () => {
   const [filterName, setFilterName] = useState('');
   const [filterEmail, setFilterEmail] = useState('');
   const [filterKyc, setFilterKyc] = useState('all');
+  const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
 
-  // Voice panel state — only shown for the dedicated listener admin (user id 15)
   const { currentUser } = useApp();
-  const isVoiceAdmin = Number(currentUser?.userId) === ADMIN_LISTENER_USER_ID;
+  const isVoiceAdmin = currentUser?.role === "admin";
+  const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
 
   // USER MODAL STATES 
@@ -288,8 +286,10 @@ const AdminPage = () => {
     
     const currentKyc = String(loc.kyc_status ?? "pending").toLowerCase();
     const matchKyc = filterKyc === "all" || currentKyc === filterKyc;
+    const matchOnline =
+      filterOnline === "all" || Number(loc.is_online) === 1;
 
-    return matchName && matchEmail && matchKyc;
+    return matchName && matchEmail && matchKyc && matchOnline;
   });
 
 
@@ -350,16 +350,25 @@ const renderRiskBadges = (riskData: any) => {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Users
             </h1>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
-              title={`Updates every 30s • online within last 90s`}
+            <button
+              type="button"
+              onClick={() =>
+                setFilterOnline((prev) => (prev === "live" ? "all" : "live"))
+              }
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                filterOnline === "live"
+                  ? "border-emerald-400 bg-emerald-100 text-emerald-900 ring-2 ring-emerald-200"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              }`}
+              title="Click to show live users only (online within last 90s)"
             >
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
               {liveCount} live
-            </span>
+              {filterOnline === "live" ? " · filtered" : ""}
+            </button>
           </div>
           <p className="mt-1 text-sm text-slate-600">
             Manage accounts, wallets, addresses &amp; KYC
@@ -390,7 +399,7 @@ const renderRiskBadges = (riskData: any) => {
       </div>
 
       {/* FILTERS */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
             Search Name
@@ -431,6 +440,19 @@ const renderRiskBadges = (riskData: any) => {
             <option value="rejected">Rejected</option>
           </select>
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+            Platform status
+          </label>
+          <select
+            value={filterOnline}
+            onChange={(e) => setFilterOnline(e.target.value as "all" | "live")}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+          >
+            <option value="all">All users</option>
+            <option value="live">Live on platform</option>
+          </select>
+        </div>
         <div className="flex items-end">
           <Button
             type="button"
@@ -439,6 +461,7 @@ const renderRiskBadges = (riskData: any) => {
               setFilterName('');
               setFilterEmail('');
               setFilterKyc('all');
+              setFilterOnline('all');
             }}
             className="w-full h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100"
           >
@@ -737,17 +760,28 @@ const renderRiskBadges = (riskData: any) => {
                         <Pencil className="h-4 w-4" />
                         Edit
                       </Button>
-                      {isVoiceAdmin && Number(loc.id) !== ADMIN_LISTENER_USER_ID && (
+                      {isVoiceAdmin &&
+                        Number.isFinite(adminListenerId) &&
+                        Number(loc.id) !== adminListenerId && (
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-9 gap-1.5 border-red-200 bg-red-50 font-semibold text-red-700 hover:bg-red-100"
-                          title="Listen to this user (recorded)"
+                          className={cn(
+                            "h-9 gap-1.5 font-semibold",
+                            Number(loc.is_online) === 1
+                              ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                          )}
+                          title={
+                            Number(loc.is_online) === 1
+                              ? "Listen live — user is on the platform"
+                              : "Listen — user is offline; audio starts when they return"
+                          }
                           onClick={() => setVoiceUser(loc)}
                         >
                           <Mic className="h-4 w-4" />
-                          Voice
+                          {Number(loc.is_online) === 1 ? "Listen live" : "Listen"}
                         </Button>
                       )}
                     </div>
@@ -792,11 +826,10 @@ const renderRiskBadges = (riskData: any) => {
         isLoading={isWalletLoading}
       />
 
-      {/* VOICE PANEL — only mountable by admin user 15 */}
-      {isVoiceAdmin && voiceUser && (
+      {isVoiceAdmin && voiceUser && Number.isFinite(adminListenerId) && (
         <AdminVoicePanel
           apiBase={API_BASE}
-          adminUserId={ADMIN_LISTENER_USER_ID}
+          adminUserId={adminListenerId}
           user={{ id: Number(voiceUser.id), name: voiceUser.name, email: voiceUser.email }}
           onClose={() => setVoiceUser(null)}
         />
