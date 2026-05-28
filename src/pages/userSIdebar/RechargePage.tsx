@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { QRCodeCanvas } from "qrcode.react";
 
-const MIN_RECHARGE_USD = 10;
-const MAX_RECHARGE_USD = 3000;
+const MIN_RECHARGE_USD = 3000;
 
 const Recharge = () => {
   const [amount, setAmount] = useState("");
@@ -19,17 +18,20 @@ const Recharge = () => {
   const userId = userData?.userId;
   const API_BASE = 'https://api.copytradeengine.org/api';
 
+  const amountUsd = Number(amount);
+  const amountTooLow =
+    amount !== "" && Number.isFinite(amountUsd) && amountUsd < MIN_RECHARGE_USD;
+
+  const handleAmountChange = (raw: string) => {
+    setAmount(raw);
+  };
+
   const handleRecharge = async () => {
     if (!amount) return alert("Enter amount");
 
-    const amountUsd = Number(amount);
     if (amountUsd < MIN_RECHARGE_USD) {
-      return alert(`Minimum ${MIN_RECHARGE_USD} USD required`);
+      return alert(`Minimum ${MIN_RECHARGE_USD.toLocaleString()} USD required`);
     }
-    if (amountUsd > MAX_RECHARGE_USD) {
-      return alert(`Maximum ${MAX_RECHARGE_USD} USD per recharge`);
-    }
-
     try {
       setLoading(true);
 
@@ -103,15 +105,20 @@ const Recharge = () => {
             <input
               type="number"
               min={MIN_RECHARGE_USD}
-              max={MAX_RECHARGE_USD}
+              step={1}
               className="w-full border rounded-lg p-4 text-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Enter amount"
+              placeholder={`${MIN_RECHARGE_USD.toLocaleString()} or more`}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => handleAmountChange(e.target.value)}
             />
             <p className="text-sm text-gray-500 mt-2">
-              {MIN_RECHARGE_USD}–{MAX_RECHARGE_USD.toLocaleString()} USD per recharge
+              Minimum {MIN_RECHARGE_USD.toLocaleString()} USD per recharge ($2,999 and below are not allowed)
             </p>
+            {amountTooLow && (
+              <p className="text-sm text-red-600 mt-1 font-medium">
+                Amount must be at least {MIN_RECHARGE_USD.toLocaleString()} USD to recharge.
+              </p>
+            )}
           </div>
 
           <div className="mb-6">
@@ -128,8 +135,8 @@ const Recharge = () => {
             disabled={
               loading ||
               !amount ||
-              Number(amount) < MIN_RECHARGE_USD ||
-              Number(amount) > MAX_RECHARGE_USD
+              !Number.isFinite(amountUsd) ||
+              amountUsd < MIN_RECHARGE_USD
             }
             className="w-full bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition"
           >
