@@ -227,7 +227,7 @@ const ProfitLoss = () => {
         </button>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      {/* <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
         {cards.map((c) => {
           const Icon = c.icon;
           const toneCls =
@@ -250,7 +250,7 @@ const ProfitLoss = () => {
             </div>
           );
         })}
-      </section>
+      </section> */}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
         <div className="px-6 py-4 border-b border-slate-100">
