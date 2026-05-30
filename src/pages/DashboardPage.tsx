@@ -4,7 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { 
   Plane, Globe, Video, User, LogOut, 
   Loader2, CheckCircle2, Clock, Plus, TrendingUp,
-  Wallet, CircleDollarSign, ArrowRight,
+  Wallet, CircleDollarSign, ArrowRight, Pause, Play,
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
@@ -97,6 +97,9 @@ const DashboardPage = () => {
   const [openPositionCount, setOpenPositionCount] = useState(0);
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
+  const [tradingActive, setTradingActive] = useState(true);
+  const [tradingActionLoading, setTradingActionLoading] = useState(false);
+  const [tradingActionError, setTradingActionError] = useState('');
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
 
@@ -139,8 +142,15 @@ const DashboardPage = () => {
         }
       }
 
+      const walletOk = Number(wData?.wallet?.balance ?? assignData?.balance ?? 0) > 0;
+      const active =
+        summaryData?.trading_active !== false && assignData?.trading_active !== false;
+      setTradingActive(active);
       const funded =
-        summaryData?.funded !== false && assignData?.funded !== false && Number(wData?.wallet?.balance ?? assignData?.balance ?? 0) > 0;
+        summaryData?.funded !== false &&
+        assignData?.funded !== false &&
+        walletOk &&
+        active;
       setAssignFunded(funded);
 
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
@@ -184,6 +194,56 @@ const DashboardPage = () => {
       setLoadingFinance(false);
     }
   }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser]);
+
+  const handleStopTrading = async () => {
+    if (!currentUser?.userId || tradingActionLoading) return;
+    const ok = window.confirm(
+      'Stop trading? Open positions will be closed at the current P/L and your full equity will move into your wallet. You will not receive new trades until you restart.',
+    );
+    if (!ok) return;
+    setTradingActionLoading(true);
+    setTradingActionError('');
+    try {
+      const res = await fetch(`${API_BASE}/user/trading/stop/${currentUser.userId}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setTradingActionError(data.error || 'Could not stop trading');
+        return;
+      }
+      await loadFinance();
+    } catch {
+      setTradingActionError('Server error while stopping trading');
+    } finally {
+      setTradingActionLoading(false);
+    }
+  };
+
+  const handleRestartTrading = async () => {
+    if (!currentUser?.userId || tradingActionLoading) return;
+    if (walletBalance <= 0) {
+      setTradingActionError('Add funds to your wallet before restarting trading.');
+      return;
+    }
+    setTradingActionLoading(true);
+    setTradingActionError('');
+    try {
+      const res = await fetch(`${API_BASE}/user/trading/restart/${currentUser.userId}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setTradingActionError(data.error || 'Could not restart trading');
+        return;
+      }
+      await loadFinance();
+    } catch {
+      setTradingActionError('Server error while restarting trading');
+    } finally {
+      setTradingActionLoading(false);
+    }
+  };
 
   const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
     const ctx = liveTicketRef.current[ticket];
@@ -317,32 +377,34 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {currentUser?.role !== 'admin' && assignFunded === false && (
+        {currentUser?.role !== 'admin' && !tradingActive && walletBalance > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+            <p className="font-medium">Trading is paused</p>
+            <p className="mt-1 text-slate-600">
+              Your equity is in your wallet. Restart trading when you want to join new live trades again.
+            </p>
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            {walletBalance <= 0 ? (
-              <p>
-                Wallet is empty — open trades are settled and you will not receive new trades until you{' '}
-                <button
-                  type="button"
-                  className="font-semibold text-neutral-800 underline decoration-neutral-900"
-                  onClick={() => navigate('/user/recharge')}
-                >
-                  add funds
-                </button>
-            
-              </p>
-            ) : (
-              <p>
-                <button
-                  type="button"
-                  className="font-semibold text-neutral-800 underline decoration-neutral-900"
-                  onClick={() => navigate('/user/recharge')}
-                >
-                  Add funds
-                </button>{' '}
-                to join live trades.
-              </p>
-            )}
+            <p>
+              Wallet is empty — you will not receive new trades until you{' '}
+              <button
+                type="button"
+                className="font-semibold text-neutral-800 underline decoration-neutral-900"
+                onClick={() => navigate('/user/recharge')}
+              >
+                add funds
+              </button>
+              {tradingActive ? ' and restart trading.' : '.'}
+            </p>
+          </div>
+        )}
+
+        {tradingActionError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {tradingActionError}
           </div>
         )}
 
@@ -402,13 +464,50 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                {formatMoneyAmount(walletBalance, currency)} wallet
-                {livePl !== 0 ? ` + ${formatMoneyAmount(livePl, currency)} open` : ''}
-                {pendingClosedPl !== 0
-                  ? ` + ${formatMoneyAmount(pendingClosedPl, currency)} closed (pending)`
-                  : ''}
-                {' '}= equity
+                {!tradingActive && openPositionCount === 0 && pendingClosedPl === 0 ? (
+                  <>All funds in wallet — trading paused</>
+                ) : (
+                  <>
+                    {formatMoneyAmount(walletBalance, currency)} wallet
+                    {livePl !== 0 ? ` + ${formatMoneyAmount(livePl, currency)} open` : ''}
+                    {pendingClosedPl !== 0
+                      ? ` + ${formatMoneyAmount(pendingClosedPl, currency)} closed (pending)`
+                      : ''}
+                    {' '}= equity
+                  </>
+                )}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {tradingActive ? (
+                  <button
+                    type="button"
+                    disabled={tradingActionLoading}
+                    onClick={handleStopTrading}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-60"
+                  >
+                    {tradingActionLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Pause className="h-3.5 w-3.5" />
+                    )}
+                    Stop trading
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={tradingActionLoading || walletBalance <= 0}
+                    onClick={handleRestartTrading}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-yellow-300 bg-[#FFD700] px-3 py-2 text-xs font-bold text-black hover:bg-[#E6C200] disabled:opacity-60"
+                  >
+                    {tradingActionLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    Restart trading
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         )}
