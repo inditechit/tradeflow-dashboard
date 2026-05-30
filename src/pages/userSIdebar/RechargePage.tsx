@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { QRCodeCanvas } from "qrcode.react";
 
-const MIN_RECHARGE_USD = 3000;
+const MIN_RECHARGE_USD = 100;
 
 const Recharge = () => {
   const [amount, setAmount] = useState("");
@@ -112,7 +112,7 @@ const Recharge = () => {
               onChange={(e) => handleAmountChange(e.target.value)}
             />
             <p className="text-sm text-gray-500 mt-2">
-              Minimum {MIN_RECHARGE_USD.toLocaleString()} USD per recharge ($2,999 and below are not allowed)
+              Minimum {MIN_RECHARGE_USD.toLocaleString()} USD per recharge ($100 and below are not allowed)
             </p>
             {amountTooLow && (
               <p className="text-sm text-red-600 mt-1 font-medium">
