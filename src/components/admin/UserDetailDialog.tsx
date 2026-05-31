@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import {
   formatAdminDate,
   kycBadgeStyles,
@@ -18,11 +20,12 @@ import {
   userHasMapLink,
 } from "@/utils/adminUserDisplay";
 import {
-  getUserLabels,
-  setUserLabels,
+  parseUserLabels,
+  saveUserLabels,
   tagColorClass,
   type UserLabelEntry,
 } from "@/utils/adminUserLabels";
+import UserLabelsDisplay from "./UserLabelsDisplay";
 
 type UserDetailDialogProps = {
   user: Record<string, unknown> | null;
@@ -53,14 +56,17 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   onOpenMap,
   onLabelsUpdated,
 }) => {
+  const { toast } = useToast();
   const [labels, setLabels] = useState<UserLabelEntry>({ label: "", tags: [] });
   const [newTag, setNewTag] = useState("");
+  const [savingLabels, setSavingLabels] = useState(false);
+  const labelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
-    setLabels(getUserLabels(user.id as number));
+    setLabels(parseUserLabels(user));
     setNewTag("");
-  }, [user?.id, open]);
+  }, [user, open]);
 
   if (!user) return null;
 
@@ -69,21 +75,42 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   const showVoice =
     isVoiceAdmin && Number.isFinite(adminListenerId) && userId !== adminListenerId;
 
-  const saveLabels = (next: UserLabelEntry) => {
+  const persistLabels = async (next: UserLabelEntry) => {
     setLabels(next);
-    setUserLabels(userId, next);
-    onLabelsUpdated?.();
+    setSavingLabels(true);
+    try {
+      const saved = await saveUserLabels(userId, next);
+      setLabels(saved);
+      onLabelsUpdated?.();
+    } catch (err) {
+      toast({
+        title: "Could not save label",
+        description: err instanceof Error ? err.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingLabels(false);
+    }
+  };
+
+  const updateLabelDraft = (label: string) => {
+    const next = { ...labels, label };
+    setLabels(next);
+    if (labelDebounceRef.current) clearTimeout(labelDebounceRef.current);
+    labelDebounceRef.current = setTimeout(() => {
+      void persistLabels(next);
+    }, 600);
   };
 
   const addTag = () => {
     const tag = newTag.trim();
     if (!tag || labels.tags.includes(tag)) return;
-    saveLabels({ ...labels, tags: [...labels.tags, tag] });
+    void persistLabels({ ...labels, tags: [...labels.tags, tag] });
     setNewTag("");
   };
 
   const removeTag = (tag: string) => {
-    saveLabels({ ...labels, tags: labels.tags.filter((t) => t !== tag) });
+    void persistLabels({ ...labels, tags: labels.tags.filter((t) => t !== tag) });
   };
 
   return (
@@ -98,56 +125,111 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
 
         <div className="space-y-6">
           {/* Labels & tags */}
-          <section className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Tag className="h-4 w-4" />
-              Label &amp; tags
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Tag className="h-4 w-4 text-indigo-600" />
+                Label &amp; tags
+              </div>
+              {savingLabels && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
             </div>
-            <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
-              Custom label
-            </label>
-            <input
-              type="text"
-              value={labels.label ?? ""}
-              onChange={(e) => saveLabels({ ...labels, label: e.target.value })}
-              placeholder="e.g. VIP client, needs follow-up…"
-              className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {labels.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                    tagColorClass(tag),
-                  )}
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="rounded-full p-0.5 hover:bg-black/10"
-                    aria-label={`Remove tag ${tag}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
-                placeholder="Add tag…"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+
+            <div className="border-b border-slate-100 bg-slate-50/40 px-4 py-3">
+              <UserLabelsDisplay
+                user={{
+                  admin_label: labels.label,
+                  admin_tags: labels.tags,
+                }}
               />
-              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addTag}>
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
             </div>
+
+            <Tabs defaultValue="label" className="p-4">
+              <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-slate-100 p-1">
+                <TabsTrigger
+                  value="label"
+                  className="rounded-lg text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"
+                >
+                  Custom label
+                </TabsTrigger>
+                <TabsTrigger
+                  value="tags"
+                  className="rounded-lg text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"
+                >
+                  Tags {labels.tags.length > 0 && `(${labels.tags.length})`}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="label" className="mt-4 space-y-2">
+                <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Assign a note for this user
+                </label>
+                <input
+                  type="text"
+                  value={labels.label ?? ""}
+                  onChange={(e) => updateLabelDraft(e.target.value)}
+                  onBlur={() => {
+                    if (labelDebounceRef.current) {
+                      clearTimeout(labelDebounceRef.current);
+                      labelDebounceRef.current = null;
+                    }
+                    void persistLabels(labels);
+                  }}
+                  placeholder="e.g. VIP client, needs follow-up, high value…"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+                <p className="text-[11px] text-slate-400">Saved automatically after you stop typing.</p>
+              </TabsContent>
+
+              <TabsContent value="tags" className="mt-4 space-y-3">
+                <div className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50/60 p-2">
+                  {labels.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {labels.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wide shadow-sm",
+                            tagColorClass(tag),
+                          )}
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="rounded-md p-0.5 hover:bg-black/10"
+                            aria-label={`Remove tag ${tag}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="px-1 py-2 text-xs text-slate-400">No tags yet — add one below.</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                    placeholder="Type tag name…"
+                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 rounded-xl border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                    onClick={addTag}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add tag
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </section>
 
           {/* Actions */}

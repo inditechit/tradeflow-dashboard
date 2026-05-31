@@ -1,56 +1,75 @@
-const STORAGE_KEY = "admin_user_labels_v1";
+import { API_BASE } from "@/config/api";
 
 export type UserLabelEntry = {
   label?: string;
   tags: string[];
 };
 
-export type UserLabelsMap = Record<string, UserLabelEntry>;
+export function parseUserLabels(user: {
+  admin_label?: unknown;
+  admin_tags?: unknown;
+}): UserLabelEntry {
+  const label = user.admin_label != null ? String(user.admin_label).trim() : "";
+  let tags: string[] = [];
+  const raw = user.admin_tags;
 
-function readAll(): UserLabelsMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as UserLabelsMap;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
+  if (Array.isArray(raw)) {
+    tags = raw.map((t) => String(t).trim()).filter(Boolean);
+  } else if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        tags = parsed.map((t) => String(t).trim()).filter(Boolean);
+      }
+    } catch {
+      tags = [];
+    }
   }
+
+  return { label, tags };
 }
 
-function writeAll(map: UserLabelsMap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-}
+export async function saveUserLabels(
+  userId: number | string,
+  entry: UserLabelEntry,
+): Promise<UserLabelEntry> {
+  const tags = entry.tags.map((t) => t.trim()).filter(Boolean);
+  const label = entry.label?.trim() ?? "";
 
-export function getUserLabels(userId: number | string): UserLabelEntry {
-  const map = readAll();
-  const entry = map[String(userId)];
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/labels`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label, tags }),
+  });
+
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to save labels");
+  }
+
   return {
-    label: entry?.label ?? "",
-    tags: Array.isArray(entry?.tags) ? entry.tags : [],
+    label: data.label ?? "",
+    tags: Array.isArray(data.tags) ? data.tags : tags,
   };
 }
 
-export function setUserLabels(userId: number | string, entry: UserLabelEntry) {
-  const map = readAll();
-  const tags = entry.tags.map((t) => t.trim()).filter(Boolean);
-  const label = entry.label?.trim() ?? "";
-  if (!label && tags.length === 0) {
-    delete map[String(userId)];
-  } else {
-    map[String(userId)] = { label, tags };
+export async function fetchAllUsedTags(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/user-tags`);
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.tags)) return [];
+    return data.tags;
+  } catch {
+    return [];
   }
-  writeAll(map);
 }
 
-export function getAllUsedTags(): string[] {
-  const map = readAll();
+export function collectAllTagsFromUsers(
+  users: Array<{ admin_label?: unknown; admin_tags?: unknown }>,
+): string[] {
   const set = new Set<string>();
-  Object.values(map).forEach((entry) => {
-    entry.tags?.forEach((t) => {
-      const trimmed = t.trim();
-      if (trimmed) set.add(trimmed);
-    });
+  users.forEach((u) => {
+    parseUserLabels(u).tags.forEach((t) => set.add(t));
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }

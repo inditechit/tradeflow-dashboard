@@ -4,6 +4,10 @@ import {
   RefreshCw,
   UserPlus,
   MoreHorizontal,
+  MapPin,
+  History,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,6 +16,7 @@ import AddUserModal from '../components/admin/AddUserModal';
 import WalletModal from '../components/admin/WalletModal';
 import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
+import UserLabelsDisplay from '../components/admin/UserLabelsDisplay';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
@@ -19,13 +24,15 @@ import { API_BASE } from "@/config/api";
 import {
   formatAdminDate,
   kycBadgeStyles,
+  lastSeenLabel,
   parseCoord,
+  renderRiskBadges,
+  userHasMapLink,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
 import {
-  getAllUsedTags,
-  getUserLabels,
-  tagColorClass,
+  fetchAllUsedTags,
+  parseUserLabels,
 } from "@/utils/adminUserLabels";
 
 const AdminPage = () => {
@@ -48,6 +55,7 @@ const AdminPage = () => {
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   const { currentUser } = useApp();
   const isVoiceAdmin = currentUser?.role === "admin";
@@ -103,6 +111,15 @@ const AdminPage = () => {
     const id = window.setInterval(() => fetchLocations({ silent: true }), 30_000);
     return () => window.clearInterval(id);
   }, []);
+
+  const refreshTags = async () => {
+    const tags = await fetchAllUsedTags();
+    setAllTags(tags);
+  };
+
+  useEffect(() => {
+    void refreshTags();
+  }, [labelsVersion]);
 
   const openUserLocationOnMap = (loc: Record<string, unknown>) => {
     const lat = parseCoord(loc.latitude);
@@ -236,7 +253,10 @@ const AdminPage = () => {
     setIsDetailOpen(true);
   };
 
-  const allTags = useMemo(() => getAllUsedTags(), [labelsVersion]);
+  const handleLabelsUpdated = () => {
+    setLabelsVersion((v) => v + 1);
+    fetchLocations({ silent: true });
+  };
 
   const filteredLocations = useMemo(() => {
     const filtered = locations.filter((loc) => {
@@ -253,7 +273,7 @@ const AdminPage = () => {
 
       let matchTag = true;
       if (filterTag !== "all") {
-        const userTags = getUserLabels(loc.id).tags;
+        const userTags = parseUserLabels(loc).tags;
         matchTag = userTags.includes(filterTag);
       }
 
@@ -264,7 +284,7 @@ const AdminPage = () => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return walletSort === "high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort, labelsVersion]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort]);
 
   return (
     <div className="w-full min-w-0 font-sans">
@@ -295,7 +315,7 @@ const AdminPage = () => {
             </button>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Sorted by wallet balance · click Manage for full details
+            Manage accounts, wallets, addresses &amp; KYC · sorted by wallet balance
           </p>
         </div>
 
@@ -463,112 +483,256 @@ const AdminPage = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   User
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Label &amp; Tags
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Status
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Wallet
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Recharge
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Recharges
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   KYC
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Profit %
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Dollar cut
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Risk profile
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Action
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Email
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Mobile
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Telegram
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Location
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredLocations.map((loc) => {
-                const userLabels = getUserLabels(loc.id);
-                return (
-                  <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
-                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                      <div className="font-semibold text-slate-900">{loc.name}</div>
-                      <div className="break-all text-xs text-slate-500">{loc.email}</div>
-                      {userLabels.label && (
-                        <p className="mt-1 text-xs font-medium text-indigo-700">{userLabels.label}</p>
-                      )}
-                      {userLabels.tags.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {userLabels.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className={cn(
-                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                                tagColorClass(tag),
-                              )}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
+              {filteredLocations.map((loc) => (
+                <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
+                  {/* User name */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="font-semibold text-slate-900">{loc.name}</div>
+                    <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
+                  </td>
 
-                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                      <div className="font-semibold tabular-nums text-slate-900">
-                        {loc.wallet_currency ?? "USD"}{" "}
-                        {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </div>
-                    </td>
+                  {/* Label & tags */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <UserLabelsDisplay
+                      user={loc}
+                      compact
+                      onClick={() => openDetail(loc)}
+                    />
+                  </td>
 
-                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  {/* Status */}
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
+                    <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "inline-block h-2.5 w-2.5 rounded-full",
+                          Number(loc.is_online) === 1
+                            ? "bg-emerald-500 ring-2 ring-emerald-200"
+                            : "bg-slate-300",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "font-medium",
+                          Number(loc.is_online) === 1 ? "text-emerald-700" : "text-slate-500",
+                        )}
+                      >
+                        {lastSeenLabel(loc.last_seen_at, loc.is_online)}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Wallet */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="font-semibold tabular-nums text-slate-900">
+                      {loc.wallet_currency ?? "USD"}{" "}
+                      {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                    {Number(loc.has_wallet) === 0 && (
+                      <span className="text-xs text-slate-400">No wallet</span>
+                    )}
+                  </td>
+
+                  {/* Recharges */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="space-y-1.5">
                       <div className="font-semibold tabular-nums text-slate-900">
-                        {Number(loc.recharge_success_count ?? 0)}×
+                        {Number(loc.recharge_success_count ?? 0)}×{" "}
+                        <span className="font-normal text-slate-600">success</span>
                       </div>
-                      <div className="text-xs tabular-nums text-slate-600">
+                      <div className="text-xs tabular-nums font-medium text-neutral-800">
                         USD{" "}
                         {Number(loc.recharge_total_usd ?? 0).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })}
+                        })}{" "}
+                        <span className="font-normal text-slate-500">total</span>
                       </div>
-                    </td>
-
-                    <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
-                      {formatAdminDate(loc.created_at)}
-                    </td>
-
-                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                          loc.kyc_status === "verified"
-                            ? "border-green-200 bg-green-100 text-green-700"
-                            : kycBadgeStyles(loc.kyc_status)
-                        }`}
-                      >
-                        {loc.kyc_status ?? "pending"}
-                      </span>
-                    </td>
-
-                    <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
+                      {Number(loc.recharge_pending_count ?? 0) > 0 && (
+                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                          {Number(loc.recharge_pending_count)} pending
+                        </span>
+                      )}
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        className="h-9 gap-1.5 border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50"
-                        onClick={() => openDetail(loc)}
+                        className="h-8 gap-1 px-2 text-xs font-semibold text-neutral-800 hover:bg-yellow-50 hover:text-neutral-900"
+                        title="Open recharge history for this user"
+                        onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                        Manage
+                        <History className="h-3.5 w-3.5" />
+                        History
                       </Button>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+
+                  {/* Created */}
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
+                    {formatAdminDate(loc.created_at)}
+                  </td>
+
+                  {/* KYC */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
+                        loc.kyc_status === "verified"
+                          ? "border-green-200 bg-green-100 text-green-700"
+                          : kycBadgeStyles(loc.kyc_status)
+                      }`}
+                    >
+                      {loc.kyc_status ?? "pending"}
+                    </span>
+                  </td>
+
+                  {/* Profit % */}
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {loc.profit_percentage != null && loc.profit_percentage !== ""
+                      ? `${loc.profit_percentage}%`
+                      : "—"}
+                  </td>
+
+                  {/* Dollar cut */}
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
+                  </td>
+
+                  {/* Risk */}
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {renderRiskBadges(loc.risk)}
+                  </td>
+
+                  {/* Action */}
+                  <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5 border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50"
+                      onClick={() => openDetail(loc)}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                      Manage
+                    </Button>
+                  </td>
+
+                  {/* Email — end columns */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="flex max-w-[200px] items-start gap-2">
+                      <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="break-all text-xs text-slate-600">{loc.email || "—"}</span>
+                    </div>
+                  </td>
+
+                  {/* Mobile */}
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="text-slate-800">{loc.mobile || "—"}</span>
+                    </div>
+                  </td>
+
+                  {/* Telegram */}
+                  <td className="align-top px-4 py-3 text-sm sm:px-6 sm:py-4">
+                    {loc.telegram ? (
+                      <span className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900">
+                        @{loc.telegram}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+
+                  {/* Location */}
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    {userHasMapLink(loc) ? (
+                      <button
+                        type="button"
+                        onClick={() => openUserLocationOnMap(loc)}
+                        className="group w-full max-w-[240px] rounded-lg border border-yellow-300 bg-white px-3 py-2 text-left shadow-sm transition hover:border-yellow-400 hover:bg-yellow-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+                        title="Open Google Maps"
+                      >
+                        <div className="flex gap-2">
+                          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-900" />
+                          <div className="min-w-0 flex-1">
+                            {loc.address ? (
+                              <div className="max-h-20 overflow-y-auto text-xs leading-snug text-slate-800">
+                                {loc.address}
+                              </div>
+                            ) : (
+                              <div className="font-mono text-[11px] text-slate-600">
+                                {parseCoord(loc.latitude)?.toFixed(5)},{" "}
+                                {parseCoord(loc.longitude)?.toFixed(5)}
+                              </div>
+                            )}
+                            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-neutral-900">
+                              Open map
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400">No location</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={15} className="px-6 py-8 text-center text-slate-500">
                     No users match your filters.
                   </td>
                 </tr>
@@ -593,7 +757,7 @@ const AdminPage = () => {
         onVoice={setVoiceUser}
         onRechargeHistory={(userId) => navigate(`/admin/recharge?userId=${userId}`)}
         onOpenMap={openUserLocationOnMap}
-        onLabelsUpdated={() => setLabelsVersion((v) => v + 1)}
+        onLabelsUpdated={handleLabelsUpdated}
       />
 
       <EditUserModal
