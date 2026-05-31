@@ -3,6 +3,8 @@ import { Loader2, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
+import ReferrerTierBadge, { ReferrerTierLegend } from "@/components/admin/ReferrerTierBadge";
+import { tierRangeLabel, REFERRER_TIERS } from "@/utils/referrerTier";
 
 type RefRow = {
   id: number;
@@ -214,28 +216,50 @@ const AdminReferralsPage = () => {
           <div className="border-b border-slate-100 p-4">
             <h2 className="font-semibold text-slate-800">Top referrers</h2>
             <p className="mt-1 text-xs text-slate-500">Click a name to filter the list</p>
+            <div className="mt-3 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Referral tiers
+              </p>
+              <ReferrerTierLegend />
+              <div className="grid grid-cols-1 gap-0.5 text-[10px] text-slate-500">
+                {REFERRER_TIERS.map((tier) => (
+                  <span key={tier.id}>
+                    <span className="font-semibold text-slate-700">{tier.label}</span>
+                    {" · "}
+                    {tierRangeLabel(tier)}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
           <ol className="divide-y divide-slate-100">
             {top.map((t, i) => {
               const label = t.telegram || t.name || `#${t.user_id}`;
               const active = referrerFilter?.id === t.user_id;
+              const referrals = Number(t.direct_referrals ?? 0);
               return (
                 <li key={t.user_id}>
                   <button
                     type="button"
                     onClick={() => filterByReferrer(t.user_id, label)}
-                    className={`flex w-full items-start justify-between gap-2 p-3 text-left transition hover:bg-indigo-50/60 ${
+                    className={`flex w-full items-start gap-2 p-3 text-left transition hover:bg-indigo-50/60 ${
                       active ? "bg-indigo-50" : ""
                     }`}
                   >
-                    <span className="w-6 shrink-0 font-mono text-xs text-slate-500">{i + 1}.</span>
+                    <span className="w-6 shrink-0 pt-1 font-mono text-xs text-slate-500">{i + 1}.</span>
                     <div className="min-w-0 flex-1">
-                      <p className={`truncate font-medium ${active ? "text-indigo-800" : "text-slate-800"}`}>
-                        {label}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`truncate font-medium ${active ? "text-indigo-800" : "text-slate-800"}`}>
+                          {label}
+                        </p>
+                        <ReferrerTierBadge count={referrals} />
+                      </div>
                       <p className="truncate text-xs text-slate-500">{t.email}</p>
                     </div>
-                    <span className="shrink-0 font-bold text-neutral-800">{t.direct_referrals}</span>
+                    <div className="shrink-0 text-right">
+                      <span className="block font-bold tabular-nums text-neutral-800">{referrals}</span>
+                      <span className="text-[10px] text-slate-400">refs</span>
+                    </div>
                   </button>
                 </li>
               );
