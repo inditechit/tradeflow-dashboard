@@ -2,15 +2,8 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
-import { useApp } from "@/context/AppContext";
-
-const API_BASE = "https://api.copytradeengine.org/api";
-
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { currentUser } = useApp();
-  usePresenceHeartbeat(currentUser?.userId, API_BASE);
 
   useEffect(() => {
     if (mobileNavOpen) {

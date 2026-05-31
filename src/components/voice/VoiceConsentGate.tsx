@@ -37,6 +37,11 @@ const VoiceConsentGate: React.FC<Props> = ({ userId, apiBase }) => {
         const data = await res.json();
         if (cancelled) return;
         if (data?.success) {
+          if (data.not_required) {
+            setConsented(false);
+            setShowDialog(false);
+            return;
+          }
           setConsented(!!data.consented);
           setShowDialog(!data.consented);
         }

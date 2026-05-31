@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
+import { isAdminRoleUser } from "@/utils/userRole";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -19,6 +20,9 @@ type AdminUserRow = {
   state?: string | null;
   country?: string | null;
   kyc_status?: string | null;
+  role?: string | null;
+  is_online?: number | boolean | null;
+  last_seen_at?: string | null;
 };
 
 type PinUser = AdminUserRow & {
@@ -28,41 +32,59 @@ type PinUser = AdminUserRow & {
 
 // react-leaflet does not bundle default marker images that play nice with bundlers.
 // Use small inline SVG pins (no extra network calls, no broken icon URLs).
-const goldPinSvg = encodeURIComponent(`
+// Center dot: green = online (last_seen within ~90s), red = offline.
+function pinSvg(bodyFill: string, bodyStroke: string, dotFill: string, filterId: string) {
+  return encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="48" viewBox="0 0 34 48">
   <defs>
-    <filter id="s" x="-30%" y="-10%" width="160%" height="140%">
+    <filter id="${filterId}" x="-30%" y="-10%" width="160%" height="140%">
       <feDropShadow dx="0" dy="2" stdDeviation="1.4" flood-opacity="0.28"/>
     </filter>
   </defs>
-  <path filter="url(#s)" d="M17 0C7.6 0 0 7.6 0 17c0 12 17 31 17 31s17-19 17-31C34 7.6 26.4 0 17 0z" fill="#FFD700" stroke="#1a1a1a" stroke-width="1.5"/>
-  <circle cx="17" cy="17" r="6.5" fill="#1a1a1a"/>
+  <path filter="url(#${filterId})" d="M17 0C7.6 0 0 7.6 0 17c0 12 17 31 17 31s17-19 17-31C34 7.6 26.4 0 17 0z" fill="${bodyFill}" stroke="${bodyStroke}" stroke-width="1.5"/>
+  <circle cx="17" cy="17" r="6.5" fill="${dotFill}"/>
 </svg>
 `);
-const greyPinSvg = encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" width="34" height="48" viewBox="0 0 34 48">
-  <defs>
-    <filter id="s2" x="-30%" y="-10%" width="160%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="1.4" flood-opacity="0.25"/>
-    </filter>
-  </defs>
-  <path filter="url(#s2)" d="M17 0C7.6 0 0 7.6 0 17c0 12 17 31 17 31s17-19 17-31C34 7.6 26.4 0 17 0z" fill="#94a3b8" stroke="#0f172a" stroke-width="1.2"/>
-  <circle cx="17" cy="17" r="6.5" fill="#0f172a"/>
-</svg>
-`);
+}
+
+const DOT_OFFLINE = "#ef4444";
+const DOT_ONLINE = "#22c55e";
 
 const goldIcon = L.icon({
-  iconUrl: `data:image/svg+xml;charset=UTF-8,${goldPinSvg}`,
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#FFD700", "#1a1a1a", DOT_OFFLINE, "s-g")}`,
+  iconSize: [34, 48],
+  iconAnchor: [17, 46],
+  popupAnchor: [0, -42],
+});
+const goldOnlineIcon = L.icon({
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#FFD700", "#1a1a1a", DOT_ONLINE, "s-go")}`,
   iconSize: [34, 48],
   iconAnchor: [17, 46],
   popupAnchor: [0, -42],
 });
 const pendingIcon = L.icon({
-  iconUrl: `data:image/svg+xml;charset=UTF-8,${greyPinSvg}`,
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#94a3b8", "#0f172a", DOT_OFFLINE, "s-p")}`,
   iconSize: [34, 48],
   iconAnchor: [17, 46],
   popupAnchor: [0, -42],
 });
+const pendingOnlineIcon = L.icon({
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#94a3b8", "#0f172a", DOT_ONLINE, "s-po")}`,
+  iconSize: [34, 48],
+  iconAnchor: [17, 46],
+  popupAnchor: [0, -42],
+});
+
+function markerIconForUser(p: PinUser): L.Icon {
+  const verified = String(p.kyc_status ?? "").toLowerCase() === "verified";
+  const online = Number(p.is_online) === 1;
+  if (verified) return online ? goldOnlineIcon : goldIcon;
+  return online ? pendingOnlineIcon : pendingIcon;
+}
+
+function isUserOnline(u: AdminUserRow): boolean {
+  return Number(u.is_online) === 1;
+}
 
 function toCoord(value: unknown): number | null {
   if (value == null) return null;
@@ -121,6 +143,7 @@ const AdminUserMapPage: React.FC = () => {
   const allPins: PinUser[] = useMemo(() => {
     const out: PinUser[] = [];
     for (const u of users) {
+      if (isAdminRoleUser(u)) continue;
       const lat = toCoord(u.latitude);
       const lon = toCoord(u.longitude);
       if (lat == null || lon == null) continue;
@@ -163,6 +186,16 @@ const AdminUserMapPage: React.FC = () => {
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {loading ? "Loading users…" : `${filteredPins.length} pinned · ${usersWithoutLocation} without coordinates`}
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-1 ring-emerald-600/30" />
+              Online (live)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-red-600/30" />
+              Offline
+            </span>
           </p>
         </div>
 
@@ -217,11 +250,12 @@ const AdminUserMapPage: React.FC = () => {
               <MapAutoFit pins={filteredPins} />
               {filteredPins.map((p) => {
                 const verified = String(p.kyc_status ?? "").toLowerCase() === "verified";
+                const online = isUserOnline(p);
                 return (
                   <Marker
                     key={String(p.id)}
                     position={[p.lat, p.lon]}
-                    icon={verified ? goldIcon : pendingIcon}
+                    icon={markerIconForUser(p)}
                   >
                     <Popup>
                       <div className="min-w-[210px] space-y-1 text-sm">
@@ -245,7 +279,16 @@ const AdminUserMapPage: React.FC = () => {
                         <div className="pt-1 text-xs text-slate-400 tabular-nums">
                           {p.lat.toFixed(5)}, {p.lon.toFixed(5)}
                         </div>
-                        <div className="pt-1">
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              online
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {online ? "Online" : "Offline"}
+                          </span>
                           <span
                             className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
                               verified

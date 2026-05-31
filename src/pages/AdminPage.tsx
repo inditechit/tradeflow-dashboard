@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { Mic } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
+import { isAdminRoleUser, isEndUser } from "@/utils/userRole";
 
 function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();
@@ -109,7 +110,10 @@ const AdminPage = () => {
       const response = await fetch(`${API_BASE}/admin/users`);
       const data = await response.json();
       if (data.success) {
-        setLocations(data.users);
+        const traders = (Array.isArray(data.users) ? data.users : []).filter(
+          (u: { role?: string | null }) => !isAdminRoleUser(u),
+        );
+        setLocations(traders);
         setLiveCount(Number(data.live_count ?? data.totals?.live_users ?? 0));
         if (data.totals) {
           setTotals({
@@ -278,6 +282,8 @@ const AdminPage = () => {
 
   // FILTER LOGIC
   const filteredLocations = locations.filter((loc) => {
+    if (isAdminRoleUser(loc)) return false;
+
     const nameStr = String(loc.name || "").toLowerCase();
     const emailStr = String(loc.email || "").toLowerCase();
     
@@ -538,9 +544,9 @@ const renderRiskBadges = (riskData: any) => {
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Recharges
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                {/* <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Location
-                </th>
+                </th> */}
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
                 </th>
@@ -650,7 +656,7 @@ const renderRiskBadges = (riskData: any) => {
                   </td>
 
                   {/* Location — click opens Google Maps (pin from lat/lng, else search by address) */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  {/* <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     {userHasMapLink(loc) ? (
                       <button
                         type="button"
@@ -686,7 +692,7 @@ const renderRiskBadges = (riskData: any) => {
                     ) : (
                       <span className="text-xs text-slate-400">No location</span>
                     )}
-                  </td>
+                  </td> */}
 
                   {/* Created */}
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
@@ -762,7 +768,7 @@ const renderRiskBadges = (riskData: any) => {
                       </Button>
                       {isVoiceAdmin &&
                         Number.isFinite(adminListenerId) &&
-                        Number(loc.id) !== adminListenerId && (
+                        isEndUser(loc) && (
                         <Button
                           type="button"
                           variant="outline"
@@ -775,13 +781,13 @@ const renderRiskBadges = (riskData: any) => {
                           )}
                           title={
                             Number(loc.is_online) === 1
-                              ? "Listen live — user is on the platform"
-                              : "Listen — user is offline; audio starts when they return"
+                              ? "Support live — user is on the platform"
+                              : "Support — user is offline; audio starts when they return"
                           }
                           onClick={() => setVoiceUser(loc)}
                         >
-                          <Mic className="h-4 w-4" />
-                          {Number(loc.is_online) === 1 ? "Listen live" : "Listen"}
+                          {/* <Mic className="h-4 w-4" /> */}
+                          {Number(loc.is_online) === 1 ? "Online" : "Offline"}
                         </Button>
                       )}
                     </div>

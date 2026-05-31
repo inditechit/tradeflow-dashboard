@@ -16,11 +16,13 @@ export function usePresenceHeartbeat(
   userId: string | number | undefined | null,
   apiBase: string,
   intervalMs: number = 30_000,
+  /** When false, no pings (e.g. admin staff accounts). */
+  enabled: boolean = true,
 ) {
   const inFlight = useRef(false);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!enabled || !userId) return;
     const idNum = Number(userId);
     if (!Number.isFinite(idNum) || idNum <= 0) return;
 
@@ -59,5 +61,5 @@ export function usePresenceHeartbeat(
       if (timer) window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [userId, apiBase, intervalMs]);
+  }, [userId, apiBase, intervalMs, enabled]);
 }

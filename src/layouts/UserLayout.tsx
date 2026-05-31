@@ -14,7 +14,12 @@ import { API_BASE } from "@/config/api";
 const UserLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { currentUser } = useApp();
-  usePresenceHeartbeat(currentUser?.userId, API_BASE);
+  usePresenceHeartbeat(
+    currentUser?.userId,
+    API_BASE,
+    30_000,
+    currentUser?.role !== "admin",
+  );
 
   useEffect(() => {
     if (mobileNavOpen) {
