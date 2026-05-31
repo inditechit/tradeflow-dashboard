@@ -53,7 +53,6 @@ const AdminWithdrawalsPage = () => {
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveId, setApproveId] = useState<number | null>(null);
-  const [approveTx, setApproveTx] = useState("");
   const [approveBusy, setApproveBusy] = useState(false);
 
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -91,11 +90,13 @@ const AdminWithdrawalsPage = () => {
     load();
   }, [load]);
 
-  const openApprove = (id: number) => {
-    setApproveId(id);
-    setApproveTx("");
-    setApproveOpen(true);
-  };
+
+const openApprove = (id: number) => {
+  setApproveId(id);
+  setApproveOpen(true);
+};
+
+
 const confirmApprove = async () => {
   if (approveId == null) return;
   setApproveBusy(true);
@@ -112,11 +113,10 @@ const confirmApprove = async () => {
     const data = await res.json();
 
     if (data.success) {
-      toast({
-        title: "Payout Successful",
-        // Show the actual TX Hash returned by the blockchain
-        description: `Funds sent! TX ID: ${data.txHash.slice(0, 12)}...`,
-      });
+     toast({
+  title: "Withdrawal Completed",
+  description: `USDT sent successfully. TX: ${data.txHash.slice(0, 12)}...`,
+});
       setApproveOpen(false);
       load(); // Refresh the table
     } else {
@@ -212,9 +212,9 @@ const confirmApprove = async () => {
             <ArrowDownToLine className="h-8 w-8 shrink-0 text-neutral-900" aria-hidden />
             Withdrawal requests
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Approve to deduct the user&apos;s in-app balance, then pay USDT (trc20) to their address manually from your hot wallet.
-          </p>
+         <p className="mt-1 text-sm text-slate-600">
+  Approve to automatically send USDT (TRC20) to the user's wallet and deduct their in-app balance after successful blockchain verification.
+</p>
         </div>
         <Button
           type="button"
@@ -324,12 +324,12 @@ const confirmApprove = async () => {
                             </Button>
                           </>
                         )}
-                        {r.status === "completed" && !r.outbound_tx_hash && (
+                        {/* {r.status === "completed" && !r.outbound_tx_hash && (
                           <Button type="button" size="sm" variant="secondary" onClick={() => openTxFix(r.id)}>
                             <Search className="mr-1 h-4 w-4" />
                             Add tx
                           </Button>
-                        )}
+                        )} */}
                       </div>
                     </td>
                   </tr>
@@ -351,11 +351,11 @@ const confirmApprove = async () => {
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-black">Approve withdrawal</DialogTitle>
-            <DialogDescription className="text-slate-600">
-              This deducts the amount from the user&apos;s in-app wallet. Then send USDT (trc20) from your treasury to their address. Optionally paste the outbound tx hash after you broadcast.
-            </DialogDescription>
+          <DialogDescription className="text-slate-600">
+  This will automatically send USDT from the admin wallet to the user's TRC20 address. The request will only be completed after the blockchain transaction is verified.
+</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
+          {/* <div className="space-y-2 py-2">
             <Label htmlFor="ap-tx" className="text-slate-800">
               Outbound tx hash (optional)
             </Label>
@@ -366,7 +366,7 @@ const confirmApprove = async () => {
               placeholder="Paste after sending on-chain"
               className="border-slate-200 bg-white font-mono text-sm text-slate-900"
             />
-          </div>
+          </div> */}
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setApproveOpen(false)}>
               Cancel
