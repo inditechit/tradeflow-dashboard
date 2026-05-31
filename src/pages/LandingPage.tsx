@@ -1,39 +1,117 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 import {
   ArrowRight,
   BarChart3,
   Check,
+  Clock,
   Copy,
+  Headphones,
+  Lock,
+  Mail,
+  MessageSquare,
   Shield,
+  Timer,
   TrendingUp,
+  Unlock,
   Wallet,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SUBSCRIPTION_PACKAGES } from "@/constants/packages";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  SUBSCRIPTION_PACKAGES,
+  TRIAL_WITHDRAW_NOTICE,
+  WITHDRAW_USP,
+  CONTACT_EMAIL,
+} from "@/constants/packages";
 
 const HIGHLIGHTS = [
   {
+    icon: Timer,
+    title: "3-minute withdrawals",
+    text: WITHDRAW_USP.detail,
+  },
+  {
     icon: Copy,
-    title: "Copy proven strategies",
-    text: "Follow master trades automatically. Your share of volume and P/L is calculated for you.",
+    title: "Proportional copy trading",
+    text: "Every open MT5 master trade is split by wallet share. You see only your slice of volume, fees, and P/L.",
   },
   {
     icon: TrendingUp,
-    title: "Live performance",
-    text: "Track open positions, estimated P/L, and settled results in one dashboard.",
+    title: "Live equity dashboard",
+    text: "Wallet balance, open P/L, closed pending credits, and total equity — updated as markets move.",
   },
   {
     icon: Wallet,
-    title: "Secure wallet",
-    text: "Recharge, withdraw, and view every movement with a clear ledger.",
+    title: "USDT TRC20 wallet",
+    text: "Recharge in USD, track a full ledger, and withdraw to your saved Tron address after approval.",
   },
   {
     icon: Shield,
-    title: "Built for trust",
-    text: "Verification, support tickets, and transparent settlement when trades close.",
+    title: "Transparent settlement",
+    text: "Performance fees apply on profit only. Losses hit your allocation first — no hidden platform cuts on red trades.",
+  },
+  {
+    icon: Headphones,
+    title: "Human support",
+    text: "In-app tickets, admin voice support when you opt in, and KYC-backed account verification.",
+  },
+];
+
+const STATS = [
+  { value: "~3 min", label: "USDT payout after approval" },
+  { value: "7 days", label: "Free trial to test the engine" },
+  { value: "Pro-rata", label: "Volume split across funded users" },
+  { value: "24/7", label: "Live trade sync & dashboard" },
+];
+
+const WITHDRAW_STEPS = [
+  {
+    step: "1",
+    title: "Stop or let trades settle",
+    text: "Close your copy exposure anytime. Equity = wallet + open P/L + pending closed credits.",
+  },
+  {
+    step: "2",
+    title: "Request withdrawal",
+    text: "Enter amount (min $10), confirm your TRC20 address, and submit from the Withdraw page.",
+  },
+  {
+    step: "3",
+    title: "Admin approval",
+    text: "Our team verifies balance and compliance. Paid-plan users get priority in the queue.",
+  },
+  {
+    step: "4",
+    title: "USDT in ~3 minutes",
+    text: "Once approved, outbound USDT is broadcast to Tron — typically within three minutes.",
+  },
+];
+
+const FAQ = [
+  {
+    q: "Is the 7-day trial really free?",
+    a: "Yes. Activate once per account. You still fund your wallet to copy live trades, but the subscription itself costs $0.",
+  },
+  {
+    q: "Why are trial withdrawals locked?",
+    a: "During the free trial your capital stays locked for 7 days so you can experience copy trading without instant cash-out. You may stop trading anytime; withdrawal unlocks when the trial ends.",
+  },
+  {
+    q: "How fast are withdrawals on paid plans?",
+    a: WITHDRAW_USP.short,
+  },
+  {
+    q: "What markets do you copy?",
+    a: "The engine mirrors master MT5 positions (e.g. XAUUSD) with proportional lot allocation based on each user's wallet share.",
+  },
+  {
+    q: "What fees apply?",
+    a: "A per-lot platform fee and admin profit share apply on winning trades only. Losses are absorbed by the user's allocation without performance fee.",
   },
 ];
 
@@ -41,10 +119,46 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { isReady, role } = useVerifiedSession();
 
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactDone, setContactDone] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isReady || !role) return;
     navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
   }, [isReady, role, navigate]);
+
+  const handleContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactError(null);
+    setContactDone(null);
+
+    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
+      setContactError("Name, email, and message are required.");
+      return;
+    }
+
+    const subject =
+      contactSubject.trim() ||
+      `Copy Trade Engine inquiry from ${contactName.trim()}`;
+    const body = [
+      `Name: ${contactName.trim()}`,
+      `Email: ${contactEmail.trim()}`,
+      contactPhone.trim() ? `Phone: ${contactPhone.trim()}` : null,
+      "",
+      contactMessage.trim(),
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+    setContactDone("Opening your email app — send the message to complete your inquiry.");
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -57,9 +171,11 @@ export default function LandingPage() {
             <span className="text-lg tracking-tight">Copy Trade Engine</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#about" className="hover:text-slate-900">About</a>
+            <a href="#usp" className="hover:text-slate-900">3-min withdraw</a>
+            <a href="#about" className="hover:text-slate-900">Features</a>
             <a href="#plans" className="hover:text-slate-900">Plans</a>
-            <a href="#how-it-works" className="hover:text-slate-900">How it works</a>
+            <a href="#faq" className="hover:text-slate-900">FAQ</a>
+            <a href="#contact" className="hover:text-slate-900">Contact</a>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
             <Button variant="ghost" asChild className="text-slate-700">
@@ -73,45 +189,115 @@ export default function LandingPage() {
       </header>
 
       <main>
+        {/* Hero */}
         <section className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-yellow-50/80 via-white to-white px-4 py-16 sm:px-6 sm:py-24">
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#FFD700]/20 blur-3xl" />
           <div className="relative mx-auto max-w-6xl">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-[#FFF9E6] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-900">
-              <BarChart3 className="h-4 w-4" />
-              Multi-user copy trading
-            </p>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+            <div className="flex flex-wrap gap-3">
+              <p className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-[#FFF9E6] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-900">
+                <BarChart3 className="h-4 w-4" />
+                Multi-user copy trading
+              </p>
+              <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-800">
+                <Timer className="h-4 w-4" />
+                {WITHDRAW_USP.headline}
+              </p>
+            </div>
+            <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
               Mirror expert trades.{" "}
-              <span className="text-yellow-700">Your share, your wallet.</span>
+              <span className="text-yellow-700">Cash out in minutes.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-slate-600">
-              Copy Trade Engine connects you to live strategies with proportional volume and
-              profit allocation, a secure USD wallet, and a clear history of every trade.
+              Copy Trade Engine connects you to live MT5 strategies with proportional volume,
+              a secure USD wallet, transparent P/L, and our signature{" "}
+              <strong className="font-semibold text-slate-800">{WITHDRAW_USP.headline}</strong> on
+              paid plans — one of the fastest USDT (TRC20) payout flows in the industry.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Button size="lg" asChild className="bg-[#FFD700] text-black hover:bg-[#E6C200]">
                 <Link to="/signup">
-                  Start free setup
+                  Start free 7-day trial
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <a href="#plans">View plans</a>
+                <a href="#contact">Talk to us</a>
               </Button>
             </div>
           </div>
         </section>
 
+        {/* Stats */}
+        <section className="border-b border-slate-100 bg-slate-900 px-4 py-10 text-white sm:px-6">
+          <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {STATS.map((s) => (
+              <div key={s.label} className="text-center sm:text-left">
+                <p className="text-3xl font-extrabold text-[#FFD700]">{s.value}</p>
+                <p className="mt-1 text-sm text-slate-300">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 3-min USP */}
+        <section id="usp" className="border-b border-slate-100 px-4 py-16 sm:px-6 sm:py-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wider text-yellow-700">Our USP</p>
+                <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
+                  {WITHDRAW_USP.headline}
+                </h2>
+                <p className="mt-4 text-lg text-slate-600">{WITHDRAW_USP.detail}</p>
+                <ul className="mt-6 space-y-3">
+                  {WITHDRAW_STEPS.map((item) => (
+                    <li key={item.step} className="flex gap-3 text-sm text-slate-700">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FFD700] text-xs font-bold text-black">
+                        {item.step}
+                      </span>
+                      <div>
+                        <span className="font-semibold text-slate-900">{item.title}</span>
+                        <span className="text-slate-600"> — {item.text}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-white p-8 shadow-lg shadow-yellow-900/5">
+                <div className="flex items-center gap-3 text-emerald-700">
+                  <Unlock className="h-8 w-8" />
+                  <div>
+                    <p className="font-bold text-slate-900">Paid plans</p>
+                    <p className="text-sm text-slate-600">{WITHDRAW_USP.short}</p>
+                  </div>
+                </div>
+                <div className="my-6 border-t border-yellow-100" />
+                <div className="flex items-center gap-3 text-amber-800">
+                  <Lock className="h-8 w-8" />
+                  <div>
+                    <p className="font-bold text-slate-900">Free trial</p>
+                    <p className="text-sm text-slate-600">{TRIAL_WITHDRAW_NOTICE}</p>
+                  </div>
+                </div>
+                <p className="mt-6 text-xs text-slate-500">
+                  You can stop copy trading during the trial — funds move to wallet equity, but
+                  outbound withdrawal stays locked until day 7.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
         <section id="about" className="border-b border-slate-100 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 max-w-2xl">
-              <h2 className="text-3xl font-bold text-slate-900">Built for copy traders</h2>
+              <h2 className="text-3xl font-bold text-slate-900">Everything in one platform</h2>
               <p className="mt-3 text-slate-600">
-                One platform to follow master positions, see only your allocation, and manage
-                funds without juggling spreadsheets or third-party tools.
+                From signup to settlement — built for traders who want clarity, speed, and control.
               </p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {HIGHLIGHTS.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -131,6 +317,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* How it works */}
         <section id="how-it-works" className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-center text-3xl font-bold text-slate-900">How it works</h2>
@@ -141,18 +328,18 @@ export default function LandingPage() {
               {[
                 {
                   step: "1",
-                  title: "Create your account",
-                  text: "Sign up, verify your profile, and fund your wallet in USD.",
+                  title: "Create & verify",
+                  text: "Sign up, complete profile/KYC, and fund your USD wallet via USDT recharge.",
                 },
                 {
                   step: "2",
-                  title: "Choose a plan",
-                  text: "Pick a subscription that matches how many strategies you want to mirror.",
+                  title: "Pick a plan",
+                  text: "Start with the free 7-day trial or choose a paid pack for full access and fast withdrawals.",
                 },
                 {
                   step: "3",
-                  title: "Copy & track",
-                  text: "Open trades sync to your dashboard. Settlements update your balance when positions close.",
+                  title: "Copy & cash out",
+                  text: "Trades sync to your dashboard. Stop anytime. Withdraw USDT in ~3 minutes after approval (paid plans).",
                 },
               ].map((item) => (
                 <li
@@ -170,19 +357,21 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Plans */}
         <section id="plans" className="px-4 py-16 sm:px-6 sm:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 text-center">
               <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">Subscription plans</h2>
-              <p className="mx-auto mt-3 max-w-xl text-slate-600">
-                Choose the tier that fits your copy-trading goals. Upgrade anytime from your dashboard.
+              <p className="mx-auto mt-3 max-w-2xl text-slate-600">
+                Trial users: funds locked 7 days (stop trading allowed). Paid users:{" "}
+                <strong className="text-slate-800">{WITHDRAW_USP.headline}</strong> after approval.
               </p>
             </div>
             <div className="grid h-full gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {SUBSCRIPTION_PACKAGES.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col h-full rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-md ${
+                  className={`relative flex h-full flex-col rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-md ${
                     plan.popular
                       ? "border-2 border-[#FFD700] shadow-lg shadow-yellow-900/10 lg:-translate-y-1"
                       : plan.isTrial
@@ -200,18 +389,8 @@ export default function LandingPage() {
                       Free trial
                     </span>
                   )}
-                  
-                  {/* flex-1 added here to keep the top content grouped together and push the button down */}
                   <div className="flex-1">
-                    <div className="flex flex-col gap-1">
-                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                      {"subtitle" in plan && plan.subtitle && (
-                        <span className="w-fit rounded bg-neutral-900 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-[#FFD700]">
-                          {plan.subtitle}
-                        </span>
-                      )}
-                    </div>
-                    
+                    <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
                     <div className="mt-4 flex items-baseline gap-2">
                       {plan.isTrial ? (
                         <span className="text-4xl font-extrabold text-emerald-600">FREE</span>
@@ -224,35 +403,16 @@ export default function LandingPage() {
                         </>
                       )}
                     </div>
-                    
-                    {/* flex-1 removed from the p tag so it doesn't stretch and create gaps */}
                     <p className="mt-3 text-sm leading-relaxed text-slate-600">{plan.description}</p>
-                    
                     <ul className="mt-6 space-y-2.5">
-                      {plan.features.map((feature) => {
-                        const isHighlightedFeature = feature.includes("ROBOT");
-                        return (
-                          <li 
-                            key={feature} 
-                            className={`flex items-start gap-2 text-sm rounded transition-all ${
-                              isHighlightedFeature 
-                                ? "text-neutral-900 font-bold bg-yellow-100/70 border border-yellow-300 p-1.5 shadow-sm" 
-                                : "text-slate-600"
-                            }`}
-                          >
-                            <Check 
-                              className={`mt-0.5 h-4 w-4 shrink-0 ${
-                                isHighlightedFeature ? "text-yellow-800" : "text-yellow-700"
-                              }`} 
-                              strokeWidth={3} 
-                            />
-                            <span>{feature}</span>
-                          </li>
-                        );
-                      })}
+                      {plan.features.slice(0, 5).map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-sm text-slate-600">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-yellow-700" strokeWidth={3} />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
                     </ul>
                   </div>
-                  
                   <Button
                     asChild
                     className={`mt-8 w-full ${
@@ -268,9 +428,126 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-10 text-center text-sm text-slate-500">
-              All plans include secure login, wallet access, and trade history. Trading involves risk.
-            </p>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="border-t border-slate-100 bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-center text-3xl font-bold text-slate-900">Frequently asked questions</h2>
+            <dl className="mt-10 space-y-6">
+              {FAQ.map((item) => (
+                <div key={item.q} className="rounded-xl border border-slate-200 bg-white p-6">
+                  <dt className="font-semibold text-slate-900">{item.q}</dt>
+                  <dd className="mt-2 text-sm leading-relaxed text-slate-600">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section id="contact" className="px-4 py-16 sm:px-6 sm:py-24">
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider text-yellow-700">Contact</p>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">Questions before you start?</h2>
+              <p className="mt-4 text-slate-600">
+                Ask about plans, trial fund lock, withdrawals, or onboarding. We typically reply within
+                one business day.
+              </p>
+              <ul className="mt-8 space-y-4 text-sm text-slate-700">
+                <li className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-yellow-700" />
+                  Paid withdrawals processed in ~3 minutes after approval
+                </li>
+                <li className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-yellow-700" />
+                  Secure signup with email verification
+                </li>
+                <li className="flex items-center gap-3">
+                  <MessageSquare className="h-5 w-5 text-yellow-700" />
+                  In-app support tickets for active users
+                </li>
+              </ul>
+            </div>
+
+            <form
+              onSubmit={handleContact}
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-neutral-900/5 sm:p-8"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="contact-name">Name *</Label>
+                  <Input
+                    id="contact-name"
+                    required
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Your name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-email">Email *</Label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    required
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-phone">Phone (optional)</Label>
+                  <Input
+                    id="contact-phone"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+91 …"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="contact-subject">Subject</Label>
+                  <Input
+                    id="contact-subject"
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value)}
+                    placeholder="Trial, withdrawals, partnership…"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="contact-message">Message *</Label>
+                  <Textarea
+                    id="contact-message"
+                    required
+                    rows={5}
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    placeholder="How can we help?"
+                  />
+                </div>
+              </div>
+              {contactDone && (
+                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  {contactDone}
+                </p>
+              )}
+              {contactError && (
+                <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {contactError}
+                </p>
+              )}
+              <Button
+                type="submit"
+                className="mt-6 w-full bg-[#FFD700] text-black hover:bg-[#E6C200]"
+              >
+                Send via email
+              </Button>
+              <p className="mt-3 text-center text-xs text-slate-500">
+                Opens your email app to {CONTACT_EMAIL} — no server upload required.
+              </p>
+            </form>
           </div>
         </section>
       </main>
@@ -279,7 +556,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm font-semibold text-slate-800">Copy Trade Engine</p>
           <p className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Copy Trade Engine. All rights reserved.
+            © {new Date().getFullYear()} Copy Trade Engine · {WITHDRAW_USP.headline} on paid plans
           </p>
           <div className="flex gap-6 text-sm text-slate-600">
             <Link to="/login" className="hover:text-slate-900">Log in</Link>

@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { Mic } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
-import { isAdminRoleUser, isEndUser } from "@/utils/userRole";
 
 function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();
@@ -110,10 +109,7 @@ const AdminPage = () => {
       const response = await fetch(`${API_BASE}/admin/users`);
       const data = await response.json();
       if (data.success) {
-        const traders = (Array.isArray(data.users) ? data.users : []).filter(
-          (u: { role?: string | null }) => !isAdminRoleUser(u),
-        );
-        setLocations(traders);
+        setLocations(data.users);
         setLiveCount(Number(data.live_count ?? data.totals?.live_users ?? 0));
         if (data.totals) {
           setTotals({
@@ -282,8 +278,6 @@ const AdminPage = () => {
 
   // FILTER LOGIC
   const filteredLocations = locations.filter((loc) => {
-    if (isAdminRoleUser(loc)) return false;
-
     const nameStr = String(loc.name || "").toLowerCase();
     const emailStr = String(loc.email || "").toLowerCase();
     
@@ -544,9 +538,9 @@ const renderRiskBadges = (riskData: any) => {
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Recharges
                 </th>
-                {/* <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Location
-                </th> */}
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
                 </th>
@@ -656,7 +650,7 @@ const renderRiskBadges = (riskData: any) => {
                   </td>
 
                   {/* Location — click opens Google Maps (pin from lat/lng, else search by address) */}
-                  {/* <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     {userHasMapLink(loc) ? (
                       <button
                         type="button"
@@ -692,7 +686,7 @@ const renderRiskBadges = (riskData: any) => {
                     ) : (
                       <span className="text-xs text-slate-400">No location</span>
                     )}
-                  </td> */}
+                  </td>
 
                   {/* Created */}
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
@@ -768,7 +762,7 @@ const renderRiskBadges = (riskData: any) => {
                       </Button>
                       {isVoiceAdmin &&
                         Number.isFinite(adminListenerId) &&
-                        isEndUser(loc) && (
+                        Number(loc.id) !== adminListenerId && (
                         <Button
                           type="button"
                           variant="outline"

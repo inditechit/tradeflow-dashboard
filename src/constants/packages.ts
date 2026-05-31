@@ -26,7 +26,8 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
     icon: Gift,
     description: "Try copy trading free for 7 days. Fund stays locked during the trial.",
     features: [
-      "Fund remains locked for 7 days",
+      "Fund locked for 7 days — stop trading allowed",
+      "Withdrawals unlock when trial ends",
       "60% fee only on positive performance",
       "No positive performance = No fee",
       "Terms acceptance required before activation",
@@ -48,6 +49,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Live trade feed",
       "Wallet & transaction history",
       "Email support",
+      "~3 min USDT withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -65,6 +67,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Priority trade sync",
       "P/L & trade history",
       "Priority support",
+      "~3 min USDT withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -82,6 +85,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Advanced allocation",
       "Daily settlement reports",
       "Withdrawal priority",
+      "~3 min USDT withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -102,6 +106,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Less drawdown",
       "Profit factor upto 5",
       "24/7 priority support",
+      "~3 min USDT withdrawal (after approval)",
     ],
     popular: true,
   },
@@ -109,10 +114,28 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
 
 export const TRIAL_TERMS = [
   "Your wallet fund remains locked for the full 7-day trial period.",
+  "You can stop copy trading anytime during the trial — open P/L moves to your wallet, but withdrawal stays locked until day 7.",
+  "Withdrawals unlock automatically when the trial ends (paid plans: ~3 minute processing after approval).",
   "A 60% performance fee applies only on positive performance during/after the trial.",
   "If there is no positive performance, no performance fee is charged.",
   "You must accept these terms before the trial can be activated.",
 ];
+
+/** Marketing USP — paid subscribers after trial. */
+export const WITHDRAW_USP = {
+  headline: "3-minute withdrawals",
+  short: "Paid plans: USDT (TRC20) sent within ~3 minutes after admin approval.",
+  detail:
+    "Once your request is approved, outbound USDT typically hits your TRC20 wallet in about three minutes — one of the fastest payout flows in copy trading.",
+};
+
+export const TRIAL_WITHDRAW_NOTICE =
+  "Free trial: funds locked for 7 days (stop trading allowed). Withdrawals open when trial ends.";
+
+export const PAID_WITHDRAW_NOTICE = WITHDRAW_USP.short;
+
+/** Landing / contact — opens user's email client (no backend). */
+export const CONTACT_EMAIL = "teaminditech1@gmail.com";
 
 export function getPackageById(id: string) {
   return SUBSCRIPTION_PACKAGES.find((p) => p.id === id);

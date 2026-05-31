@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { getTrialWithdrawLock } from "@/utils/trialWithdrawLock";
+import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const API_BASE = "https://api.copytradeengine.org/api";
 const MIN_WITHDRAW = 10;
 
 type WithdrawRow = {
@@ -33,6 +35,11 @@ const WithdrawPage = () => {
   const { currentUser } = useApp();
   const { toast } = useToast();
   const userId = currentUser?.userId;
+  const subscription = useSubscriptionStatus();
+  const trialLock = useMemo(
+    () => getTrialWithdrawLock(subscription.isActive, subscription.activeSegment),
+    [subscription.isActive, subscription.activeSegment],
+  );
 
   const [balance, setBalance] = useState<number | null>(null);
   const [withdrawableEquity, setWithdrawableEquity] = useState<number | null>(null);
@@ -131,6 +138,16 @@ const WithdrawPage = () => {
 
   const handleSubmit = async () => {
     if (!userId) return;
+    if (trialLock.locked) {
+      toast({
+        title: "Trial withdrawal locked",
+        description:
+          trialLock.message ??
+          "Withdrawals unlock when your 7-day free trial ends. You can stop trading anytime.",
+        variant: "destructive",
+      });
+      return;
+    }
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt < MIN_WITHDRAW) {
       toast({
@@ -194,6 +211,13 @@ const WithdrawPage = () => {
   }
 
   const hasAddress = Boolean(payoutSaved);
+  const withdrawBlocked = trialLock.locked;
+  const unlockLabel = trialLock.unlockAt
+    ? new Date(trialLock.unlockAt).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-0 py-4 sm:px-2 md:px-6 md:py-10">
@@ -203,10 +227,27 @@ const WithdrawPage = () => {
           Withdraw USDT (trc20)
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Enter how much you want to withdraw. If no trc20 address is saved, use{" "}
-          <strong className="font-medium text-slate-800">Add trc20 address</strong> or submit — a popup will ask for it.
+          Paid plans: outbound USDT typically within ~3 minutes after approval. Enter how much you want to withdraw.
         </p>
       </div>
+
+      {withdrawBlocked && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          <p className="font-bold text-amber-900">Free trial — withdrawals locked</p>
+          <p className="mt-2">
+            {trialLock.message ??
+              "Your funds stay locked during the 7-day trial. You can stop trading anytime, but withdrawal opens when the trial ends."}
+          </p>
+          {unlockLabel && (
+            <p className="mt-2 font-semibold tabular-nums">
+              Unlocks: {unlockLabel}
+              {trialLock.daysRemaining > 0
+                ? ` (${trialLock.daysRemaining} day${trialLock.daysRemaining === 1 ? "" : "s"} left)`
+                : ""}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 space-y-3 border-b border-slate-100 pb-4">
@@ -247,7 +288,7 @@ const WithdrawPage = () => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="max-w-xs border-slate-200 bg-white text-slate-900"
-              disabled={loading || submitting}
+              disabled={loading || submitting || withdrawBlocked}
             />
           </div>
 
@@ -282,7 +323,7 @@ const WithdrawPage = () => {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || submitting || !amount}
+            disabled={loading || submitting || !amount || withdrawBlocked}
             className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
