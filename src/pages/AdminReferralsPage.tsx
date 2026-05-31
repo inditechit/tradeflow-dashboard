@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Loader2, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { Button } from "@/components/ui/button";
+import { API_BASE } from "@/config/api";
 
 type RefRow = {
   id: number;
@@ -25,12 +25,18 @@ type TopRow = {
   direct_referrals: number;
 };
 
+type ReferrerFilter = {
+  id: number;
+  label: string;
+};
+
 const AdminReferralsPage = () => {
   const [rows, setRows] = useState<RefRow[]>([]);
   const [top, setTop] = useState<TopRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [referrerFilter, setReferrerFilter] = useState<ReferrerFilter | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -62,7 +68,31 @@ const AdminReferralsPage = () => {
 
   const search = (e: React.FormEvent) => {
     e.preventDefault();
+    setReferrerFilter(null);
     load();
+  };
+
+  const filterByReferrer = (id: number, label: string) => {
+    setReferrerFilter({ id, label });
+  };
+
+  const displayRows = useMemo(() => {
+    let list = [...rows];
+    if (referrerFilter) {
+      list = list.filter((r) => Number(r.referrer_id) === referrerFilter.id);
+    }
+    return list.sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+  }, [rows, referrerFilter]);
+
+  const referrerLabel = (r: RefRow) => {
+    const parts = [r.referrer_telegram, r.referrer_name].filter(Boolean);
+    if (parts.length) return parts.join(" · ");
+    if (r.referrer_email) return r.referrer_email;
+    return r.referrer_id ? `#${r.referrer_id}` : "—";
   };
 
   if (loading && rows.length === 0) {
@@ -74,29 +104,51 @@ const AdminReferralsPage = () => {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="mx-auto max-w-[1600px] space-y-8 p-6 md:p-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Referrals</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          See who referred whom. Top referrers lists users with the most direct signups.
+        <p className="mt-1 text-sm text-slate-500">
+          Click a referrer name to show everyone who signed up through them.
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
-            <h2 className="font-semibold text-slate-800">All users & referrer</h2>
+      {referrerFilter && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+          <p className="text-sm text-indigo-900">
+            Showing <span className="font-semibold">{displayRows.length}</span> user
+            {displayRows.length === 1 ? "" : "s"} referred by{" "}
+            <span className="font-semibold">{referrerFilter.label}</span>
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1 border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-100"
+            onClick={() => setReferrerFilter(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear filter
+          </Button>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
+            <h2 className="font-semibold text-slate-800">
+              {referrerFilter ? "Referred users" : "All users & referrer"}
+            </h2>
             <form onSubmit={search} className="flex gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
-                  className="pl-8 pr-3 py-1.5 border rounded-lg text-sm w-56 text-black"
+                  className="w-56 rounded-lg border py-1.5 pl-8 pr-3 text-sm text-black"
                   placeholder="Telegram, email, name, id…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                 />
               </div>
-              <button type="submit" className="px-3 py-1.5 rounded-lg bg-[#FFD700] text-black text-sm font-medium">
+              <button type="submit" className="rounded-lg bg-[#FFD700] px-3 py-1.5 text-sm font-medium text-black">
                 Search
               </button>
             </form>
@@ -114,48 +166,80 @@ const AdminReferralsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="p-3 font-mono">{r.id}</td>
-                    <td className="p-3">{r.telegram ?? "—"}</td>
-                    <td className="p-3">{r.name ?? "—"}</td>
-                    <td className="p-3">{r.referrer_id ?? "—"}</td>
-                    <td className="p-3">
-                      {r.referrer_telegram || r.referrer_name || r.referrer_email ? (
-                        <span className="text-slate-800">
-                          {[r.referrer_telegram, r.referrer_name].filter(Boolean).join(" · ") || r.referrer_email}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="p-3 text-slate-500 whitespace-nowrap">
-                      {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {displayRows.map((r) => {
+                  const refName = referrerLabel(r);
+                  const canFilter = r.referrer_id != null && refName !== "—";
+                  return (
+                    <tr key={r.id} className="border-t border-slate-100">
+                      <td className="p-3 font-mono">{r.id}</td>
+                      <td className="p-3">{r.telegram ?? "—"}</td>
+                      <td className="p-3">{r.name ?? "—"}</td>
+                      <td className="p-3">{r.referrer_id ?? "—"}</td>
+                      <td className="p-3">
+                        {canFilter ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              filterByReferrer(Number(r.referrer_id), refName)
+                            }
+                            className={`text-left font-medium underline-offset-2 hover:underline ${
+                              referrerFilter?.id === r.referrer_id
+                                ? "text-indigo-700"
+                                : "text-slate-800 hover:text-indigo-700"
+                            }`}
+                            title="Show all users referred by this person"
+                          >
+                            {refName}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-slate-500">
+                        {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <p className="p-3 text-xs text-slate-400 border-t">Showing {rows.length} of {total}</p>
+          <p className="border-t p-3 text-xs text-slate-400">
+            Showing {displayRows.length}
+            {referrerFilter ? "" : ` of ${total}`}
+          </p>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 p-4">
             <h2 className="font-semibold text-slate-800">Top referrers</h2>
-            <p className="text-xs text-slate-500 mt-1">Most direct referrals</p>
+            <p className="mt-1 text-xs text-slate-500">Click a name to filter the list</p>
           </div>
           <ol className="divide-y divide-slate-100">
-            {top.map((t, i) => (
-              <li key={t.user_id} className="p-3 flex justify-between gap-2 items-start">
-                <span className="text-slate-500 font-mono text-xs w-6">{i + 1}.</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-800 truncate">{t.telegram || t.name || `#${t.user_id}`}</p>
-                  <p className="text-xs text-slate-500 truncate">{t.email}</p>
-                </div>
-                <span className="shrink-0 font-bold text-neutral-800">{t.direct_referrals}</span>
-              </li>
-            ))}
+            {top.map((t, i) => {
+              const label = t.telegram || t.name || `#${t.user_id}`;
+              const active = referrerFilter?.id === t.user_id;
+              return (
+                <li key={t.user_id}>
+                  <button
+                    type="button"
+                    onClick={() => filterByReferrer(t.user_id, label)}
+                    className={`flex w-full items-start justify-between gap-2 p-3 text-left transition hover:bg-indigo-50/60 ${
+                      active ? "bg-indigo-50" : ""
+                    }`}
+                  >
+                    <span className="w-6 shrink-0 font-mono text-xs text-slate-500">{i + 1}.</span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate font-medium ${active ? "text-indigo-800" : "text-slate-800"}`}>
+                        {label}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{t.email}</p>
+                    </div>
+                    <span className="shrink-0 font-bold text-neutral-800">{t.direct_referrals}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ol>
           {top.length === 0 && <p className="p-4 text-sm text-slate-500">No referral data yet.</p>}
         </section>

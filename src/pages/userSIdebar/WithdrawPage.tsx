@@ -227,7 +227,7 @@ const WithdrawPage = () => {
           Withdraw USDT (trc20)
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Paid plans: outbound USDT typically within ~3 minutes after approval. Enter how much you want to withdraw.
+          Paid plans: outbound USDT typically within 5 seconds to 1 minute after approval. Enter how much you want to withdraw.
         </p>
       </div>
 

@@ -86,11 +86,42 @@ export default {
           "0%, 100%": { boxShadow: "0 0 15px rgba(255, 200, 0, 0.45)" },
           "50%": { boxShadow: "0 0 28px rgba(255, 215, 0, 0.65)" },
         },
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(28px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-down": {
+          from: { opacity: "0", transform: "translateY(-16px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0) scale(1)" },
+          "50%": { transform: "translateY(-14px) scale(1.02)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% center" },
+          "100%": { backgroundPosition: "-200% center" },
+        },
+        "gradient-shift": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "fade-up": "fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "fade-in": "fade-in 0.7s ease-out forwards",
+        "slide-down": "slide-down 0.55s ease-out forwards",
+        float: "float 7s ease-in-out infinite",
+        "float-slow": "float 10s ease-in-out infinite",
+        shimmer: "shimmer 4s linear infinite",
+        "gradient-shift": "gradient-shift 8s ease infinite",
       },
     },
   },

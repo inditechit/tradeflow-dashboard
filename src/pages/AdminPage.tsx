@@ -1,13 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
   UserPlus,
-  Wallet,
-  User,
-  Pencil,
-  MapPin,
-  History,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,53 +11,22 @@ import EditUserModal from '../components/admin/EditUserModal';
 import AddUserModal from '../components/admin/AddUserModal';
 import WalletModal from '../components/admin/WalletModal';
 import AdminVoicePanel from '../components/admin/AdminVoicePanel';
+import UserDetailDialog from '../components/admin/UserDetailDialog';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Mic } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
-
-function kycBadgeStyles(status: string | undefined | null) {
-  const s = String(status ?? "pending").toLowerCase();
-  if (s === "verified") return "border-yellow-200 bg-[#FFF9E6] text-neutral-900";
-  if (s === "submitted") return "border-amber-200 bg-amber-50 text-amber-900";
-  if (s === "rejected") return "border-red-200 bg-red-50 text-red-900";
-  return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
-function parseCoord(v: unknown): number | null {
-  if (v == null || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).trim());
-  return Number.isFinite(n) ? n : null;
-}
-
-function userHasMapLink(loc: { latitude?: unknown; longitude?: unknown; address?: unknown }): boolean {
-  const lat = parseCoord(loc.latitude);
-  const lng = parseCoord(loc.longitude);
-  if (lat != null && lng != null) return true;
-  const addr = loc.address != null ? String(loc.address).trim() : "";
-  return addr.length > 0;
-}
-
-/**
- * Human-friendly "last seen" label.  We rely on server time strings
- * ("YYYY-MM-DD HH:MM:SS" or ISO).  Returns "Online" for live users,
- * "Never" if last_seen_at is missing, otherwise "X min/hours/days ago".
- */
-function lastSeenLabel(lastSeenAt: unknown, isOnline: unknown): string {
-  if (Number(isOnline) === 1) return "Online";
-  if (!lastSeenAt) return "Never";
-  const t = new Date(String(lastSeenAt).replace(" ", "T")).getTime();
-  if (!Number.isFinite(t)) return "—";
-  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const m = Math.floor(diffSec / 60);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hr ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
+import {
+  formatAdminDate,
+  kycBadgeStyles,
+  parseCoord,
+  walletBalanceOf,
+} from "@/utils/adminUserDisplay";
+import {
+  getAllUsedTags,
+  getUserLabels,
+  tagColorClass,
+} from "@/utils/adminUserLabels";
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -75,28 +40,31 @@ const AdminPage = () => {
   const [liveCount, setLiveCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [labelsVersion, setLabelsVersion] = useState(0);
 
-  // FILTER STATES
   const [filterName, setFilterName] = useState('');
   const [filterEmail, setFilterEmail] = useState('');
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
+  const [filterTag, setFilterTag] = useState('all');
+  const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
 
   const { currentUser } = useApp();
   const isVoiceAdmin = currentUser?.role === "admin";
   const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
 
-  // USER MODAL STATES 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // ✅ WALLET MODAL STATES
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [walletUser, setWalletUser] = useState<any>(null);
   const [walletBalance, setWalletBalance] = useState<number | string>("");
   const [isWalletLoading, setIsWalletLoading] = useState(false);
+
+  const [detailUser, setDetailUser] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -132,16 +100,9 @@ const AdminPage = () => {
 
   useEffect(() => {
     fetchLocations();
-    // Refresh the list (and "Online" indicators) every 30s without
-    // showing the loading spinner — keeps the table feeling live.
     const id = window.setInterval(() => fetchLocations({ silent: true }), 30_000);
     return () => window.clearInterval(id);
   }, []);
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleString();
-  };
 
   const openUserLocationOnMap = (loc: Record<string, unknown>) => {
     const lat = parseCoord(loc.latitude);
@@ -170,14 +131,11 @@ const AdminPage = () => {
     });
   };
 
-  // ADD USER LOGIC
   const handleAddUser = async (newUser: any) => {
     try {
       const res = await fetch(`${API_BASE}/admin/add-user`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),
       });
 
@@ -194,7 +152,6 @@ const AdminPage = () => {
     }
   };
 
-  // UPDATE USER LOGIC
   const handleUpdate = async (updatedUser: any) => {
     try {
       if (!updatedUser?.id) return alert("User ID missing ❌");
@@ -227,7 +184,6 @@ const AdminPage = () => {
     }
   };
 
-  // ✅ OPEN WALLET MODAL & FETCH CURRENT BALANCE
   const handleOpenWalletModal = async (user: any) => {
     setWalletUser(user);
     setIsWalletModalOpen(true);
@@ -240,7 +196,7 @@ const AdminPage = () => {
       if (data.success && data.wallet) {
         setWalletBalance(data.wallet.balance);
       } else {
-        setWalletBalance(""); // Default to empty/0 if no wallet found
+        setWalletBalance("");
       }
     } catch (err) {
       console.error("Fetch Wallet Error:", err);
@@ -250,7 +206,6 @@ const AdminPage = () => {
     }
   };
 
-  // ✅ SAVE WALLET BALANCE
   const handleUpdateWallet = async (newBalance: string) => {
     try {
       const res = await fetch(`${API_BASE}/admin/wallet/${walletUser.id}`, {
@@ -276,74 +231,43 @@ const AdminPage = () => {
     }
   };
 
-  // FILTER LOGIC
-  const filteredLocations = locations.filter((loc) => {
-    const nameStr = String(loc.name || "").toLowerCase();
-    const emailStr = String(loc.email || "").toLowerCase();
-    
-    const matchName = nameStr.includes(filterName.toLowerCase());
-    const matchEmail = emailStr.includes(filterEmail.toLowerCase());
-    
-    const currentKyc = String(loc.kyc_status ?? "pending").toLowerCase();
-    const matchKyc = filterKyc === "all" || currentKyc === filterKyc;
-    const matchOnline =
-      filterOnline === "all" || Number(loc.is_online) === 1;
+  const openDetail = (user: any) => {
+    setDetailUser(user);
+    setIsDetailOpen(true);
+  };
 
-    return matchName && matchEmail && matchKyc && matchOnline;
-  });
+  const allTags = useMemo(() => getAllUsedTags(), [labelsVersion]);
 
+  const filteredLocations = useMemo(() => {
+    const filtered = locations.filter((loc) => {
+      const nameStr = String(loc.name || "").toLowerCase();
+      const emailStr = String(loc.email || "").toLowerCase();
 
-  const getRiskStyle = (riskLevel: string) => {
-  switch (riskLevel) {
-    case 'LOW':
-      return 'bg-green-100 text-green-800 border-green-300';
-    case 'MEDIUM':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    case 'HIGH':
-      return 'bg-orange-100 text-orange-800 border-orange-300';
-    case 'SUPER_HIGH':
-      return 'bg-red-100 text-red-800 border-red-300';
-    default:
-      return 'bg-slate-100 text-slate-800 border-slate-300';
-  }
-};
+      const matchName = nameStr.includes(filterName.toLowerCase());
+      const matchEmail = emailStr.includes(filterEmail.toLowerCase());
 
-const renderRiskBadges = (riskData: any) => {
-  if (!riskData) return "—";
+      const currentKyc = String(loc.kyc_status ?? "pending").toLowerCase();
+      const matchKyc = filterKyc === "all" || currentKyc === filterKyc;
+      const matchOnline =
+        filterOnline === "all" || Number(loc.is_online) === 1;
 
-  let parsedRisks: string[] = [];
+      let matchTag = true;
+      if (filterTag !== "all") {
+        const userTags = getUserLabels(loc.id).tags;
+        matchTag = userTags.includes(filterTag);
+      }
 
-  try {
-    // If it's a JSON string, parse it. If it's already an array, just use it.
-    parsedRisks = typeof riskData === 'string' ? JSON.parse(riskData) : riskData;
-  } catch (error) {
-    // Fallback just in case parsing fails
-    return <span className="text-slate-500">{String(riskData)}</span>;
-  }
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag;
+    });
 
-  // If it parsed correctly but it's empty, show the dash
-  if (!Array.isArray(parsedRisks) || parsedRisks.length === 0) {
-    return "—";
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1.5 mt-1">
-      {parsedRisks.map((risk, index) => (
-        <span
-          key={index}
-          className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border ${getRiskStyle(risk)}`}
-        >
-          {/* This removes the underscore from SUPER_HIGH to make it "SUPER HIGH" */}
-          {risk.replace('_', ' ')}
-        </span>
-      ))}
-    </div>
-  );
-};
+    return filtered.sort((a, b) => {
+      const diff = walletBalanceOf(b) - walletBalanceOf(a);
+      return walletSort === "high" ? diff : -diff;
+    });
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort, labelsVersion]);
 
   return (
     <div className="w-full min-w-0 font-sans">
-      {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
@@ -371,7 +295,7 @@ const renderRiskBadges = (riskData: any) => {
             </button>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Manage accounts, wallets, addresses &amp; KYC
+            Sorted by wallet balance · click Manage for full details
           </p>
         </div>
 
@@ -388,7 +312,7 @@ const renderRiskBadges = (riskData: any) => {
           <Button
             type="button"
             variant="secondary"
-            onClick={fetchLocations}
+            onClick={() => fetchLocations()}
             disabled={isLoading}
             className="gap-2 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
           >
@@ -398,10 +322,9 @@ const renderRiskBadges = (riskData: any) => {
         </div>
       </div>
 
-      {/* FILTERS */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Name
           </label>
           <input
@@ -409,11 +332,11 @@ const renderRiskBadges = (riskData: any) => {
             placeholder="Filter by name..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Email
           </label>
           <input
@@ -421,17 +344,17 @@ const renderRiskBadges = (riskData: any) => {
             placeholder="Filter by email..."
             value={filterEmail}
             onChange={(e) => setFilterEmail(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             KYC Status
           </label>
           <select
             value={filterKyc}
             onChange={(e) => setFilterKyc(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
@@ -441,19 +364,47 @@ const renderRiskBadges = (riskData: any) => {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Platform status
           </label>
           <select
             value={filterOnline}
             onChange={(e) => setFilterOnline(e.target.value as "all" | "live")}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
             <option value="live">Live on platform</option>
           </select>
         </div>
-        <div className="flex items-end">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Tag
+          </label>
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All tags</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Wallet sort
+          </label>
+          <select
+            value={walletSort}
+            onChange={(e) => setWalletSort(e.target.value as "high" | "low")}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="high">Highest balance first</option>
+            <option value="low">Lowest balance first</option>
+          </select>
+        </div>
+        <div className="flex items-end sm:col-span-2 lg:col-span-6">
           <Button
             type="button"
             variant="outline"
@@ -462,33 +413,30 @@ const renderRiskBadges = (riskData: any) => {
               setFilterEmail('');
               setFilterKyc('all');
               setFilterOnline('all');
+              setFilterTag('all');
+              setWalletSort('high');
             }}
-            className="w-full h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100"
+            className="h-[38px] w-full rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:w-auto sm:px-8"
           >
             Clear Filters
           </Button>
         </div>
       </div>
 
-      {/* Error */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600">
+        <div className="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-red-600">
           {error}
         </div>
       )}
 
-      {/* Totals */}
       {totals && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Total received (successful payments)
             </p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
               USD {totals.sum_successful_payments_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              All completed payment rows (recharges, packages, tours).
             </p>
           </div>
           <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
@@ -498,9 +446,6 @@ const renderRiskBadges = (riskData: any) => {
             <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
               USD {totals.sum_successful_recharges_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="mt-1 text-xs text-neutral-800/80">
-              Successful top-ups to user wallets.
-            </p>
           </div>
           <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
@@ -509,37 +454,23 @@ const renderRiskBadges = (riskData: any) => {
             <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
               USD {totals.sum_wallet_balances_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="mt-1 text-xs text-neutral-900/80">
-              Sum of current balances across all users.
-            </p>
           </div>
         </div>
       )}
 
-      {/* TABLE */}
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   User
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Contact
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Wallet
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Recharges
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Location
+                  Recharge
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
@@ -547,262 +478,124 @@ const renderRiskBadges = (riskData: any) => {
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   KYC
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Profit %
-                </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Dollar cut
-                </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Risk Profile
-                </th>
                 <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Actions
+                  Action
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredLocations.map((loc, i) => (
-                <tr key={i} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
+              {filteredLocations.map((loc) => {
+                const userLabels = getUserLabels(loc.id);
+                return (
+                  <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="font-semibold text-slate-900">{loc.name}</div>
+                      <div className="break-all text-xs text-slate-500">{loc.email}</div>
+                      {userLabels.label && (
+                        <p className="mt-1 text-xs font-medium text-indigo-700">{userLabels.label}</p>
+                      )}
+                      {userLabels.tags.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {userLabels.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className={cn(
+                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                tagColorClass(tag),
+                              )}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
 
-                  {/* Username */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="font-semibold text-slate-900">{loc.name}</div>
-                    <div className="break-all text-xs text-slate-500">{loc.email}</div>
-                  </td>
-
-                  {/* Online / last seen */}
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "inline-block h-2.5 w-2.5 rounded-full",
-                          Number(loc.is_online) === 1
-                            ? "bg-emerald-500 ring-2 ring-emerald-200"
-                            : "bg-slate-300",
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "font-medium",
-                          Number(loc.is_online) === 1 ? "text-emerald-700" : "text-slate-500",
-                        )}
-                      >
-                        {lastSeenLabel(loc.last_seen_at, loc.is_online)}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Contact */}
-                  <td className="align-top px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
-                    <div className="text-slate-800">{loc.mobile}</div>
-                    <div className="text-xs text-neutral-800">@{loc.telegram}</div>
-                  </td>
-
-                  {/* Wallet balance */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="font-semibold tabular-nums text-slate-900">
-                      {loc.wallet_currency ?? "USD"}{" "}
-                      {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </div>
-                    {Number(loc.has_wallet) === 0 && (
-                      <span className="text-xs text-slate-400">No wallet</span>
-                    )}
-                  </td>
-
-                  {/* Recharge stats (successful wallet top-ups) */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="space-y-1.5">
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                       <div className="font-semibold tabular-nums text-slate-900">
-                        {Number(loc.recharge_success_count ?? 0)}×{" "}
-                        <span className="font-normal text-slate-600">success</span>
+                        {loc.wallet_currency ?? "USD"}{" "}
+                        {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </div>
-                      <div className="text-xs tabular-nums font-medium text-neutral-800">
+                    </td>
+
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="font-semibold tabular-nums text-slate-900">
+                        {Number(loc.recharge_success_count ?? 0)}×
+                      </div>
+                      <div className="text-xs tabular-nums text-slate-600">
                         USD{" "}
                         {Number(loc.recharge_total_usd ?? 0).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })}{" "}
-                        <span className="font-normal text-slate-500">total</span>
+                        })}
                       </div>
-                      {Number(loc.recharge_pending_count ?? 0) > 0 && (
-                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                          {Number(loc.recharge_pending_count)} pending
-                        </span>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs font-semibold text-neutral-800 hover:bg-yellow-50 hover:text-neutral-900"
-                        title="Open recharge history for this user"
-                        onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
-                      >
-                        <History className="h-3.5 w-3.5" />
-                        History
-                      </Button>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Location — click opens Google Maps (pin from lat/lng, else search by address) */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    {userHasMapLink(loc) ? (
-                      <button
-                        type="button"
-                        onClick={() => openUserLocationOnMap(loc)}
-                        className="group w-full max-w-full rounded-lg border border-yellow-300 bg-white px-3 py-2 text-left shadow-sm transition hover:border-yellow-400 hover:bg-yellow-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-1 sm:max-w-[260px]"
-                        title="Open Google Maps with this location marked"
-                      >
-                        <div className="flex gap-2">
-                          <MapPin
-                            className="mt-0.5 h-4 w-4 shrink-0 text-neutral-900 group-hover:text-neutral-800"
-                            aria-hidden
-                          />
-                          <div className="min-w-0 flex-1">
-                            {loc.address ? (
-                              <div className="max-h-24 overflow-y-auto text-xs leading-snug text-slate-800">
-                                {loc.address}
-                              </div>
-                            ) : (
-                              <div className="text-xs">
-                                <span className="font-medium text-neutral-900">Saved coordinates</span>
-                                <span className="mt-0.5 block font-mono text-[11px] text-slate-600">
-                                  {parseCoord(loc.latitude)?.toFixed(5)},{" "}
-                                  {parseCoord(loc.longitude)?.toFixed(5)}
-                                </span>
-                              </div>
-                            )}
-                            <span className="mt-1.5 block text-[10px] font-semibold uppercase tracking-wide text-neutral-900">
-                              Open map
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-400">No location</span>
-                    )}
-                  </td>
+                    <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
+                      {formatAdminDate(loc.created_at)}
+                    </td>
 
-                  {/* Created */}
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
-                    {formatDate(loc.created_at)}
-                  </td>
-
-                  {/* KYC */}
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${loc.kyc_status === "verified"
-                          ? "border-green-200 bg-green-100 text-green-700"
-                          : kycBadgeStyles(loc.kyc_status)
+                    <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
+                          loc.kyc_status === "verified"
+                            ? "border-green-200 bg-green-100 text-green-700"
+                            : kycBadgeStyles(loc.kyc_status)
                         }`}
-                    >
-                      {loc.kyc_status ?? "pending"}
-                    </span>
-                  </td>
+                      >
+                        {loc.kyc_status ?? "pending"}
+                      </span>
+                    </td>
 
-                  {/* Profit % */}
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {loc.profit_percentage != null && loc.profit_percentage !== ""
-                      ? `${loc.profit_percentage}%`
-                      : "—"}
-                  </td>
-
-                  {/* Dollar Cut */}
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
-                  </td>
-
-                  {/* Risk Profile */}
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {renderRiskBadges(loc.risk)}
-                  </td>
-
-                  {/* Actions */}
-                  <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
-                    <div className="flex flex-col items-stretch justify-end gap-1.5 sm:flex-row sm:flex-wrap sm:justify-end">
+                    <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="h-9 gap-1.5 border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50"
-                        title="Profile & KYC"
-                        onClick={() => navigate(`/admin/user-profile/${loc.id}`)}
+                        onClick={() => openDetail(loc)}
                       >
-                        <User className="h-4 w-4" />
-                        Profile
+                        <MoreHorizontal className="h-4 w-4" />
+                        Manage
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 gap-1.5 border-yellow-200 bg-[#FFF9E6] font-semibold text-neutral-800 hover:bg-yellow-50"
-                        title="Manage wallet balance"
-                        onClick={() => handleOpenWalletModal(loc)}
-                      >
-                        <Wallet className="h-4 w-4" />
-                        Wallet
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 gap-1.5 border-amber-200 bg-amber-50 font-semibold text-amber-900 hover:bg-amber-100"
-                        onClick={() => {
-                          setSelectedUser(loc);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      {isVoiceAdmin &&
-                        Number.isFinite(adminListenerId) &&
-                        Number(loc.id) !== adminListenerId && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "h-9 gap-1.5 font-semibold",
-                            Number(loc.is_online) === 1
-                              ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                          )}
-                          title={
-                            Number(loc.is_online) === 1
-                              ? "Support live — user is on the platform"
-                              : "Support — user is offline; audio starts when they return"
-                          }
-                          onClick={() => setVoiceUser(loc)}
-                        >
-                          {/* <Mic className="h-4 w-4" /> */}
-                          {Number(loc.is_online) === 1 ? "Online" : "Offline"}
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                     No users match your filters.
                   </td>
                 </tr>
               )}
             </tbody>
-
           </table>
         </div>
       </div>
 
-      {/* MODALS */}
+      <UserDetailDialog
+        user={detailUser}
+        open={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        isVoiceAdmin={isVoiceAdmin}
+        adminListenerId={adminListenerId}
+        onProfile={(u) => navigate(`/admin/user-profile/${u.id}`)}
+        onWallet={handleOpenWalletModal}
+        onEdit={(u) => {
+          setSelectedUser(u);
+          setIsModalOpen(true);
+        }}
+        onVoice={setVoiceUser}
+        onRechargeHistory={(userId) => navigate(`/admin/recharge?userId=${userId}`)}
+        onOpenMap={openUserLocationOnMap}
+        onLabelsUpdated={() => setLabelsVersion((v) => v + 1)}
+      />
+
       <EditUserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -816,7 +609,6 @@ const renderRiskBadges = (riskData: any) => {
         onAdd={handleAddUser}
       />
 
-      {/* WALLET MODAL */}
       <WalletModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
@@ -834,7 +626,6 @@ const renderRiskBadges = (riskData: any) => {
           onClose={() => setVoiceUser(null)}
         />
       )}
-
     </div>
   );
 };
