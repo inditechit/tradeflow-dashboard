@@ -544,6 +544,9 @@ const renderRiskBadges = (riskData: any) => {
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Recharges
                 </th>
+                {/* <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Location
+                </th> */}
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
                 </th>
