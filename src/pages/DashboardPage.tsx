@@ -100,19 +100,13 @@ const DashboardPage = () => {
   const [tradingActive, setTradingActive] = useState(true);
   const [tradingActionLoading, setTradingActionLoading] = useState(false);
   const [tradingActionError, setTradingActionError] = useState('');
-  const [summaryEquity, setSummaryEquity] = useState<number | null>(null);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const currency = wallet?.currency || "USD";
-  const tradePl = livePl + pendingClosedPl;
-  const equityFromParts = walletBalance + tradePl;
-  const equity =
-    summaryEquity != null && Number.isFinite(summaryEquity)
-      ? summaryEquity
-      : equityFromParts;
-  const profitLoss = livePl;
+  /** Equity always follows live P/L + closed (pending) P/L so socket ticks update the card. */
+  const equity = walletBalance + livePl + pendingClosedPl;
 
   const sumOpenPl = () =>
     Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
@@ -188,13 +182,9 @@ const DashboardPage = () => {
         const apiLive = Number(summaryData.live_pl ?? 0);
         const apiPending = Number(summaryData.pending_closed_pl ?? 0);
         setPendingClosedPl(apiPending);
-        setSummaryEquity(
-          summaryData.equity != null ? Number(summaryData.equity) : null,
-        );
         setLivePl(openCount > 0 ? sumOpenPl() : apiLive);
       } else {
         setPendingClosedPl(0);
-        setSummaryEquity(null);
         setLivePl(sumOpenPl());
       }
     } catch (err) {
@@ -444,24 +434,19 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Trade P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Live P/L</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${tradePl >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
-                  {tradePl > 0 ? '+' : ''}{formatMoneyAmount(tradePl, currency)}
+                <p className={`text-2xl font-extrabold tabular-nums ${livePl >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                  {livePl > 0 ? '+' : ''}{formatMoneyAmount(livePl, currency)}
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
                 {openPositionCount > 0
-                  ? `${openPositionCount} open · ${formatMoneyAmount(livePl, currency)} live`
+                  ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · updates in real time`
                   : 'No open positions'}
-                {pendingClosedPl !== 0 && (
-                  <span className="block text-slate-600">
-                    {formatMoneyAmount(pendingClosedPl, currency)} from closed trades (not in wallet yet)
-                  </span>
-                )}
               </p>
             </div>
 
@@ -483,14 +468,17 @@ const DashboardPage = () => {
                 ) : (
                   <>
                     {formatMoneyAmount(walletBalance, currency)} wallet
-                    {tradePl !== 0 ? ` + ${formatMoneyAmount(tradePl, currency)} trade P/L` : ''}
+                    {livePl !== 0 ? ` + ${formatMoneyAmount(livePl, currency)} live` : ''}
+                    {pendingClosedPl !== 0
+                      ? ` + ${formatMoneyAmount(pendingClosedPl, currency)} closed`
+                      : ''}
                     {' '}= equity
                   </>
                 )}
               </p>
               {pendingClosedPl !== 0 && walletBalance > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Wallet still shows your deposit until you withdraw or stop trading — losses are included in equity above.
+                  Wallet still shows your deposit until you withdraw or stop trading — closed trade P/L is in equity only.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
