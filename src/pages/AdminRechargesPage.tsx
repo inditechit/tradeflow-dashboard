@@ -53,6 +53,7 @@ const AdminRechargesPage = () => {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [creditingId, setCreditingId] = useState<number | null>(null);
 
   const fetchPayments = useCallback(
     async (userId: number | null) => {
@@ -124,6 +125,35 @@ const AdminRechargesPage = () => {
 
   const clearFilter = () => {
     setSearchParams({});
+  };
+
+  const creditWalletForPayment = async (paymentId: number) => {
+    setCreditingId(paymentId);
+    try {
+      const res = await fetch(`${API_BASE}/admin/recharge/${paymentId}/credit-wallet`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast({
+          title: "Could not credit wallet",
+          description: data.error || "Unknown error",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: data.alreadyCredited ? "Already credited" : "Wallet credited",
+        description: data.alreadyCredited
+          ? `Balance is $${Number(data.balanceAfter).toFixed(2)}`
+          : `Added funds — balance now $${Number(data.balanceAfter).toFixed(2)}`,
+      });
+      await fetchPayments(activeFilter);
+    } catch {
+      toast({ title: "Error", description: "Server error", variant: "destructive" });
+    } finally {
+      setCreditingId(null);
+    }
   };
 
   const titleSuffix = useMemo(() => {
@@ -244,6 +274,7 @@ const AdminRechargesPage = () => {
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Status</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Sweep Status</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Created</th>
+                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -276,6 +307,26 @@ const AdminRechargesPage = () => {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
                       {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right sm:px-6 sm:py-4">
+                      {String(p.status).toLowerCase() === "success" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={creditingId === p.id}
+                          className="h-8 text-xs font-semibold"
+                          onClick={() => creditWalletForPayment(p.id)}
+                        >
+                          {creditingId === p.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Credit wallet"
+                          )}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -100,13 +100,17 @@ const DashboardPage = () => {
   const [tradingActive, setTradingActive] = useState(true);
   const [tradingActionLoading, setTradingActionLoading] = useState(false);
   const [tradingActionError, setTradingActionError] = useState('');
+  const [isBusted, setIsBusted] = useState(false);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
 
-  const walletBalance = Number(wallet?.balance ?? 0);
+  const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
-  /** Equity always follows live P/L + closed (pending) P/L so socket ticks update the card. */
-  const equity = walletBalance + livePl + pendingClosedPl;
+  const rawEquity = walletBalance + livePl + pendingClosedPl;
+  /** When busted (equity hit 0), server zeros wallet + equity — never show negative. */
+  const equity = isBusted ? 0 : Math.max(0, rawEquity);
+  const displayLivePl = isBusted ? 0 : livePl;
+  const displayPendingClosedPl = isBusted ? 0 : pendingClosedPl;
 
   const sumOpenPl = () =>
     Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
@@ -179,11 +183,23 @@ const DashboardPage = () => {
       setOpenPositionCount(openCount);
 
       if (summaryData?.success) {
-        const apiLive = Number(summaryData.live_pl ?? 0);
-        const apiPending = Number(summaryData.pending_closed_pl ?? 0);
-        setPendingClosedPl(apiPending);
-        setLivePl(openCount > 0 ? sumOpenPl() : apiLive);
+        const busted = summaryData.busted === true;
+        setIsBusted(busted);
+        if (busted) {
+          setWallet({ balance: 0, currency: summaryData.currency || "USD" });
+          setPendingClosedPl(0);
+          setLivePl(0);
+          setOpenPositionCount(0);
+          setTradingActive(false);
+          setAssignFunded(false);
+        } else {
+          const apiLive = Number(summaryData.live_pl ?? 0);
+          const apiPending = Number(summaryData.pending_closed_pl ?? 0);
+          setPendingClosedPl(apiPending);
+          setLivePl(openCount > 0 ? sumOpenPl() : apiLive);
+        }
       } else {
+        setIsBusted(false);
         setPendingClosedPl(0);
         setLivePl(sumOpenPl());
       }
@@ -245,14 +261,17 @@ const DashboardPage = () => {
   };
 
   const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
+    if (isBusted) return;
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
     const userRaw = rawProfit * (ctx.v_i / ctx.V);
     openPlByTicketRef.current[ticket] = applyUserRules(userRaw, ctx.fee, ctx.pct);
-    setLivePl(
-      Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0),
-    );
-  }, []);
+    const sum = Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
+    setLivePl(sum);
+    if (walletBalance + sum + pendingClosedPl <= 0) {
+      void loadFinance();
+    }
+  }, [isBusted, walletBalance, pendingClosedPl, loadFinance]);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -376,7 +395,16 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {currentUser?.role !== 'admin' && !tradingActive && walletBalance > 0 && (
+        {currentUser?.role !== 'admin' && isBusted && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <p className="font-medium">Account balance exhausted</p>
+            <p className="mt-1 text-red-800">
+              Your equity reached zero. Wallet and equity are now $0. Add funds and restart trading to continue.
+            </p>
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && !isBusted && !tradingActive && walletBalance > 0 && (
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
             <p className="font-medium">Trading is paused</p>
             <p className="mt-1 text-slate-600">
@@ -439,14 +467,16 @@ const DashboardPage = () => {
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${livePl >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
-                  {livePl > 0 ? '+' : ''}{formatMoneyAmount(livePl, currency)}
+                <p className={`text-2xl font-extrabold tabular-nums ${displayLivePl >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                  {displayLivePl > 0 ? '+' : ''}{formatMoneyAmount(displayLivePl, currency)}
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                {openPositionCount > 0
-                  ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · updates in real time`
-                  : 'No open positions'}
+                {isBusted
+                  ? 'Trading stopped — add funds to continue'
+                  : openPositionCount > 0
+                    ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · updates in real time`
+                    : 'No open positions'}
               </p>
             </div>
 
@@ -463,22 +493,24 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                {!tradingActive && openPositionCount === 0 && pendingClosedPl === 0 ? (
+                {isBusted ? (
+                  <>Wallet and equity are $0 — recharge to trade again</>
+                ) : !tradingActive && openPositionCount === 0 && displayPendingClosedPl === 0 ? (
                   <>All funds in wallet — trading paused</>
                 ) : (
                   <>
                     {formatMoneyAmount(walletBalance, currency)} wallet
-                    {livePl !== 0 ? ` + ${formatMoneyAmount(livePl, currency)} live` : ''}
-                    {pendingClosedPl !== 0
-                      ? ` + ${formatMoneyAmount(pendingClosedPl, currency)} closed`
+                    {displayLivePl !== 0 ? ` + ${formatMoneyAmount(displayLivePl, currency)} live` : ''}
+                    {displayPendingClosedPl !== 0
+                      ? ` + ${formatMoneyAmount(displayPendingClosedPl, currency)} closed`
                       : ''}
                     {' '}= equity
                   </>
                 )}
               </p>
-              {pendingClosedPl !== 0 && walletBalance > 0 && (
+              {!isBusted && displayPendingClosedPl !== 0 && walletBalance > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Wallet still shows your deposit until you withdraw or stop trading — closed trade P/L is in equity only.
+                  When equity hits $0, wallet and equity both go to $0 and trading stops.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
