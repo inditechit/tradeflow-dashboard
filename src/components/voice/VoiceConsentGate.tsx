@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Mic, MicOff, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useVoiceUploader, type VoiceState } from "@/hooks/useVoiceUploader";
 
 interface Props {
@@ -88,46 +88,9 @@ const VoiceConsentGate: React.FC<Props> = ({ userId, apiBase }) => {
   );
 };
 
-const StatusChip: React.FC<{ state: VoiceState; listening: boolean }> = ({ state, listening }) => {
-  if (state === "off" && !listening) return null;
-
-  let label = "";
-  let toneClass = "";
-  let Icon = Mic;
-  if (state === "live") {
-    label = "Voice on — admin support listening";
-    toneClass = "border-red-200 bg-red-50 text-red-700";
-  } else if (state === "starting") {
-    label = "Opening mic…";
-    toneClass = "border-amber-200 bg-amber-50 text-amber-800";
-  } else if (state === "denied") {
-    label = "Mic blocked — check browser permissions";
-    toneClass = "border-slate-200 bg-slate-50 text-slate-600";
-    Icon = MicOff;
-  } else if (state === "error") {
-    label = "Voice error — will retry";
-    toneClass = "border-slate-200 bg-slate-50 text-slate-600";
-    Icon = MicOff;
-  } else {
-    return null;
-  }
-
-  return (
-    <div
-      className={`fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm ${toneClass}`}
-      role="status"
-      aria-live="polite"
-    >
-      {state === "live" && (
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-        </span>
-      )}
-      <Icon size={14} />
-      {label}
-    </div>
-  );
+/** Voice status chip — hidden in UI; uploader still runs when user has consented. */
+const StatusChip: React.FC<{ state: VoiceState; listening: boolean }> = () => {
+  return null;
 };
 
 const ConsentDialog: React.FC<{
