@@ -84,7 +84,11 @@ const WithdrawPage = () => {
       }
       const summaryData = await summaryRes.json();
       if (summaryData?.success) {
-        setWithdrawableEquity(Number(summaryData.equity ?? 0));
+        const withdrawable =
+          summaryData.withdrawable_equity != null
+            ? Number(summaryData.withdrawable_equity)
+            : Number(summaryData.equity ?? 0);
+        setWithdrawableEquity(withdrawable);
       } else {
         setWithdrawableEquity(null);
       }
@@ -269,7 +273,8 @@ const WithdrawPage = () => {
             </p>
           </div>
           <p className="text-xs text-slate-500">
-            Trade P/L is moved into your wallet when you submit a withdrawal. If equity hits zero, wallet is cleared.
+            Dashboard equity shows your full share of trades. Withdrawable amount uses your profit % after
+            platform fee (losses apply in full). Trade P/L is moved into your wallet when you submit a withdrawal.
           </p>
         </div>
 

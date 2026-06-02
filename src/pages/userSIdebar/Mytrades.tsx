@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import {
   isOpenTrade,
   resolveEffectiveSlice,
-  rowNetPl,
+  rowDisplayPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
@@ -224,7 +224,7 @@ const Mytrades = () => {
               const rawLiveSocket = liveRawByTicket[ticket];
               const slice = resolveEffectiveSlice(trade);
 
-              const displayPl = rowNetPl(
+              const displayPl = rowDisplayPl(
                 trade,
                 Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined
               );

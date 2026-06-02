@@ -1,5 +1,7 @@
 /**
- * User net P/L per trade — same rules as My Trades (fee + profit % on positive net).
+ * User P/L per trade:
+ * - Display: full proportional share (v_i/V * MT5 profit) — shown live & in history.
+ * - Wallet: after fee + profit % — credited on withdraw only.
  */
 
 export type UserTradeRowLike = {
@@ -20,6 +22,10 @@ export type UserTradeRowLike = {
   user_pct?: unknown;
   wallet_settled_at?: unknown;
   final_profit_loss?: unknown;
+  raw_proportional_pl?: unknown;
+  user_display_pl?: unknown;
+  user_wallet_pl?: unknown;
+  user_wallet_credit?: unknown;
   mt5_total_profit?: unknown;
   user_net_pl?: unknown;
   user_raw_pl?: unknown;
@@ -27,7 +33,6 @@ export type UserTradeRowLike = {
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
-  mt5_status?: unknown;
 };
 
 const FEE_PER_LOT_USD = 30;
@@ -72,7 +77,6 @@ function isMt5BuyType(type: unknown): boolean {
   return t.includes("BUY");
 }
 
-/** MT5 contract size per lot (broker default for XAU / FX). */
 export function contractSizeForSymbol(symbol?: unknown): number {
   const sym = String(symbol ?? "").toUpperCase();
   if (sym.startsWith("XAU") || sym.startsWith("GOLD")) return 100;
@@ -80,10 +84,6 @@ export function contractSizeForSymbol(symbol?: unknown): number {
   return 100;
 }
 
-/**
- * Back-calculate entry from close price + MT5 profit.
- * Long: profit = (close − open) × lots × contractSize → open = close − profit/(lots×size)
- */
 export function deriveEntryPriceFromMt5(
   closePrice: number,
   profit: number,
@@ -100,10 +100,6 @@ export function deriveEntryPriceFromMt5(
   return entry > 0 && Number.isFinite(entry) ? entry : null;
 }
 
-/**
- * Buy price = where you bought; sell price = where you sold.
- * Long: buy at open, sell at close. Short: sell at open, buy at close.
- */
 export function resolveMt5BuySellPrices(
   r: UserTradeRowLike,
   entryByTicket?: Record<string, number>
@@ -157,7 +153,7 @@ export function resolveMt5BuySellPrices(
   };
 }
 
-/** Match backend /api/user/trades volume + fee + % resolution. */
+/** Volume slice: prefer global pool share from allocation, not ticket-only headcount. */
 export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const V = Number(r.mt5_volume || r.total_trade_volume || 0);
   const allocated = Number(r.allocated_volume || 0);
@@ -169,8 +165,12 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const sumInv = Number(r.sum_user_investment || 0);
   const derivedShare = sumInv > 0 ? userInv / sumInv : 0;
   const effectiveShare = storedShare > 0 ? storedShare : derivedShare;
-  let v_i =
-    allocated > 0 ? allocated : V > 0 && effectiveShare > 0 ? V * effectiveShare : 0;
+  let v_i = allocated > 0 ? allocated : 0;
+  if (v_i <= 0 && V > 0 && storedShare > 0) {
+    v_i = V * storedShare;
+  } else if (v_i <= 0 && V > 0 && effectiveShare > 0) {
+    v_i = V * effectiveShare;
+  }
   if (V > 0 && v_i > V) v_i = V;
   const fee =
     r.proportional_fee != null && Number(r.proportional_fee) > 0
@@ -179,7 +179,6 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const snapshotPct = Number(r.snapshot_pct ?? 0);
   const storedPct = Number(r.admin_profit_percentage ?? 0);
   const userPct = Number(r.user_pct ?? 0);
-  // Snapshot/admin field can be 0 in DB — fall back to live user %, then 50 (DB default).
   let pct = snapshotPct > 0 ? snapshotPct : storedPct > 0 ? storedPct : userPct;
   if (!(pct > 0)) pct = 50;
   return { v_i, V, fee, pct, effectiveShare };
@@ -193,59 +192,78 @@ export function applyUserRules(rawPl: number, fee: number, pct: number): number 
   return net * (pct / 100);
 }
 
-function volumeShare(r: UserTradeRowLike): { v_i: number; V: number } {
-  const { v_i, V } = resolveEffectiveSlice(r);
-  return { v_i, V };
-}
-
-/** Net P/L for one assignment row (settled wallet delta or live estimate). */
-export function rowNetPl(
+function proportionalRawPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number
 ): number {
-  const { v_i, V, fee, pct } = resolveEffectiveSlice(r);
+  const { v_i, V } = resolveEffectiveSlice(r);
   const P =
     liveMt5Profit != null && Number.isFinite(liveMt5Profit)
       ? liveMt5Profit
       : Number(r.mt5_total_profit || 0);
-
-  const apiNet = r.user_net_pl == null ? null : Number(r.user_net_pl);
-  if (apiNet != null && Number.isFinite(apiNet)) {
-    return apiNet;
-  }
-
-  if (r.wallet_settled_at != null) {
-    const settled = Number(r.final_profit_loss ?? 0);
-    if (!(V > 0 && v_i > 0) || Math.abs(P) < 0.0001) {
-      return settled;
-    }
-    const userRaw = P * (v_i / V);
-    const recomputed = applyUserRules(userRaw, fee, pct);
-    if (Math.abs(settled - recomputed) > 0.02) {
-      return recomputed;
-    }
-    return settled;
-  }
-
   if (!(V > 0 && v_i > 0)) return 0;
-
-  const userRaw = P * (v_i / V);
-  const computed = applyUserRules(userRaw, fee, pct);
-
-  if (liveMt5Profit != null && Number.isFinite(liveMt5Profit)) {
-    return computed;
-  }
-
-  const estimatedNet =
-    r.user_estimated_net_pl == null ? null : Number(r.user_estimated_net_pl);
-  if (estimatedNet != null && Number.isFinite(estimatedNet)) {
-    return estimatedNet;
-  }
-
-  return computed;
+  return P * (v_i / V);
 }
 
-/** Sum net P/L across all user trade rows (no signup-date filter). */
+/** Full share P/L shown in UI (your slice of the trade). */
+export function rowDisplayPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number
+): number {
+  const apiDisplay =
+    r.user_display_pl != null
+      ? Number(r.user_display_pl)
+      : r.user_raw_pl != null
+        ? Number(r.user_raw_pl)
+        : r.user_net_pl != null
+          ? Number(r.user_net_pl)
+          : null;
+  if (apiDisplay != null && Number.isFinite(apiDisplay) && liveMt5Profit == null) {
+    return apiDisplay;
+  }
+  if (r.wallet_settled_at != null) {
+    if (r.raw_proportional_pl != null && liveMt5Profit == null) {
+      return Number(r.raw_proportional_pl);
+    }
+    if (apiDisplay != null && Number.isFinite(apiDisplay)) {
+      return apiDisplay;
+    }
+  }
+  return proportionalRawPl(r, liveMt5Profit);
+}
+
+/** Wallet credit after fee + your profit % (withdraw / settlement). */
+export function rowWalletPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number
+): number {
+  const apiWallet =
+    r.user_wallet_pl != null
+      ? Number(r.user_wallet_pl)
+      : r.user_wallet_credit != null
+        ? Number(r.user_wallet_credit)
+        : null;
+  if (apiWallet != null && Number.isFinite(apiWallet) && liveMt5Profit == null) {
+    return apiWallet;
+  }
+  if (r.wallet_settled_at != null) {
+    const settled = Number(r.final_profit_loss ?? apiWallet ?? 0);
+    if (liveMt5Profit == null && Number.isFinite(settled)) {
+      return settled;
+    }
+  }
+  const { fee, pct } = resolveEffectiveSlice(r);
+  return applyUserRules(proportionalRawPl(r, liveMt5Profit), fee, pct);
+}
+
+/** @deprecated Use rowDisplayPl — kept for imports that expect “net” label. */
+export function rowNetPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number
+): number {
+  return rowDisplayPl(r, liveMt5Profit);
+}
+
 export function sumUserTradeNetPl(
   rows: UserTradeRowLike[],
   liveProfitByTicket?: Record<string, number>
@@ -254,7 +272,7 @@ export function sumUserTradeNetPl(
   for (const r of rows) {
     const ticket = String(r.ticket_id ?? "");
     const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
-    sum += rowNetPl(r, live);
+    sum += rowDisplayPl(r, live);
   }
   return sum;
 }
@@ -273,7 +291,6 @@ export function isOpenTrade(r: UserTradeRowLike): boolean {
   return true;
 }
 
-/** Split live (open, unsettled) P/L into profit and loss buckets. */
 export function sumLiveProfitLoss(
   rows: UserTradeRowLike[],
   liveProfitByTicket?: Record<string, number>
@@ -284,7 +301,7 @@ export function sumLiveProfitLoss(
     if (!isOpenTrade(r)) continue;
     const ticket = String(r.ticket_id ?? "");
     const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
-    const pl = rowNetPl(r, live);
+    const pl = rowDisplayPl(r, live);
     if (pl >= 0) profit += pl;
     else loss += pl;
   }

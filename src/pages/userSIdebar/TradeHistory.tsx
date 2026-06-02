@@ -3,7 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
-import { rowNetPl, type UserTradeRowLike } from "@/utils/userTradePl";
+import { rowDisplayPl, rowWalletPl, type UserTradeRowLike } from "@/utils/userTradePl";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -64,7 +64,8 @@ const TradeHistory = () => {
     return [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id)));
   }, [rows]);
 
-  const displayPl = (r: UserTradeRow) => rowNetPl(r);
+  const sharePl = (r: UserTradeRow) => rowDisplayPl(r);
+  const walletPl = (r: UserTradeRow) => rowWalletPl(r);
 
   return (
     <div className="mx-auto max-w-7xl p-4">
@@ -82,8 +83,9 @@ const TradeHistory = () => {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            ~ means live estimate (trade still open). Settled rows show final wallet impact.
+          <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+            Share P/L is your full slice of the trade (by wallet share of the pool). Wallet credit is what
+            moves to your balance on withdraw — profit after fee and your profit %; losses are full.
           </p>
         </div>
 
@@ -107,27 +109,29 @@ const TradeHistory = () => {
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your volume</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share P/L</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Wallet credit</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     No trades yet
                   </td>
                 </tr>
               ) : (
                 sortedRows.map((r, index) => {
-                  const pl = displayPl(r);
+                  const pl = sharePl(r);
+                  const wPl = walletPl(r);
                   const isProfit = pl >= 0;
                   const st = normTradeStatus({ status: r.mt5_status });
                   const settled = Boolean(r.wallet_settled_at);
@@ -158,6 +162,15 @@ const TradeHistory = () => {
                       >
                         {settled ? "" : "~"}
                         {pl.toFixed(2)}
+                      </td>
+                      <td
+                        className={`px-6 py-4 text-sm font-semibold tabular-nums ${
+                          wPl >= 0 ? "text-emerald-700" : "text-red-600"
+                        }`}
+                        title="Credited to wallet on withdraw"
+                      >
+                        {settled ? "" : "~"}
+                        {wPl.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span

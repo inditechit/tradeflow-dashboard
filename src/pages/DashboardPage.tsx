@@ -10,7 +10,7 @@ import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { io } from 'socket.io-client';
-import { applyUserRules, resolveEffectiveSlice, isTradeClosed, rowNetPl } from '@/utils/userTradePl';
+import { resolveEffectiveSlice, isTradeClosed, rowDisplayPl } from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -168,7 +168,7 @@ const DashboardPage = () => {
           openCount += 1;
           const ticket = String(t.ticket_id ?? '');
           if (!ticket) continue;
-          nextOpenPl[ticket] = rowNetPl(t);
+          nextOpenPl[ticket] = rowDisplayPl(t);
           const slice = resolveEffectiveSlice(t);
           nextSlice[ticket] = {
             v_i: slice.v_i,
@@ -265,7 +265,7 @@ const DashboardPage = () => {
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
     const userRaw = rawProfit * (ctx.v_i / ctx.V);
-    openPlByTicketRef.current[ticket] = applyUserRules(userRaw, ctx.fee, ctx.pct);
+    openPlByTicketRef.current[ticket] = userRaw;
     const sum = Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
     setLivePl(sum);
     if (walletBalance + sum + pendingClosedPl <= 0) {
@@ -475,8 +475,8 @@ const DashboardPage = () => {
                 {isBusted
                   ? 'Trading stopped — add funds to continue'
                   : openPositionCount > 0
-                    ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · updates in real time`
-                    : 'No open positions'}
+                    ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · your full share · live`
+                    : 'Your full share of open trades'}
               </p>
             </div>
 
@@ -508,9 +508,9 @@ const DashboardPage = () => {
                   </>
                 )}
               </p>
-              {!isBusted && displayPendingClosedPl !== 0 && walletBalance > 0 && (
+              {!isBusted && walletBalance > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  When equity hits $0, wallet and equity both go to $0 and trading stops.
+                  Equity uses your full trade share. On withdraw you receive your profit % (after fee); losses are full.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
