@@ -47,6 +47,7 @@ import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
+import AdminMaintenancePage from "./pages/AdminMaintenancePage";
 import LandingPage from "./pages/LandingPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
@@ -127,6 +128,7 @@ const App = () => (
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
+              <Route path="maintenance" element={<AdminMaintenancePage />} />
 
             </Route>
 

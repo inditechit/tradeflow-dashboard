@@ -9,6 +9,7 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { ProfileComplianceProvider } from "@/context/ProfileComplianceContext";
 import SubscriptionExpiredGuard from "@/components/subscription/SubscriptionExpiredGuard";
 import ComplianceRequiredGuard from "@/components/compliance/ComplianceRequiredGuard";
+import MaintenanceGuard from "@/components/maintenance/MaintenanceGuard";
 import { API_BASE } from "@/config/api";
 
 const UserLayout = () => {
@@ -62,7 +63,9 @@ const UserLayout = () => {
               <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
                 <SubscriptionExpiredGuard>
                   <ComplianceRequiredGuard>
-                    <Outlet />
+                    <MaintenanceGuard>
+                      <Outlet />
+                    </MaintenanceGuard>
                   </ComplianceRequiredGuard>
                 </SubscriptionExpiredGuard>
               </div>
