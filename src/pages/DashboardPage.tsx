@@ -510,7 +510,7 @@ const DashboardPage = () => {
               </p>
               {!isBusted && walletBalance > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Equity uses your full trade share. On withdraw you receive your profit % (after fee); losses are full.
+                  Equity shows your full trade P/L. On withdraw, only your profit % (after fee) is paid out; losses are full.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">

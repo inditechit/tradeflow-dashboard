@@ -84,8 +84,8 @@ const TradeHistory = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Share P/L is your full slice of the trade (by wallet share of the pool). Wallet credit is what
-            moves to your balance on withdraw — profit after fee and your profit %; losses are full.
+            Share P/L is your full profit/loss on the trade (100% of your slice). On withdraw, only your
+            profit share (after fee) is credited — typically 50%; the rest goes to admin. Losses are full.
           </p>
         </div>
 
@@ -110,7 +110,7 @@ const TradeHistory = () => {
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share P/L</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Wallet credit</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">On withdraw</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
@@ -167,7 +167,7 @@ const TradeHistory = () => {
                         className={`px-6 py-4 text-sm font-semibold tabular-nums ${
                           wPl >= 0 ? "text-emerald-700" : "text-red-600"
                         }`}
-                        title="Credited to wallet on withdraw"
+                        title="Your share credited on withdraw (profit % after fee; losses full)"
                       >
                         {settled ? "" : "~"}
                         {wPl.toFixed(2)}

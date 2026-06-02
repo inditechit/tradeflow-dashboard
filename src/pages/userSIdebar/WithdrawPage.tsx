@@ -273,8 +273,8 @@ const WithdrawPage = () => {
             </p>
           </div>
           <p className="text-xs text-slate-500">
-            Dashboard equity shows your full share of trades. Withdrawable amount uses your profit % after
-            platform fee (losses apply in full). Trade P/L is moved into your wallet when you submit a withdrawal.
+            Dashboard shows 100% of your trade profit/loss. Withdrawable amount is lower: on withdraw you receive
+            your profit % after fee (e.g. 50%); admin share is settled then. Losses apply in full.
           </p>
         </div>
 
