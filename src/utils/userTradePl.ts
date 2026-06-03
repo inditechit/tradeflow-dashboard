@@ -200,10 +200,13 @@ export function estimateUserSharePl(
   pct: number,
   walletBefore: number,
   depositBaseline: number,
+  /** Wallet + other open gross P/L (excludes this trade). Defaults to wallet. */
+  equityBefore?: number,
 ): number {
   const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
   const baseline = round2(depositBaseline);
   let wallet = round2(walletBefore);
+  const equity = round2(equityBefore != null ? equityBefore : walletBefore);
   const gross = round2(rawPl);
   const feeUsd = round2(Math.max(0, fee));
 
@@ -212,7 +215,7 @@ export function estimateUserSharePl(
   let net = round2(gross - feeUsd);
   if (net <= 0) return round2(Math.max(-wallet, net));
 
-  const gap = round2(Math.max(0, baseline - wallet));
+  const gap = round2(Math.max(0, baseline - equity));
   if (gap > 0) {
     const recovery = round2(Math.min(net, gap));
     wallet = round2(wallet + recovery);
@@ -230,6 +233,8 @@ export function estimateUserSharePl(
 export type UserShareContext = {
   walletBefore: number;
   depositBaseline: number;
+  /** Wallet + other open gross P/L (excludes this trade). */
+  equityBefore?: number;
   useBaseline?: boolean;
 };
 
@@ -242,7 +247,14 @@ export function rowUserSharePl(
   const raw = proportionalRawPl(r, liveMt5Profit);
   const { fee, pct } = resolveEffectiveSlice(r);
   if (ctx && ctx.useBaseline !== false && ctx.depositBaseline > 0) {
-    return estimateUserSharePl(raw, fee, pct, ctx.walletBefore, ctx.depositBaseline);
+    return estimateUserSharePl(
+      raw,
+      fee,
+      pct,
+      ctx.walletBefore,
+      ctx.depositBaseline,
+      ctx.equityBefore,
+    );
   }
   if (ctx) {
     return applyUserRules(raw, fee, pct);
@@ -250,7 +262,7 @@ export function rowUserSharePl(
   return applyUserRules(raw, fee, pct);
 }
 
-function proportionalRawPl(
+export function proportionalRawPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number
 ): number {

@@ -45,17 +45,13 @@ export function useUserFinance(userId: number | undefined) {
       const wData = await wRes.json();
       const sData = await sRes.json();
 
-      const walletFromDb = Math.max(
-        0,
-        Number(wData?.wallet?.balance ?? wData?.withdrawable_equity ?? 0),
-      );
-      const summaryWallet = Math.max(0, Number(sData?.wallet_balance ?? walletFromDb));
-      const walletBalance = Math.max(walletFromDb, summaryWallet);
+      const summaryWallet = Math.max(0, Number(sData?.wallet_balance ?? 0));
+      const walletFromDb = Math.max(0, Number(wData?.wallet?.balance ?? 0));
+      const walletBalance = summaryWallet > 0 ? summaryWallet : walletFromDb;
       const withdrawable = Math.max(
         0,
         Number(sData?.withdrawable_equity ?? 0),
-        Number(wData?.withdrawable_equity ?? 0),
-        walletBalance + Number(sData?.live_pl ?? 0),
+        walletBalance + Number(sData?.live_pl ?? 0) + Number(sData?.unsettled_closed_wallet_pl ?? 0),
       );
 
       setState({

@@ -268,8 +268,8 @@ const WithdrawPage = () => {
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Withdrawable = wallet (deposits + closed trade results) plus your live share of open profit/loss. Withdrawing
-            more than the wallet balance will realize open P/L into the wallet first.
+            Withdrawable = wallet plus your share of closed and open trades. Losses reduce this amount; profits
+            increase it (admin share only applies on profit above your deposit, per your profile %).
           </p>
         </div>
 

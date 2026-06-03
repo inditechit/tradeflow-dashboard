@@ -10,7 +10,12 @@ import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { io } from 'socket.io-client';
-import { resolveEffectiveSlice, isTradeClosed, rowUserSharePl } from '@/utils/userTradePl';
+import {
+  resolveEffectiveSlice,
+  isTradeClosed,
+  rowUserSharePl,
+  proportionalRawPl,
+} from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -121,15 +126,25 @@ const DashboardPage = () => {
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
     const baseline = depositBaselineRef.current;
-    let sim = walletStart;
+    const sim = walletStart;
+    const rows = openTradeRowsRef.current;
+    let openRawSum = 0;
+    const rawByTicket: Record<string, number> = {};
+    for (const { ticket, row } of rows) {
+      const raw = proportionalRawPl(row as Parameters<typeof proportionalRawPl>[0]);
+      rawByTicket[ticket] = raw;
+      openRawSum += raw;
+    }
     const next: Record<string, number> = {};
-    for (const { ticket, row } of openTradeRowsRef.current) {
+    for (const { ticket, row } of rows) {
+      const raw = rawByTicket[ticket] ?? 0;
+      const equityBefore = sim + openRawSum - raw;
       const pl = rowUserSharePl(row as Parameters<typeof rowUserSharePl>[0], undefined, {
         walletBefore: sim,
         depositBaseline: baseline,
+        equityBefore,
       });
       next[ticket] = pl;
-      sim += pl;
     }
     openPlByTicketRef.current = next;
     return Object.values(next).reduce((s, n) => s + (Number(n) || 0), 0);
