@@ -360,7 +360,7 @@ const SupportTicketsPage = () => {
                               m.sender_role === "user" ? "text-black/70" : "text-slate-500",
                             )}
                           >
-                            {m.sender_role === "admin" ? "Support" : "You"} ·{" "}
+                            {m.sender_role === "admin" ? "Support (UK)" : "You"} ·{" "}
                             {new Date(m.created_at).toLocaleString()}
                           </p>
                         </div>
