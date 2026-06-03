@@ -27,7 +27,7 @@ const empty: UserFinanceState = {
   openPositions: 0,
 };
 
-/** Wallet + withdrawable always match DB balance; equity includes live P/L for display. */
+/** Withdrawable = wallet + live user P/L share; wallet = deposits + settled closed trades. */
 export function useUserFinance(userId: number | undefined) {
   const [state, setState] = useState<UserFinanceState>(empty);
 
@@ -52,9 +52,10 @@ export function useUserFinance(userId: number | undefined) {
       const summaryWallet = Math.max(0, Number(sData?.wallet_balance ?? walletFromDb));
       const walletBalance = Math.max(walletFromDb, summaryWallet);
       const withdrawable = Math.max(
-        walletBalance,
-        Number(sData?.withdrawable_equity ?? walletBalance),
-        Number(wData?.withdrawable_equity ?? walletBalance),
+        0,
+        Number(sData?.withdrawable_equity ?? 0),
+        Number(wData?.withdrawable_equity ?? 0),
+        walletBalance + Number(sData?.live_pl ?? 0),
       );
 
       setState({

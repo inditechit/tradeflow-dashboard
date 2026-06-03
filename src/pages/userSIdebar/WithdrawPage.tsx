@@ -264,13 +264,12 @@ const WithdrawPage = () => {
           </div>
           {softBust && !loading && !finance.loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              Open trades show a loss on the dashboard. Your wallet is still{" "}
-              <strong>USD {balance.toFixed(2)}</strong> — you can withdraw that full amount.
+              Open trades are in loss — withdrawable is reduced by that share but cannot go below zero.
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Withdrawable matches your wallet (deposits minus completed withdrawals). Trade P/L on the dashboard is
-            estimated until positions close; closed profit/loss is applied to the wallet then.
+            Withdrawable = wallet (deposits + closed trade results) plus your live share of open profit/loss. Withdrawing
+            more than the wallet balance will realize open P/L into the wallet first.
           </p>
         </div>
 
