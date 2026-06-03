@@ -64,15 +64,23 @@ const AdminWithdrawalsPage = () => {
   const [txFixId, setTxFixId] = useState<number | null>(null);
   const [txFixHash, setTxFixHash] = useState("");
   const [txFixBusy, setTxFixBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 100;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageNum = 1) => {
     setLoading(true);
     try {
-      const qs = filter === "pending" ? "?status=pending" : "";
-      const res = await fetch(`${API_BASE}/admin/withdrawals${qs}`);
+      const qs = new URLSearchParams();
+      if (filter === "pending") qs.set("status", "pending");
+      qs.set("page", String(pageNum));
+      qs.set("limit", String(pageSize));
+      const res = await fetch(`${API_BASE}/admin/withdrawals?${qs.toString()}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.withdrawals)) {
         setRows(data.withdrawals);
+        setTotal(Number(data.total ?? data.withdrawals.length));
+        setPage(Number(data.page ?? pageNum));
       } else {
         setRows([]);
         if (data.error) {
@@ -345,6 +353,30 @@ const confirmApprove = async () => {
         {!loading && rows.length === 0 && (
           <p className="py-12 text-center text-sm text-slate-500">No rows.</p>
         )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
+        <span>
+          Page {page} · {rows.length} rows · {total} total
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={loading || page <= 1}
+          onClick={() => load(page - 1)}
+        >
+          Previous
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={loading || page * pageSize >= total}
+          onClick={() => load(page + 1)}
+        >
+          Next
+        </Button>
       </div>
 
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>

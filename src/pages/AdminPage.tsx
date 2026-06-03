@@ -82,7 +82,7 @@ const AdminPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users`);
+      const response = await fetch(`${API_BASE}/admin/users?finance=1`);
       const data = await response.json();
       if (data.success) {
         setLocations(data.users);
@@ -496,6 +496,15 @@ const AdminPage = () => {
                   Wallet
                 </th>
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Equity
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Live P/L
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Withdrawable
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Recharges
                 </th>
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
@@ -584,6 +593,44 @@ const AdminPage = () => {
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}
+                  </td>
+
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="font-semibold tabular-nums text-slate-900">
+                      USD{" "}
+                      {Number(loc.equity ?? 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                    {loc.soft_bust && (
+                      <span className="text-[11px] font-medium text-amber-800">Soft bust</span>
+                    )}
+                  </td>
+
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        Number(loc.live_pl ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"
+                      }`}
+                    >
+                      {loc.live_pl != null
+                        ? Number(loc.live_pl).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : "—"}
+                    </span>
+                  </td>
+
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span className="font-semibold tabular-nums text-slate-900">
+                      USD{" "}
+                      {Number(loc.withdrawable_equity ?? 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
                   </td>
 
                   {/* Recharges */}
@@ -732,7 +779,7 @@ const AdminPage = () => {
               ))}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={15} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={18} className="px-6 py-8 text-center text-slate-500">
                     No users match your filters.
                   </td>
                 </tr>

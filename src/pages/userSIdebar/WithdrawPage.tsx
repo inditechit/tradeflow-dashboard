@@ -43,6 +43,8 @@ const WithdrawPage = () => {
 
   const [balance, setBalance] = useState<number | null>(null);
   const [withdrawableEquity, setWithdrawableEquity] = useState<number | null>(null);
+  const [softBust, setSoftBust] = useState(false);
+  const [equityPl, setEquityPl] = useState<number | null>(null);
   const [payoutSaved, setPayoutSaved] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
   const [amount, setAmount] = useState("");
@@ -84,13 +86,21 @@ const WithdrawPage = () => {
       }
       const summaryData = await summaryRes.json();
       if (summaryData?.success) {
-        const withdrawable =
+        const withdrawable = Math.max(
+          0,
           summaryData.withdrawable_equity != null
             ? Number(summaryData.withdrawable_equity)
-            : Number(summaryData.equity ?? 0);
+            : Number(summaryData.equity ?? 0),
+        );
         setWithdrawableEquity(withdrawable);
+        setSoftBust(summaryData.soft_bust === true);
+        setEquityPl(
+          summaryData.equity_pl != null ? Number(summaryData.equity_pl) : null,
+        );
       } else {
         setWithdrawableEquity(null);
+        setSoftBust(false);
+        setEquityPl(null);
       }
     } catch {
       toast({ title: "Could not load data", variant: "destructive" });
@@ -266,12 +276,25 @@ const WithdrawPage = () => {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium text-slate-700">Withdrawable equity</span>
-            <p className="text-2xl font-bold tabular-nums text-emerald-800">
+            <p
+              className={`text-2xl font-bold tabular-nums ${
+                (withdrawableEquity ?? 0) > 0 ? "text-emerald-800" : "text-slate-700"
+              }`}
+            >
               {loading
                 ? "…"
-                : `USD ${(withdrawableEquity ?? balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                : `USD ${(withdrawableEquity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
+          {softBust && !loading && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Your deposit (wallet) is safe at{" "}
+              <strong>USD {(balance ?? 0).toFixed(2)}</strong>. Trade losses are shown on the dashboard only
+              {equityPl != null ? ` (about USD ${equityPl.toFixed(2)} total P/L)` : ""} — they do not reduce your
+              wallet until you withdraw profit. Withdrawable is USD 0 until trading recovers or you have closed profit
+              to credit.
+            </p>
+          )}
           <p className="text-xs text-slate-500">
             Dashboard shows 100% of your trade profit/loss. Withdrawable amount is lower: on withdraw you receive
             your profit % after fee (e.g. 50%); admin share is settled then. Losses apply in full.

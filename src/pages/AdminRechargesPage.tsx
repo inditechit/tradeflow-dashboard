@@ -54,18 +54,25 @@ const AdminRechargesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creditingId, setCreditingId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 100;
 
   const fetchPayments = useCallback(
-    async (userId: number | null) => {
+    async (userId: number | null, pageNum = 1) => {
       setLoading(true);
       setError("");
       try {
         const qs = new URLSearchParams();
         if (userId !== null) qs.set("userId", String(userId));
+        qs.set("page", String(pageNum));
+        qs.set("limit", String(pageSize));
         const res = await fetch(`${API_BASE}/admin/recharge?${qs.toString()}`);
         const data = await res.json();
         if (data.success) {
           setPayments(data.payments ?? []);
+          setTotal(Number(data.total ?? data.payments?.length ?? 0));
+          setPage(Number(data.page ?? pageNum));
           if (data.stats) {
             setStats({
               success_count: Number(data.stats.success_count ?? 0),
@@ -107,7 +114,7 @@ const AdminRechargesPage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    fetchPayments(activeFilter);
+    fetchPayments(activeFilter, 1);
   }, [activeFilter, fetchPayments]);
 
   const applyUserFilter = () => {
@@ -343,7 +350,29 @@ const AdminRechargesPage = () => {
         )}
       </div>
 
-      <p className="mt-4 text-center text-xs text-slate-400">Showing up to 500 most recent rows per request.</p>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
+        <span>
+          Page {page} · {payments.length} rows · {total} total
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={loading || page <= 1}
+          onClick={() => fetchPayments(activeFilter, page - 1)}
+        >
+          Previous
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={loading || page * pageSize >= total}
+          onClick={() => fetchPayments(activeFilter, page + 1)}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 };
