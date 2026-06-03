@@ -4,6 +4,7 @@ import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { useUserFinance } from "@/hooks/useUserFinance";
 import { getTrialWithdrawLock } from "@/utils/trialWithdrawLock";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
@@ -41,10 +42,10 @@ const WithdrawPage = () => {
     [subscription.isActive, subscription.activeSegment],
   );
 
-  const [balance, setBalance] = useState<number | null>(null);
-  const [withdrawableEquity, setWithdrawableEquity] = useState<number | null>(null);
-  const [softBust, setSoftBust] = useState(false);
-  const [equityPl, setEquityPl] = useState<number | null>(null);
+  const { refresh: refreshFinance, ...finance } = useUserFinance(userId);
+  const balance = finance.walletBalance;
+  const withdrawableEquity = finance.withdrawable;
+  const softBust = finance.softBust;
   const [payoutSaved, setPayoutSaved] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
   const [amount, setAmount] = useState("");
@@ -58,18 +59,11 @@ const WithdrawPage = () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [wRes, pRes, rRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/user/wallet/${userId}`),
+      const [pRes, rRes] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
         fetch(`${API_BASE}/user/withdraw/${userId}`),
-        fetch(`${API_BASE}/user/summary/${userId}`),
       ]);
-      const wData = await wRes.json();
-      if (wData.success && wData.wallet) {
-        setBalance(Number(wData.wallet.balance ?? 0));
-      } else {
-        setBalance(0);
-      }
+      await refreshFinance();
       const pData = await pRes.json();
       if (pData.success && pData.profile) {
         const addr = String(pData.profile.trc20WithdrawAddress ?? "").trim();
@@ -84,33 +78,12 @@ const WithdrawPage = () => {
       } else {
         setRows([]);
       }
-      const summaryData = await summaryRes.json();
-      if (summaryData?.success) {
-        const summaryWallet = Number(summaryData.wallet_balance ?? wData?.wallet?.balance ?? 0);
-        if (summaryData.wallet_balance != null) {
-          setBalance(summaryWallet);
-        }
-        const withdrawable = Math.max(
-          0,
-          summaryWallet,
-          Number(summaryData.withdrawable_equity ?? 0),
-        );
-        setWithdrawableEquity(withdrawable);
-        setSoftBust(summaryData.soft_bust === true);
-        setEquityPl(
-          summaryData.equity_pl != null ? Number(summaryData.equity_pl) : null,
-        );
-      } else {
-        setWithdrawableEquity(null);
-        setSoftBust(false);
-        setEquityPl(null);
-      }
     } catch {
       toast({ title: "Could not load data", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [userId, toast]);
+  }, [userId, toast, refreshFinance]);
 
   useEffect(() => {
     load();
@@ -183,8 +156,7 @@ const WithdrawPage = () => {
       });
       return;
     }
-    const maxOut =
-      withdrawableEquity != null ? withdrawableEquity : balance ?? 0;
+    const maxOut = Math.max(0, finance.withdrawable, finance.walletBalance);
     if (amt > maxOut) {
       toast({
         title: "Insufficient equity",
@@ -273,27 +245,27 @@ const WithdrawPage = () => {
               <span className="text-sm font-medium">Wallet (deposits)</span>
             </div>
             <p className="text-xl font-bold tabular-nums text-slate-900">
-              {loading ? "…" : `USD ${(balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {loading || finance.loading
+                ? "…"
+                : `USD ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium text-slate-700">Withdrawable (USDT)</span>
             <p
               className={`text-2xl font-bold tabular-nums ${
-                (withdrawableEquity ?? 0) > 0 ? "text-emerald-800" : "text-slate-700"
+                withdrawableEquity > 0 ? "text-emerald-800" : "text-slate-700"
               }`}
             >
-              {loading
+              {loading || finance.loading
                 ? "…"
-                : `USD ${(withdrawableEquity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                : `USD ${withdrawableEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
-          {softBust && !loading && (
+          {softBust && !loading && !finance.loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              Open trades are in loss on the dashboard
-              {equityPl != null ? ` (about USD ${equityPl.toFixed(2)} P/L)` : ""}. Your wallet deposit is still{" "}
-              <strong>USD {(balance ?? 0).toFixed(2)}</strong> — you can withdraw up to that amount. Live loss does not
-              reduce withdrawable until positions close.
+              Open trades show a loss on the dashboard. Your wallet is still{" "}
+              <strong>USD {balance.toFixed(2)}</strong> — you can withdraw that full amount.
             </p>
           )}
           <p className="text-xs text-slate-500">
