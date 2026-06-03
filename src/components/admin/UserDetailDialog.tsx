@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2 } from "lucide-react";
+import { CalendarPlus, History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,7 @@ type UserDetailDialogProps = {
   onRechargeHistory: (userId: number) => void;
   onOpenMap: (user: Record<string, unknown>) => void;
   onLabelsUpdated?: () => void;
+  onExtendPackage?: (user: Record<string, unknown>) => void;
 };
 
 const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
@@ -55,6 +56,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   onRechargeHistory,
   onOpenMap,
   onLabelsUpdated,
+  onExtendPackage,
 }) => {
   const { toast } = useToast();
   const [labels, setLabels] = useState<UserLabelEntry>({ label: "", tags: [] });
@@ -305,6 +307,21 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 <History className="h-4 w-4" />
                 Recharge history
               </Button>
+              {onExtendPackage && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100"
+                  onClick={() => {
+                    onExtendPackage(user);
+                    onClose();
+                  }}
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Extend package
+                </Button>
+              )}
             </div>
           </section>
 

@@ -16,6 +16,7 @@ import AddUserModal from '../components/admin/AddUserModal';
 import WalletModal from '../components/admin/WalletModal';
 import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
+import ExtendSubscriptionModal from '../components/admin/ExtendSubscriptionModal';
 import UserLabelsDisplay from '../components/admin/UserLabelsDisplay';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,9 @@ const AdminPage = () => {
 
   const [detailUser, setDetailUser] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const [extendUser, setExtendUser] = useState<{ id: number; name?: string; email?: string } | null>(null);
+  const [isExtendOpen, setIsExtendOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -805,6 +809,23 @@ const AdminPage = () => {
         onRechargeHistory={(userId) => navigate(`/admin/recharge?userId=${userId}`)}
         onOpenMap={openUserLocationOnMap}
         onLabelsUpdated={handleLabelsUpdated}
+        onExtendPackage={(u) => {
+          setExtendUser({
+            id: Number(u.id),
+            name: u.name != null ? String(u.name) : undefined,
+            email: u.email != null ? String(u.email) : undefined,
+          });
+          setIsExtendOpen(true);
+        }}
+      />
+
+      <ExtendSubscriptionModal
+        open={isExtendOpen}
+        onClose={() => {
+          setIsExtendOpen(false);
+          setExtendUser(null);
+        }}
+        user={extendUser}
       />
 
       <EditUserModal
