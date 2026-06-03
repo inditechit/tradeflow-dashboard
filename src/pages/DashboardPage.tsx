@@ -101,16 +101,17 @@ const DashboardPage = () => {
   const [tradingActionLoading, setTradingActionLoading] = useState(false);
   const [tradingActionError, setTradingActionError] = useState('');
   const [isBusted, setIsBusted] = useState(false);
+  const [softBust, setSoftBust] = useState(false);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
   const rawEquity = walletBalance + livePl + pendingClosedPl;
-  /** When busted (equity hit 0), server zeros wallet + equity — never show negative. */
-  const equity = isBusted ? 0 : Math.max(0, rawEquity);
-  const displayLivePl = isBusted ? 0 : livePl;
-  const displayPendingClosedPl = isBusted ? 0 : pendingClosedPl;
+  /** Soft bust: equity floors at 0; wallet stays at deposit (deferred model). */
+  const equity = Math.max(0, rawEquity);
+  const displayLivePl = livePl;
+  const displayPendingClosedPl = pendingClosedPl;
 
   const sumOpenPl = () =>
     Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
@@ -184,14 +185,26 @@ const DashboardPage = () => {
 
       if (summaryData?.success) {
         const busted = summaryData.busted === true;
+        const isSoft = summaryData.soft_bust === true;
         setIsBusted(busted);
-        if (busted) {
+        setSoftBust(isSoft);
+        if (busted && !isSoft) {
           setWallet({ balance: 0, currency: summaryData.currency || "USD" });
           setPendingClosedPl(0);
           setLivePl(0);
           setOpenPositionCount(0);
           setTradingActive(false);
           setAssignFunded(false);
+        } else if (busted && isSoft) {
+          if (summaryData.wallet_balance != null) {
+            setWallet({
+              balance: summaryData.wallet_balance,
+              currency: summaryData.currency || "USD",
+            });
+          }
+          setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
+          setLivePl(Number(summaryData.live_pl ?? sumOpenPl()));
+          setTradingActive(false);
         } else {
           const apiLive = Number(summaryData.live_pl ?? 0);
           const apiPending = Number(summaryData.pending_closed_pl ?? 0);
