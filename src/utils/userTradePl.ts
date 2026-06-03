@@ -30,6 +30,7 @@ export type UserTradeRowLike = {
   user_net_pl?: unknown;
   user_raw_pl?: unknown;
   user_estimated_net_pl?: unknown;
+  user_facing_pl?: unknown;
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
@@ -319,9 +320,20 @@ export function rowUserFacingPl(
   liveMt5Profit?: number,
   ctx?: UserShareContext,
 ): number {
+  const apiFacing = r.user_facing_pl != null ? Number(r.user_facing_pl) : NaN;
+  if (Number.isFinite(apiFacing)) return apiFacing;
+
   if (isTradeClosed(r) || r.wallet_settled_at != null) {
-    const settled = Number(r.final_profit_loss ?? r.user_wallet_credit ?? 0);
-    if (Number.isFinite(settled)) return settled;
+    const settled = Number(
+      r.final_profit_loss ?? r.user_wallet_credit ?? r.user_wallet_pl ?? NaN,
+    );
+    if (Number.isFinite(settled) && !(settled === 0 && !r.wallet_settled_at)) {
+      return settled;
+    }
+    const walletPl = Number(r.user_wallet_pl ?? NaN);
+    if (Number.isFinite(walletPl) && walletPl !== 0) return walletPl;
+    const display = Number(r.user_display_pl ?? r.raw_proportional_pl ?? NaN);
+    if (Number.isFinite(display) && liveMt5Profit == null) return display;
   }
   return rowUserSharePl(r, liveMt5Profit, ctx);
 }
