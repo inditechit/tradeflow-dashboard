@@ -1,7 +1,7 @@
 /**
  * User P/L per trade:
- * - Display: full proportional share (v_i/V * MT5 profit) — shown live & in history.
- * - Wallet: after fee + profit % — credited on withdraw only.
+ * - Live/open: estimate only (wallet unchanged until MT5 position closes).
+ * - Closed/settled: final_profit_loss = actual wallet credit (baseline waterfall).
  */
 
 export type UserTradeRowLike = {
@@ -192,6 +192,63 @@ export function applyUserRules(rawPl: number, fee: number, pct: number): number 
   return net * (pct / 100);
 }
 
+/** Matches backend baseline waterfall — user $ credited if trade closed now. */
+export function estimateUserSharePl(
+  rawPl: number,
+  fee: number,
+  pct: number,
+  walletBefore: number,
+  depositBaseline: number,
+): number {
+  const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+  const baseline = round2(depositBaseline);
+  let wallet = round2(walletBefore);
+  const gross = round2(rawPl);
+  const feeUsd = round2(Math.max(0, fee));
+
+  if (gross <= 0) return round2(Math.max(-wallet, gross));
+
+  let net = round2(gross - feeUsd);
+  if (net <= 0) return round2(Math.max(-wallet, net));
+
+  const gap = round2(Math.max(0, baseline - wallet));
+  if (gap > 0) {
+    const recovery = round2(Math.min(net, gap));
+    wallet = round2(wallet + recovery);
+    net = round2(net - recovery);
+  }
+
+  if (net > 0) {
+    const p = Math.min(100, Math.max(0, Number(pct) || 0));
+    wallet = round2(wallet + (net * p) / 100);
+  }
+
+  return round2(wallet - walletBefore);
+}
+
+export type UserShareContext = {
+  walletBefore: number;
+  depositBaseline: number;
+  useBaseline?: boolean;
+};
+
+/** P/L shown to user (their wallet share, not full proportional pool slice). */
+export function rowUserSharePl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number,
+  ctx?: UserShareContext,
+): number {
+  const raw = proportionalRawPl(r, liveMt5Profit);
+  const { fee, pct } = resolveEffectiveSlice(r);
+  if (ctx && ctx.useBaseline !== false && ctx.depositBaseline > 0) {
+    return estimateUserSharePl(raw, fee, pct, ctx.walletBefore, ctx.depositBaseline);
+  }
+  if (ctx) {
+    return applyUserRules(raw, fee, pct);
+  }
+  return applyUserRules(raw, fee, pct);
+}
+
 function proportionalRawPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number
@@ -256,12 +313,26 @@ export function rowWalletPl(
   return applyUserRules(proportionalRawPl(r, liveMt5Profit), fee, pct);
 }
 
-/** @deprecated Use rowDisplayPl — kept for imports that expect “net” label. */
+/** Home / P&L: closed = wallet impact; open = estimated user share. */
+export function rowUserFacingPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number,
+  ctx?: UserShareContext,
+): number {
+  if (isTradeClosed(r) || r.wallet_settled_at != null) {
+    const settled = Number(r.final_profit_loss ?? r.user_wallet_credit ?? 0);
+    if (Number.isFinite(settled)) return settled;
+  }
+  return rowUserSharePl(r, liveMt5Profit, ctx);
+}
+
+/** @deprecated Use rowUserFacingPl */
 export function rowNetPl(
   r: UserTradeRowLike,
-  liveMt5Profit?: number
+  liveMt5Profit?: number,
+  ctx?: UserShareContext,
 ): number {
-  return rowDisplayPl(r, liveMt5Profit);
+  return rowUserFacingPl(r, liveMt5Profit, ctx);
 }
 
 export function sumUserTradeNetPl(

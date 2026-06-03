@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import {
   isOpenTrade,
   resolveEffectiveSlice,
-  rowDisplayPl,
+  rowUserFacingPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
@@ -224,9 +224,9 @@ const Mytrades = () => {
               const rawLiveSocket = liveRawByTicket[ticket];
               const slice = resolveEffectiveSlice(trade);
 
-              const displayPl = rowDisplayPl(
+              const displayPl = rowUserFacingPl(
                 trade,
-                Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined
+                Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined,
               );
               const isProfit = displayPl >= 0;
               const yourVol = slice.v_i > 0 ? slice.v_i : Number(trade.allocated_volume || 0);

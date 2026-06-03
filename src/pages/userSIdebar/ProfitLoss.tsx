@@ -161,11 +161,9 @@ const ProfitLoss = () => {
   );
 
   const hasSocketLive = Object.keys(liveRawByTicket).length > 0;
-  const livePl = hasSocketLive
-    ? liveFromSocket.net
-    : liveFromApi.net !== 0
-      ? liveFromApi.net
-      : Number(summary?.live_pl ?? 0);
+  const livePl =
+    Number(summary?.live_pl ?? 0) ||
+    (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
 
   const cards = [
     {

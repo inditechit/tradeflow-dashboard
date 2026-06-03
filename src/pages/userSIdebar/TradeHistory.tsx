@@ -3,7 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
-import { rowDisplayPl, rowWalletPl, type UserTradeRowLike } from "@/utils/userTradePl";
+import { rowUserFacingPl, type UserTradeRowLike } from "@/utils/userTradePl";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -64,8 +64,8 @@ const TradeHistory = () => {
     return [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id)));
   }, [rows]);
 
-  const sharePl = (r: UserTradeRow) => rowDisplayPl(r);
-  const walletPl = (r: UserTradeRow) => rowWalletPl(r);
+  const sharePl = (r: UserTradeRow) => rowUserFacingPl(r);
+  const walletPl = (r: UserTradeRow) => rowUserFacingPl(r);
 
   return (
     <div className="mx-auto max-w-7xl p-4">
@@ -84,8 +84,8 @@ const TradeHistory = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Share P/L is your full profit/loss on the trade (100% of your slice). On withdraw, only your
-            profit share (after fee) is credited — typically 50%; the rest goes to admin. Losses are full.
+            Wallet P/L is what hit your balance when the trade closed. Live rows are estimates only until cut.
+            Losses are 100% yours; profit below deposit is 100% yours; admin share only above deposit.
           </p>
         </div>
 

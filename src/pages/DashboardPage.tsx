@@ -10,7 +10,7 @@ import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { io } from 'socket.io-client';
-import { resolveEffectiveSlice, isTradeClosed, rowDisplayPl } from '@/utils/userTradePl';
+import { resolveEffectiveSlice, isTradeClosed, rowUserSharePl } from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -102,19 +102,35 @@ const DashboardPage = () => {
   const [tradingActionError, setTradingActionError] = useState('');
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
+  const [equityFromApi, setEquityFromApi] = useState(0);
+  const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
+  const depositBaselineRef = useRef(0);
+  const openTradeRowsRef = useRef<Array<{ ticket: string; row: Record<string, unknown> }>>([]);
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
-  const rawEquity = walletBalance + livePl + pendingClosedPl;
-  /** Soft bust: equity floors at 0; wallet stays at deposit (deferred model). */
-  const equity = Math.max(0, rawEquity);
+  const equity = Math.max(0, isBusted ? 0 : equityFromApi);
+  const withdrawableDisplay = Math.max(0, isBusted ? 0 : withdrawableFromApi);
   const displayLivePl = livePl;
   const displayPendingClosedPl = pendingClosedPl;
 
-  const sumOpenPl = () =>
-    Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
+  const recomputeOpenPlSequential = useCallback((walletStart: number) => {
+    const baseline = depositBaselineRef.current;
+    let sim = walletStart;
+    const next: Record<string, number> = {};
+    for (const { ticket, row } of openTradeRowsRef.current) {
+      const pl = rowUserSharePl(row as Parameters<typeof rowUserSharePl>[0], undefined, {
+        walletBefore: sim,
+        depositBaseline: baseline,
+      });
+      next[ticket] = pl;
+      sim += pl;
+    }
+    openPlByTicketRef.current = next;
+    return Object.values(next).reduce((s, n) => s + (Number(n) || 0), 0);
+  }, []);
 
   const loadFinance = useCallback(async () => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -160,8 +176,9 @@ const DashboardPage = () => {
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
       const tradesData = await tradesRes.json();
 
-      const nextOpenPl: Record<string, number> = {};
+      depositBaselineRef.current = Number(summaryData?.deposit_baseline ?? 0);
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
+      const openRows: Array<{ ticket: string; row: Record<string, unknown> }> = [];
       let openCount = 0;
       if (tradesData?.success && Array.isArray(tradesData.trades)) {
         for (const t of tradesData.trades) {
@@ -169,7 +186,7 @@ const DashboardPage = () => {
           openCount += 1;
           const ticket = String(t.ticket_id ?? '');
           if (!ticket) continue;
-          nextOpenPl[ticket] = rowDisplayPl(t);
+          openRows.push({ ticket, row: t });
           const slice = resolveEffectiveSlice(t);
           nextSlice[ticket] = {
             v_i: slice.v_i,
@@ -179,9 +196,11 @@ const DashboardPage = () => {
           };
         }
       }
-      openPlByTicketRef.current = nextOpenPl;
+      openTradeRowsRef.current = openRows;
       liveTicketRef.current = nextSlice;
       setOpenPositionCount(openCount);
+      const wBal = Number(wData?.wallet?.balance ?? assignData?.balance ?? 0);
+      const openPlSum = openCount > 0 ? recomputeOpenPlSequential(wBal) : 0;
 
       if (summaryData?.success) {
         const busted = summaryData.busted === true;
@@ -192,6 +211,8 @@ const DashboardPage = () => {
           setWallet({ balance: 0, currency: summaryData.currency || "USD" });
           setPendingClosedPl(0);
           setLivePl(0);
+          setEquityFromApi(0);
+          setWithdrawableFromApi(0);
           setOpenPositionCount(0);
           setTradingActive(false);
           setAssignFunded(false);
@@ -203,25 +224,33 @@ const DashboardPage = () => {
             });
           }
           setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
-          setLivePl(Number(summaryData.live_pl ?? sumOpenPl()));
+          setLivePl(Number(summaryData.live_pl ?? openPlSum));
+          setEquityFromApi(Number(summaryData.equity ?? 0));
+          setWithdrawableFromApi(Number(summaryData.withdrawable_equity ?? summaryData.wallet_balance ?? 0));
           setTradingActive(false);
         } else {
           const apiLive = Number(summaryData.live_pl ?? 0);
           const apiPending = Number(summaryData.pending_closed_pl ?? 0);
           setPendingClosedPl(apiPending);
-          setLivePl(openCount > 0 ? sumOpenPl() : apiLive);
+          setLivePl(openCount > 0 ? openPlSum : apiLive);
+          setEquityFromApi(Number(summaryData.equity ?? walletBalance + apiLive));
+          setWithdrawableFromApi(
+            Number(summaryData.withdrawable_equity ?? summaryData.wallet_balance ?? walletBalance),
+          );
         }
       } else {
         setIsBusted(false);
         setPendingClosedPl(0);
-        setLivePl(sumOpenPl());
+        setLivePl(openPlSum);
+        setEquityFromApi(walletBalance + openPlSum);
+        setWithdrawableFromApi(walletBalance);
       }
     } catch (err) {
       console.error('Finance load error:', err);
     } finally {
       setLoadingFinance(false);
     }
-  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser]);
+  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser, recomputeOpenPlSequential]);
 
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
@@ -277,14 +306,22 @@ const DashboardPage = () => {
     if (isBusted) return;
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
-    const userRaw = rawProfit * (ctx.v_i / ctx.V);
-    openPlByTicketRef.current[ticket] = userRaw;
-    const sum = Object.values(openPlByTicketRef.current).reduce((s, n) => s + (Number(n) || 0), 0);
+    const entry = openTradeRowsRef.current.find((x) => x.ticket === ticket);
+    if (entry) {
+      entry.row = {
+        ...entry.row,
+        mt5_total_profit: rawProfit,
+        mt5_volume: ctx.V,
+        allocated_volume: ctx.v_i,
+      };
+    }
+    const sum = recomputeOpenPlSequential(walletBalance);
     setLivePl(sum);
-    if (walletBalance + sum + pendingClosedPl <= 0) {
+    setEquityFromApi(Math.max(0, walletBalance + sum));
+    if (walletBalance + sum <= 0) {
       void loadFinance();
     }
-  }, [isBusted, walletBalance, pendingClosedPl, loadFinance]);
+  }, [isBusted, walletBalance, loadFinance, recomputeOpenPlSequential]);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -488,8 +525,8 @@ const DashboardPage = () => {
                 {isBusted
                   ? 'Trading stopped — add funds to continue'
                   : openPositionCount > 0
-                    ? `${openPositionCount} open position${openPositionCount === 1 ? '' : 's'} · your full share · live`
-                    : 'Your full share of open trades'}
+                    ? `${openPositionCount} open · estimate only (wallet not cut yet)`
+                    : 'Open P/L estimate — wallet updates when position closes'}
               </p>
             </div>
 
@@ -512,18 +549,30 @@ const DashboardPage = () => {
                   <>All funds in wallet — trading paused</>
                 ) : (
                   <>
-                    {formatMoneyAmount(walletBalance, currency)} wallet
-                    {displayLivePl !== 0 ? ` + ${formatMoneyAmount(displayLivePl, currency)} live` : ''}
-                    {displayPendingClosedPl !== 0
-                      ? ` + ${formatMoneyAmount(displayPendingClosedPl, currency)} closed`
-                      : ''}
-                    {' '}= equity
+                    Wallet {formatMoneyAmount(walletBalance, currency)}
+                    {displayLivePl !== 0
+                      ? ` + live est. ${formatMoneyAmount(displayLivePl, currency)}`
+                      : ''}{' '}
+                    = equity {formatMoneyAmount(equity, currency)}
+                    {withdrawableDisplay !== equity && (
+                      <>
+                        {' '}
+                        · withdrawable {formatMoneyAmount(withdrawableDisplay, currency)}
+                      </>
+                    )}
                   </>
                 )}
               </p>
-              {!isBusted && walletBalance > 0 && (
+              {!isBusted && walletBalance > 0 && openPositionCount > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Equity shows your full trade P/L. On withdraw, only your profit % (after fee) is paid out; losses are full.
+                  Live trade: wallet stays {formatMoneyAmount(walletBalance, currency)} until the
+                  position closes. Loss or profit is applied to the wallet only after cut.
+                </p>
+              )}
+              {!isBusted && walletBalance > 0 && openPositionCount === 0 && (
+                <p className="mt-1 text-[11px] text-amber-800">
+                  Profit below your deposit is 100% yours. Admin share only on profit above deposit
+                  (after fee).
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
