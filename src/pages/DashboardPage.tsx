@@ -229,13 +229,20 @@ const DashboardPage = () => {
           setWithdrawableFromApi(Number(summaryData.withdrawable_equity ?? summaryData.wallet_balance ?? 0));
           setTradingActive(false);
         } else {
+          const summaryWallet = Number(summaryData.wallet_balance ?? wBal);
+          if (summaryData.wallet_balance != null) {
+            setWallet({
+              balance: summaryWallet,
+              currency: summaryData.currency || wData?.wallet?.currency || "USD",
+            });
+          }
           const apiLive = Number(summaryData.live_pl ?? 0);
           const apiPending = Number(summaryData.pending_closed_pl ?? 0);
           setPendingClosedPl(apiPending);
           setLivePl(openCount > 0 ? openPlSum : apiLive);
-          setEquityFromApi(Number(summaryData.equity ?? walletBalance + apiLive));
+          setEquityFromApi(Number(summaryData.equity ?? summaryWallet + apiLive));
           setWithdrawableFromApi(
-            Number(summaryData.withdrawable_equity ?? summaryData.wallet_balance ?? walletBalance),
+            Number(summaryData.withdrawable_equity ?? summaryWallet),
           );
         }
       } else {

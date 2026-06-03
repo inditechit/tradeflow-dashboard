@@ -86,11 +86,15 @@ const WithdrawPage = () => {
       }
       const summaryData = await summaryRes.json();
       if (summaryData?.success) {
+        const summaryWallet = Number(summaryData.wallet_balance ?? wData?.wallet?.balance ?? 0);
+        if (summaryData.wallet_balance != null) {
+          setBalance(summaryWallet);
+        }
         const withdrawable = Math.max(
           0,
           summaryData.withdrawable_equity != null
             ? Number(summaryData.withdrawable_equity)
-            : Number(summaryData.equity ?? 0),
+            : summaryWallet,
         );
         setWithdrawableEquity(withdrawable);
         setSoftBust(summaryData.soft_bust === true);
@@ -185,8 +189,7 @@ const WithdrawPage = () => {
     if (amt > maxOut) {
       toast({
         title: "Insufficient equity",
-        description:
-          "Trade profit/loss is added to your wallet when you withdraw. Lower the amount.",
+        description: "Amount exceeds your wallet balance. Lower the amount.",
         variant: "destructive",
       });
       return;
