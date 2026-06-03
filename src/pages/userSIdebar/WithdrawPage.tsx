@@ -92,9 +92,8 @@ const WithdrawPage = () => {
         }
         const withdrawable = Math.max(
           0,
-          summaryData.withdrawable_equity != null
-            ? Number(summaryData.withdrawable_equity)
-            : summaryWallet,
+          summaryWallet,
+          Number(summaryData.withdrawable_equity ?? 0),
         );
         setWithdrawableEquity(withdrawable);
         setSoftBust(summaryData.soft_bust === true);
@@ -278,7 +277,7 @@ const WithdrawPage = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm font-medium text-slate-700">Withdrawable equity</span>
+            <span className="text-sm font-medium text-slate-700">Withdrawable (USDT)</span>
             <p
               className={`text-2xl font-bold tabular-nums ${
                 (withdrawableEquity ?? 0) > 0 ? "text-emerald-800" : "text-slate-700"
@@ -291,16 +290,15 @@ const WithdrawPage = () => {
           </div>
           {softBust && !loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              Your deposit (wallet) is safe at{" "}
-              <strong>USD {(balance ?? 0).toFixed(2)}</strong>. Trade losses are shown on the dashboard only
-              {equityPl != null ? ` (about USD ${equityPl.toFixed(2)} total P/L)` : ""} — they do not reduce your
-              wallet until you withdraw profit. Withdrawable is USD 0 until trading recovers or you have closed profit
-              to credit.
+              Open trades are in loss on the dashboard
+              {equityPl != null ? ` (about USD ${equityPl.toFixed(2)} P/L)` : ""}. Your wallet deposit is still{" "}
+              <strong>USD {(balance ?? 0).toFixed(2)}</strong> — you can withdraw up to that amount. Live loss does not
+              reduce withdrawable until positions close.
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Dashboard shows 100% of your trade profit/loss. Withdrawable amount is lower: on withdraw you receive
-            your profit % after fee (e.g. 50%); admin share is settled then. Losses apply in full.
+            Withdrawable matches your wallet (deposits minus completed withdrawals). Trade P/L on the dashboard is
+            estimated until positions close; closed profit/loss is applied to the wallet then.
           </p>
         </div>
 
