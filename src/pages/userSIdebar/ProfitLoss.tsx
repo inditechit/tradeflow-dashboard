@@ -31,6 +31,19 @@ type Summary = {
 
 type UserTradeRow = UserTradeRowLike;
 
+type TradeCycle = {
+  since_last_recharge?: boolean;
+  last_recharge_at?: string | null;
+  cycle_deposit_usd?: number | null;
+};
+
+type TradeTotals = {
+  total_profit: number;
+  total_loss: number;
+  net_pl: number;
+  trade_count?: number;
+};
+
 function fmtUsd(n: number, currency = "USD") {
   const code = String(currency || "USD").toUpperCase();
   const safe = /^[A-Z]{3}$/.test(code) ? code : "USD";
@@ -50,6 +63,8 @@ const ProfitLoss = () => {
   const { currentUser } = useApp();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rows, setRows] = useState<UserTradeRow[]>([]);
+  const [cycle, setCycle] = useState<TradeCycle | null>(null);
+  const [apiTotals, setApiTotals] = useState<TradeTotals | null>(null);
   const [loading, setLoading] = useState(false);
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
   const myTicketIdsRef = useRef<Set<string>>(new Set());
@@ -62,12 +77,14 @@ const ProfitLoss = () => {
       setLoading(true);
       const [sRes, tRes] = await Promise.all([
         fetch(`${API_BASE}/user/summary/${uid}`),
-        fetch(`${API_BASE}/user/trades/${uid}`),
+        fetch(`${API_BASE}/user/trades/${uid}?since_last_recharge=1`),
       ]);
       const sData = await sRes.json();
       const tData = await tRes.json();
       if (sData?.success) setSummary(sData as Summary);
       if (tData?.success && Array.isArray(tData.trades)) {
+        if (tData.cycle) setCycle(tData.cycle as TradeCycle);
+        if (tData.totals) setApiTotals(tData.totals as TradeTotals);
         const list = tData.trades as UserTradeRow[];
         const tickets = new Set<string>();
         for (const t of list) {
@@ -148,6 +165,45 @@ const ProfitLoss = () => {
     [rows]
   );
 
+  const tableTotals = useMemo(() => {
+    let totalProfit = 0;
+    let totalLoss = 0;
+    for (const r of sortedRows) {
+      const ticket = String(r.ticket_id ?? "");
+      const pl = rowNetPl(r, liveRawByTicket[ticket]);
+      if (pl >= 0) totalProfit += pl;
+      else totalLoss += pl;
+    }
+    const hasRows = sortedRows.length > 0;
+    if (!hasRows && apiTotals) {
+      return {
+        totalProfit: apiTotals.total_profit,
+        totalLoss: apiTotals.total_loss,
+        netPl: apiTotals.net_pl,
+      };
+    }
+    return {
+      totalProfit,
+      totalLoss,
+      netPl: totalProfit + totalLoss,
+    };
+  }, [sortedRows, liveRawByTicket, apiTotals]);
+
+  const cycleNote = useMemo(() => {
+    if (!cycle?.since_last_recharge) return null;
+    const at = cycle.last_recharge_at;
+    if (!at) return "Showing all trades in your current account cycle.";
+    const d = new Date(at);
+    const label = Number.isNaN(d.getTime())
+      ? at
+      : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    const dep =
+      cycle.cycle_deposit_usd != null && cycle.cycle_deposit_usd > 0
+        ? ` · cycle deposits ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
+        : "";
+    return `Trades since last recharge (${label})${dep}.`;
+  }, [cycle, summary?.currency]);
+
   const currency = summary?.currency || "USD";
 
   const liveFromSocket = useMemo(
@@ -211,7 +267,7 @@ const ProfitLoss = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Profit &amp; Loss</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your share of every trade — after fee and admin profit cut.
+            Your share of every trade since your last recharge — after fee and admin profit cut.
           </p>
         </div>
 
@@ -255,6 +311,7 @@ const ProfitLoss = () => {
           <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
           <p className="text-xs text-slate-500 mt-1">
             Buy = where you bought; sell = where you sold. P/L is your wallet share (after fees).
+            {cycleNote ? ` ${cycleNote}` : ""}
           </p>
         </div>
 
@@ -355,6 +412,41 @@ const ProfitLoss = () => {
                 })
               )}
             </tbody>
+            {sortedRows.length > 0 && (
+              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                <tr>
+                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Complete profit
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-yellow-700">
+                    {fmtUsd(tableTotals.totalProfit, currency)}
+                  </td>
+                  <td />
+                </tr>
+                <tr>
+                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Complete loss
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
+                    {fmtUsd(tableTotals.totalLoss, currency)}
+                  </td>
+                  <td />
+                </tr>
+                <tr className="border-t border-slate-200">
+                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
+                    Profit + loss (net)
+                  </td>
+                  <td
+                    className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
+                      tableTotals.netPl >= 0 ? "text-yellow-700" : "text-red-600"
+                    }`}
+                  >
+                    {fmtUsd(tableTotals.netPl, currency)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
