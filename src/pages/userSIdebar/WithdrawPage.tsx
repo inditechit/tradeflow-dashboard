@@ -45,6 +45,8 @@ const WithdrawPage = () => {
   const { refresh: refreshFinance, ...finance } = useUserFinance(userId);
   const balance = finance.walletBalance;
   const withdrawableEquity = finance.withdrawable;
+  const openPositions = finance.openPositions;
+  const canWithdraw = finance.canWithdraw;
   const softBust = finance.softBust;
   const [payoutSaved, setPayoutSaved] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
@@ -156,10 +158,18 @@ const WithdrawPage = () => {
       });
       return;
     }
-    const maxOut = Math.max(0, finance.withdrawable, finance.walletBalance);
+    const maxOut = Math.max(0, finance.walletBalance);
+    if (!canWithdraw) {
+      toast({
+        title: "Open trades active",
+        description: "Stop trading and wait until all positions are closed before withdrawing.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (amt > maxOut) {
       toast({
-        title: "Insufficient equity",
+        title: "Insufficient balance",
         description: "Amount exceeds your wallet balance. Lower the amount.",
         variant: "destructive",
       });
@@ -199,7 +209,7 @@ const WithdrawPage = () => {
   }
 
   const hasAddress = Boolean(payoutSaved);
-  const withdrawBlocked = trialLock.locked;
+  const withdrawBlocked = trialLock.locked || !canWithdraw || openPositions > 0;
   const unlockLabel = trialLock.unlockAt
     ? new Date(trialLock.unlockAt).toLocaleString(undefined, {
         dateStyle: "medium",
@@ -262,14 +272,21 @@ const WithdrawPage = () => {
                 : `USD ${withdrawableEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
-          {softBust && !loading && !finance.loading && (
+          {openPositions > 0 && !loading && !finance.loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              Open trades are in loss — withdrawable is reduced by that share but cannot go below zero.
+              You have {openPositions} open trade{openPositions === 1 ? "" : "s"}. Stop trading from the
+              dashboard and wait for positions to close — then you can withdraw your wallet balance.
+            </p>
+          )}
+          {softBust && openPositions > 0 && !loading && !finance.loading && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Open trades are in loss — this affects your equity estimate only. Wallet updates when trades close.
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Withdrawable = wallet plus your share of closed and open trades. Losses reduce this amount; profits
-            increase it (admin share only applies on profit above your deposit, per your profile %).
+            Withdrawable = wallet balance only (settled deposits + closed trade P/L). While a trade is open,
+            equity changes but wallet does not until close. Admin share applies on profit above your deposit
+            (baseline rules).
           </p>
         </div>
 

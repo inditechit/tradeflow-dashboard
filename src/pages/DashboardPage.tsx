@@ -117,10 +117,8 @@ const DashboardPage = () => {
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
   const equity = Math.max(0, isBusted ? 0 : equityFromApi);
-  const withdrawableDisplay = Math.max(
-    0,
-    isBusted && !softBust ? 0 : withdrawableFromApi,
-  );
+  const withdrawableDisplay =
+    openPositionCount > 0 ? 0 : Math.max(0, isBusted && !softBust ? 0 : walletBalance);
   const displayLivePl = livePl;
   const displayPendingClosedPl = pendingClosedPl;
 
@@ -244,7 +242,9 @@ const DashboardPage = () => {
           setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
           setLivePl(Number(summaryData.live_pl ?? openPlSum));
           setEquityFromApi(Number(summaryData.equity ?? 0));
-          setWithdrawableFromApi(Number(summaryData.withdrawable_equity ?? summaryWallet + apiLive));
+          setWithdrawableFromApi(
+            Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
+          );
           setTradingActive(false);
         } else {
           const summaryWallet = Number(summaryData.wallet_balance ?? wBal);
@@ -259,7 +259,9 @@ const DashboardPage = () => {
           setPendingClosedPl(apiPending);
           setLivePl(openCount > 0 ? openPlSum : apiLive);
           setEquityFromApi(Number(summaryData.equity ?? summaryWallet + apiLive));
-          setWithdrawableFromApi(Number(summaryData.withdrawable_equity ?? summaryWallet + apiLive));
+          setWithdrawableFromApi(
+            Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
+          );
         }
       } else {
         setIsBusted(false);
