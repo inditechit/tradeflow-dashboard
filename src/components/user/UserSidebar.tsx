@@ -30,14 +30,13 @@ type UserSidebarProps = {
 const REQUIRED_SETUP_PATH = "/user/required-setup";
 const PACKAGES_PATH = "/packages";
 
-type SidebarFund = {
+type SidebarWallet = {
   currency: string;
-  depositFund: number | null;
-  tradingWallet: number | null;
+  balance: number;
 };
 
 const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
-  const [fund, setFund] = useState<SidebarFund | null>(null);
+  const [accountWallet, setAccountWallet] = useState<SidebarWallet | null>(null);
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const { loading: subLoading, fetchOk: subOk, isActive, accessRestricted } =
@@ -57,27 +56,23 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   useEffect(() => {
     if (!currentUser?.userId) return;
 
-    const fetchFund = async () => {
+    const fetchWallet = async () => {
       try {
         const res = await axios.get(
           `${API_BASE}/user/wallet/${currentUser.userId}`,
         );
         const w = res.data?.wallet;
-        const deposit =
-          res.data?.deposit_baseline != null
-            ? Number(res.data.deposit_baseline)
-            : null;
-        setFund({
-          currency: w?.currency ?? "USD",
-          depositFund: Number.isFinite(deposit) ? deposit : null,
-          tradingWallet: w?.balance != null ? Number(w.balance) : null,
+        if (!w) return;
+        setAccountWallet({
+          currency: w.currency ?? "USD",
+          balance: Math.max(0, Number(w.balance ?? 0)),
         });
       } catch (err) {
         console.error("Wallet fetch error:", err);
       }
     };
 
-    fetchFund();
+    fetchWallet();
   }, [currentUser]);
 
   const menu = [
@@ -127,21 +122,17 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
           </div>
 
           <div className="mb-6 rounded-lg bg-[#F2F2F2] p-3 text-neutral-900 sm:mb-8 sm:p-4">
-            <p className="text-xs font-medium text-neutral-600">Deposit fund</p>
+            <p className="text-xs font-medium text-neutral-600">Account balance</p>
 
             <h2 className="mt-1 text-lg font-bold tabular-nums text-neutral-900 sm:text-xl">
               {!currentUser
                 ? "Loading user..."
-                : !fund
+                : !accountWallet
                   ? "Loading…"
-                  : fund.depositFund != null && fund.depositFund > 0
-                    ? `${fund.currency} ${fund.depositFund.toFixed(2)}`
-                    : fund.tradingWallet != null
-                      ? `${fund.currency} ${fund.tradingWallet.toFixed(2)}`
-                      : `${fund.currency} 0.00`}
+                  : `${accountWallet.currency} ${accountWallet.balance.toFixed(2)}`}
             </h2>
             <p className="mt-1 text-[10px] leading-snug text-neutral-500">
-              Original recharge baseline (recharge − withdrawals)
+              Settled wallet — after closed trade P/L (not original deposit)
             </p>
           </div>
 

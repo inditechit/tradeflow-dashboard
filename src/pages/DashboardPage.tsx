@@ -107,20 +107,21 @@ const DashboardPage = () => {
   const [tradingActionError, setTradingActionError] = useState('');
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
-  const [equityFromApi, setEquityFromApi] = useState(0);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
   const depositBaselineRef = useRef(0);
-  const [depositFund, setDepositFund] = useState(0);
   const openTradeRowsRef = useRef<Array<{ ticket: string; row: Record<string, unknown> }>>([]);
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
-  const equity = Math.max(0, isBusted ? 0 : equityFromApi);
+  /** Open P/L only when wallet &gt; 0 (no new assigns at $0). */
+  const displayLivePl =
+    walletBalance > 0.01 && openPositionCount > 0 && !isBusted ? livePl : 0;
+  const equity =
+    isBusted || walletBalance <= 0.01 ? 0 : Math.max(0, walletBalance + displayLivePl);
   const withdrawableDisplay =
     openPositionCount > 0 ? 0 : Math.max(0, isBusted && !softBust ? 0 : walletBalance);
-  const displayLivePl = livePl;
   const displayPendingClosedPl = pendingClosedPl;
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
@@ -193,9 +194,7 @@ const DashboardPage = () => {
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
       const tradesData = await tradesRes.json();
 
-      const baseline = Number(summaryData?.deposit_baseline ?? 0);
-      depositBaselineRef.current = baseline;
-      setDepositFund(baseline);
+      depositBaselineRef.current = Number(summaryData?.deposit_baseline ?? 0);
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       const openRows: Array<{ ticket: string; row: Record<string, unknown> }> = [];
       let openCount = 0;
@@ -230,7 +229,6 @@ const DashboardPage = () => {
           setWallet({ balance: 0, currency: summaryData.currency || "USD" });
           setPendingClosedPl(0);
           setLivePl(0);
-          setEquityFromApi(0);
           setWithdrawableFromApi(0);
           setOpenPositionCount(0);
           setTradingActive(false);
@@ -244,7 +242,6 @@ const DashboardPage = () => {
           }
           setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
           setLivePl(Number(summaryData.live_pl ?? openPlSum));
-          setEquityFromApi(Number(summaryData.equity ?? 0));
           setWithdrawableFromApi(
             Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
           );
@@ -261,7 +258,6 @@ const DashboardPage = () => {
           const apiPending = Number(summaryData.pending_closed_pl ?? 0);
           setPendingClosedPl(apiPending);
           setLivePl(openCount > 0 ? openPlSum : apiLive);
-          setEquityFromApi(Number(summaryData.equity ?? summaryWallet + apiLive));
           setWithdrawableFromApi(
             Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
           );
@@ -270,7 +266,6 @@ const DashboardPage = () => {
         setIsBusted(false);
         setPendingClosedPl(0);
         setLivePl(openPlSum);
-        setEquityFromApi(walletBalance + openPlSum);
         setWithdrawableFromApi(walletBalance + openPlSum);
       }
     } catch (err) {
@@ -345,7 +340,6 @@ const DashboardPage = () => {
     }
     const sum = recomputeOpenPlSequential(walletBalance);
     setLivePl(sum);
-    setEquityFromApi(Math.max(0, walletBalance + sum));
     if (walletBalance + sum <= 0) {
       void loadFinance();
     }
@@ -518,21 +512,18 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <Wallet className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Deposit fund</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Account balance</span>
               </div>
-              {loadingFinance && depositFund <= 0 && !wallet ? (
+              {loadingFinance && !wallet ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
                 <p className="text-2xl font-extrabold tabular-nums text-slate-900">
-                  {formatMoneyAmount(
-                    depositFund > 0 ? depositFund : walletBalance,
-                    currency,
-                  )}
+                  {formatMoneyAmount(walletBalance, currency)}
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Your original recharge baseline. Trading wallet after closed trades:{" "}
-                {formatMoneyAmount(walletBalance, currency)}
+                Money left in your account after all closed trades are settled. This is not your
+                original deposit.
               </p>
             <button 
                   onClick={() => navigate('/user/recharge')}
@@ -545,7 +536,7 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <TrendingUp className="h-5 w-5 text-yellow-700" />
-                <span className="text-xs font-bold uppercase tracking-wide">Live P/L</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Open trade P/L</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
@@ -555,11 +546,13 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                {isBusted
-                  ? 'Trading stopped — add funds to continue'
-                  : openPositionCount > 0
-                    ? `${openPositionCount} open · estimate only (wallet not cut yet)`
-                    : 'Open P/L estimate — wallet updates when position closes'}
+                {walletBalance <= 0.01
+                  ? 'Balance is $0 — no open P/L and no new trades until you recharge'
+                  : isBusted
+                    ? 'Trading stopped — add funds to continue'
+                    : openPositionCount > 0
+                      ? `${openPositionCount} open · estimate only until close`
+                      : 'No open trades'}
               </p>
             </div>
 
@@ -576,18 +569,21 @@ const DashboardPage = () => {
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                {isBusted ? (
-                  <>Wallet and equity are $0 — recharge to trade again</>
-                ) : !tradingActive && openPositionCount === 0 && displayPendingClosedPl === 0 ? (
-                  <>All funds in wallet — trading paused</>
+                {isBusted || walletBalance <= 0.01 ? (
+                  <>Balance + open P/L = $0 — recharge to trade again</>
+                ) : !tradingActive && openPositionCount === 0 ? (
+                  <>
+                    {formatMoneyAmount(walletBalance, currency)} in account — trading paused
+                    {withdrawableDisplay > 0
+                      ? ` · withdrawable ${formatMoneyAmount(withdrawableDisplay, currency)}`
+                      : ''}
+                  </>
                 ) : (
                   <>
-                    Trading wallet {formatMoneyAmount(walletBalance, currency)}
-                    {displayLivePl !== 0
-                      ? ` + live est. ${formatMoneyAmount(displayLivePl, currency)}`
-                      : ''}{' '}
-                    = equity {formatMoneyAmount(equity, currency)}
-                    {withdrawableDisplay !== equity && (
+                    {formatMoneyAmount(walletBalance, currency)} + open P/L{' '}
+                    {formatMoneyAmount(displayLivePl, currency)} ={' '}
+                    {formatMoneyAmount(equity, currency)}
+                    {withdrawableDisplay !== equity && openPositionCount === 0 && (
                       <>
                         {' '}
                         · withdrawable {formatMoneyAmount(withdrawableDisplay, currency)}
@@ -596,16 +592,10 @@ const DashboardPage = () => {
                   </>
                 )}
               </p>
-              {!isBusted && walletBalance > 0 && openPositionCount > 0 && (
+              {!isBusted && walletBalance > 0.01 && openPositionCount > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Live trade: trading wallet stays {formatMoneyAmount(walletBalance, currency)} until
-                  the position closes. Loss or profit is applied only after cut.
-                </p>
-              )}
-              {!isBusted && walletBalance > 0 && openPositionCount === 0 && (
-                <p className="mt-1 text-[11px] text-amber-800">
-                  Profit below your deposit is 100% yours. Admin share only on profit above deposit
-                  (after fee).
+                  Account balance stays {formatMoneyAmount(walletBalance, currency)} until the open
+                  trade closes; then profit or loss is applied to your wallet.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">

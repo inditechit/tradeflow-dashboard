@@ -252,7 +252,7 @@ const WithdrawPage = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-slate-700">
               <Wallet className="h-5 w-5 text-neutral-900" />
-              <span className="text-sm font-medium">Wallet balance</span>
+              <span className="text-sm font-medium">Account balance</span>
             </div>
             <p className="text-xl font-bold tabular-nums text-slate-900">
               {loading || finance.loading
