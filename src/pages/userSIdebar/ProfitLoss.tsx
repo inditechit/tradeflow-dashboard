@@ -206,7 +206,7 @@ const ProfitLoss = () => {
         : "";
     const scope =
       cycle.wallet_correction === true || cycle.pinned_baseline === true
-        ? `Trades from ticket 6286933 onward (wallet correction`
+        ? "Trades from ticket 6286933 onward (wallet correction"
         : "Trades since last recharge (";
     return `${scope} ${label})${dep}.`;
   }, [cycle, summary?.currency]);
