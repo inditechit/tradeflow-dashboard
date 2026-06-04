@@ -351,7 +351,30 @@ export function rowUserFacingPl(
   return rowUserSharePl(r, liveMt5Profit, ctx);
 }
 
-/** @deprecated Use rowUserFacingPl */
+/** Gross proportional share of master P/L (before lot fee). */
+export function rowGrossPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number,
+): number {
+  if (liveMt5Profit == null && r.raw_proportional_pl != null) {
+    return Number(r.raw_proportional_pl);
+  }
+  if (liveMt5Profit == null && r.user_raw_pl != null) {
+    return Number(r.user_raw_pl);
+  }
+  return rowDisplayPl(r, liveMt5Profit);
+}
+
+/** Wallet credit after fee (and profit-share rules on wins). */
+export function rowFinalWalletPl(
+  r: UserTradeRowLike,
+  liveMt5Profit?: number,
+  ctx?: UserShareContext,
+): number {
+  return rowWalletPl(r, liveMt5Profit) ?? rowUserFacingPl(r, liveMt5Profit, ctx);
+}
+
+/** @deprecated Use rowFinalWalletPl */
 export function rowNetPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number,
