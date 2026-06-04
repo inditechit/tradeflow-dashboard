@@ -30,8 +30,14 @@ type UserSidebarProps = {
 const REQUIRED_SETUP_PATH = "/user/required-setup";
 const PACKAGES_PATH = "/packages";
 
+type SidebarFund = {
+  currency: string;
+  depositFund: number | null;
+  tradingWallet: number | null;
+};
+
 const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
-  const [wallet, setWallet] = useState(null);
+  const [fund, setFund] = useState<SidebarFund | null>(null);
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const { loading: subLoading, fetchOk: subOk, isActive, accessRestricted } =
@@ -51,18 +57,27 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   useEffect(() => {
     if (!currentUser?.userId) return;
 
-    const fetchWallet = async () => {
+    const fetchFund = async () => {
       try {
         const res = await axios.get(
-          `${API_BASE}/user/wallet/${currentUser.userId}`
+          `${API_BASE}/user/wallet/${currentUser.userId}`,
         );
-        setWallet(res.data.wallet);
+        const w = res.data?.wallet;
+        const deposit =
+          res.data?.deposit_baseline != null
+            ? Number(res.data.deposit_baseline)
+            : null;
+        setFund({
+          currency: w?.currency ?? "USD",
+          depositFund: Number.isFinite(deposit) ? deposit : null,
+          tradingWallet: w?.balance != null ? Number(w.balance) : null,
+        });
       } catch (err) {
         console.error("Wallet fetch error:", err);
       }
     };
 
-    fetchWallet();
+    fetchFund();
   }, [currentUser]);
 
   const menu = [
@@ -112,15 +127,22 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
           </div>
 
           <div className="mb-6 rounded-lg bg-[#F2F2F2] p-3 text-neutral-900 sm:mb-8 sm:p-4">
-            <p className="text-xs font-medium text-neutral-600">My Fund</p>
+            <p className="text-xs font-medium text-neutral-600">Deposit fund</p>
 
             <h2 className="mt-1 text-lg font-bold tabular-nums text-neutral-900 sm:text-xl">
               {!currentUser
                 ? "Loading user..."
-                : !wallet
-                  ? "Loading wallet..."
-                  : `${wallet.currency} ${Number(wallet.balance).toFixed(2)}`}
+                : !fund
+                  ? "Loading…"
+                  : fund.depositFund != null && fund.depositFund > 0
+                    ? `${fund.currency} ${fund.depositFund.toFixed(2)}`
+                    : fund.tradingWallet != null
+                      ? `${fund.currency} ${fund.tradingWallet.toFixed(2)}`
+                      : `${fund.currency} 0.00`}
             </h2>
+            <p className="mt-1 text-[10px] leading-snug text-neutral-500">
+              Original recharge baseline (recharge − withdrawals)
+            </p>
           </div>
 
           {!subLoading && accessRestricted && (

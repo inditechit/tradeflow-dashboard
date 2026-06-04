@@ -112,6 +112,7 @@ const DashboardPage = () => {
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
   const depositBaselineRef = useRef(0);
+  const [depositFund, setDepositFund] = useState(0);
   const openTradeRowsRef = useRef<Array<{ ticket: string; row: Record<string, unknown> }>>([]);
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
@@ -192,7 +193,9 @@ const DashboardPage = () => {
       const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
       const tradesData = await tradesRes.json();
 
-      depositBaselineRef.current = Number(summaryData?.deposit_baseline ?? 0);
+      const baseline = Number(summaryData?.deposit_baseline ?? 0);
+      depositBaselineRef.current = baseline;
+      setDepositFund(baseline);
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       const openRows: Array<{ ticket: string; row: Record<string, unknown> }> = [];
       let openCount = 0;
@@ -515,17 +518,22 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
                 <Wallet className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Wallet</span>
+                <span className="text-xs font-bold uppercase tracking-wide">Deposit fund</span>
               </div>
-              {loadingFinance && !wallet ? (
+              {loadingFinance && depositFund <= 0 && !wallet ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
-              ) : wallet ? (
-                <p className="text-2xl font-extrabold tabular-nums text-slate-900">
-                  {formatMoneyAmount(walletBalance, currency)}
-                </p>
               ) : (
-                <p className="text-slate-500 text-sm">Could not load</p>
+                <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+                  {formatMoneyAmount(
+                    depositFund > 0 ? depositFund : walletBalance,
+                    currency,
+                  )}
+                </p>
               )}
+              <p className="mt-2 text-xs text-slate-500">
+                Your original recharge baseline. Trading wallet after closed trades:{" "}
+                {formatMoneyAmount(walletBalance, currency)}
+              </p>
             <button 
                   onClick={() => navigate('/user/recharge')}
                   className="flex items-center gap-1 bg-[#ecd888] mt-4 hover:bg-[#FFD700] text-gray-800 hover:text-black border border-yellow-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
@@ -574,7 +582,7 @@ const DashboardPage = () => {
                   <>All funds in wallet — trading paused</>
                 ) : (
                   <>
-                    Wallet {formatMoneyAmount(walletBalance, currency)}
+                    Trading wallet {formatMoneyAmount(walletBalance, currency)}
                     {displayLivePl !== 0
                       ? ` + live est. ${formatMoneyAmount(displayLivePl, currency)}`
                       : ''}{' '}
@@ -590,8 +598,8 @@ const DashboardPage = () => {
               </p>
               {!isBusted && walletBalance > 0 && openPositionCount > 0 && (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Live trade: wallet stays {formatMoneyAmount(walletBalance, currency)} until the
-                  position closes. Loss or profit is applied to the wallet only after cut.
+                  Live trade: trading wallet stays {formatMoneyAmount(walletBalance, currency)} until
+                  the position closes. Loss or profit is applied only after cut.
                 </p>
               )}
               {!isBusted && walletBalance > 0 && openPositionCount === 0 && (
