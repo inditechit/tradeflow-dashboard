@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useUserFinance } from "@/hooks/useUserFinance";
 import { proofImageSrc } from "@/components/profile/ProfilePanel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const { currentUser, logout } = useApp();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
+  const finance = useUserFinance(variant === "user" ? currentUser?.userId : undefined);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -58,27 +59,6 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
     };
   }, [currentUser?.userId]);
 
-  useEffect(() => {
-    if (variant !== "user" || !currentUser?.userId) {
-      setWallet(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/user/wallet/${currentUser.userId}`);
-        const data = await res.json();
-        if (cancelled || !data.success || !data.wallet) return;
-        setWallet(data.wallet);
-      } catch {
-        if (!cancelled) setWallet(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [variant, currentUser?.userId]);
-
   if (!currentUser) {
     return null;
   }
@@ -93,11 +73,11 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   };
 
   const walletLabel =
-    wallet != null
-      ? `${Number(wallet.balance).toLocaleString("en-US", {
+    variant === "user" && !finance.loading
+      ? `${finance.walletBalance.toLocaleString("en-US", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        })} ${wallet.currency || "USD"}`
+        })} ${finance.currency || "USD"}`
       : null;
 
   return (

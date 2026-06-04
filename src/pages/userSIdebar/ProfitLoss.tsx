@@ -34,7 +34,9 @@ type UserTradeRow = UserTradeRowLike;
 type TradeCycle = {
   since_last_recharge?: boolean;
   last_recharge_at?: string | null;
+  trade_filter_at?: string | null;
   cycle_deposit_usd?: number | null;
+  pinned_baseline?: boolean;
 };
 
 type TradeTotals = {
@@ -199,9 +201,13 @@ const ProfitLoss = () => {
       : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
     const dep =
       cycle.cycle_deposit_usd != null && cycle.cycle_deposit_usd > 0
-        ? ` · cycle deposits ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
+        ? ` · cycle start ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
         : "";
-    return `Trades since last recharge (${label})${dep}.`;
+    const scope =
+      cycle.pinned_baseline === true
+        ? "Trades from 4 Jun 2026 (manual baseline"
+        : "Trades since last recharge (";
+    return `${scope} ${label})${dep}.`;
   }, [cycle, summary?.currency]);
 
   const currency = summary?.currency || "USD";
