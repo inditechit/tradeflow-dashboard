@@ -187,8 +187,9 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
 
 export function applyUserRules(rawPl: number, fee: number, pct: number): number {
   if (!Number.isFinite(rawPl)) return 0;
-  if (rawPl <= 0) return rawPl;
-  const net = rawPl - fee;
+  const feeUsd = Math.max(0, Number(fee) || 0);
+  if (rawPl <= 0) return rawPl - feeUsd;
+  const net = rawPl - feeUsd;
   if (net <= 0) return net;
   return net * (pct / 100);
 }
@@ -210,7 +211,7 @@ export function estimateUserSharePl(
   const gross = round2(rawPl);
   const feeUsd = round2(Math.max(0, fee));
 
-  if (gross <= 0) return round2(Math.max(-wallet, gross));
+  if (gross <= 0) return round2(Math.max(-wallet, gross - feeUsd));
 
   let net = round2(gross - feeUsd);
   if (net <= 0) return round2(Math.max(-wallet, net));
