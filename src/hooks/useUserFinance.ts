@@ -47,9 +47,10 @@ export function useUserFinance(userId: number | undefined) {
       const wData = await wRes.json();
       const sData = await sRes.json();
 
-      const summaryWallet = Math.max(0, Number(sData?.wallet_balance ?? 0));
-      const walletFromDb = Math.max(0, Number(wData?.wallet?.balance ?? 0));
-      const walletBalance = summaryWallet > 0 ? summaryWallet : walletFromDb;
+      const walletBalance = Math.max(
+        0,
+        Number(sData?.wallet_balance ?? wData?.wallet?.balance ?? 0),
+      );
       const openPositions = Number(sData?.open_positions ?? 0);
       const canWithdraw = sData?.can_withdraw === true && openPositions === 0;
       const withdrawable = canWithdraw
