@@ -37,6 +37,7 @@ type TradeCycle = {
   trade_filter_at?: string | null;
   cycle_deposit_usd?: number | null;
   pinned_baseline?: boolean;
+  wallet_correction?: boolean;
 };
 
 type TradeTotals = {
@@ -204,8 +205,8 @@ const ProfitLoss = () => {
         ? ` · cycle start ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
         : "";
     const scope =
-      cycle.pinned_baseline === true
-        ? "Trades from 4 Jun 2026 (manual baseline"
+      cycle.wallet_correction === true || cycle.pinned_baseline === true
+        ? `Trades from ticket 6286933 onward (wallet correction`
         : "Trades since last recharge (";
     return `${scope} ${label})${dep}.`;
   }, [cycle, summary?.currency]);
