@@ -5,6 +5,7 @@ import {
   Plane, Globe, Video, User, LogOut, 
   Loader2, CheckCircle2, Clock, Plus, TrendingUp,
   Wallet, CircleDollarSign, ArrowRight, Pause, Play,
+  LifeBuoy,
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
@@ -108,6 +109,8 @@ const DashboardPage = () => {
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
+  const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
+  const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
   const openPlByTicketRef = useRef<Record<string, number>>({});
   const depositBaselineRef = useRef(0);
@@ -346,6 +349,31 @@ const DashboardPage = () => {
   }, [isBusted, walletBalance, loadFinance, recomputeOpenPlSequential]);
 
   useEffect(() => {
+    if (!currentUser?.userId || currentUser.role === 'admin') return;
+
+    let cancelled = false;
+    const loadSupportUnread = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/support/${currentUser.userId}/unread-count`);
+        const data = await res.json();
+        if (!cancelled && data?.success) {
+          setSupportUnreadTickets(Number(data.unread_tickets ?? 0));
+          setSupportUnreadMessages(Number(data.unread_count ?? 0));
+        }
+      } catch {
+        // best-effort
+      }
+    };
+
+    loadSupportUnread();
+    const interval = setInterval(loadSupportUnread, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentUser?.userId, currentUser?.role]);
+
+  useEffect(() => {
     if (!currentUser?.userId) {
       navigate('/signup');
       return;
@@ -505,6 +533,36 @@ const DashboardPage = () => {
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {tradingActionError}
           </div>
+        )}
+
+        {currentUser?.role !== 'admin' && supportUnreadTickets > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/user/support')}
+            className="flex w-full items-center justify-between gap-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-left text-sm text-sky-950 transition-colors hover:bg-sky-100"
+          >
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-sky-100">
+                <LifeBuoy className="h-5 w-5 text-sky-700" />
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] font-bold text-white">
+                  {supportUnreadTickets}
+                </span>
+              </span>
+              <div>
+                <p className="font-semibold">New support {supportUnreadMessages === 1 ? 'reply' : 'replies'}</p>
+                <p className="mt-0.5 text-sky-800">
+                  {supportUnreadTickets === 1
+                    ? 'You have 1 ticket with an unread reply'
+                    : `You have ${supportUnreadTickets} tickets with unread replies`}
+                  {supportUnreadMessages > supportUnreadTickets
+                    ? ` (${supportUnreadMessages} messages)`
+                    : ''}
+                  .
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 shrink-0 text-sky-700" />
+          </button>
         )}
 
         {currentUser?.role !== 'admin' && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LifeBuoy, Loader2, MessageCirclePlus, Send } from "lucide-react";
+import { LifeBuoy, Loader2, MailOpen, MessageCirclePlus, Send } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
 
 type TicketListItem = {
   id: number;
@@ -19,6 +18,7 @@ type TicketListItem = {
   updated_at: string;
   first_message_preview: string | null;
   message_count: number | string;
+  has_unread?: boolean | number | string;
 };
 
 type Msg = {
@@ -53,6 +53,10 @@ const SupportTicketsPage = () => {
   const [newSubject, setNewSubject] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [creating, setCreating] = useState(false);
+  const [markingUnread, setMarkingUnread] = useState(false);
+
+  const ticketHasUnread = (t: TicketListItem) =>
+    t.has_unread === true || t.has_unread === 1 || t.has_unread === "1";
 
   const loadList = useCallback(async () => {
     if (!userId) return;
@@ -75,6 +79,23 @@ const SupportTicketsPage = () => {
     }
   }, [userId, toast]);
 
+  const markTicketRead = useCallback(
+    async (ticketId: number) => {
+      if (!userId) return;
+      try {
+        await fetch(`${API_BASE}/user/support/${userId}/tickets/${ticketId}/read`, {
+          method: "PATCH",
+        });
+        setTickets((prev) =>
+          prev.map((t) => (t.id === ticketId ? { ...t, has_unread: false } : t)),
+        );
+      } catch {
+        // best-effort
+      }
+    },
+    [userId],
+  );
+
   const loadThread = useCallback(
     async (ticketId: number) => {
       if (!userId) return;
@@ -85,6 +106,7 @@ const SupportTicketsPage = () => {
         if (data.success && data.ticket && Array.isArray(data.messages)) {
           setThreadStatus(String(data.ticket.status));
           setMessages(data.messages);
+          await markTicketRead(ticketId);
         } else {
           setMessages([]);
           setThreadStatus(null);
@@ -98,8 +120,36 @@ const SupportTicketsPage = () => {
         setLoadingThread(false);
       }
     },
-    [userId, toast],
+    [userId, toast, markTicketRead],
   );
+
+  const handleMarkUnread = async () => {
+    if (!userId || selectedId == null) return;
+    setMarkingUnread(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/user/support/${userId}/tickets/${selectedId}/unread`,
+        { method: "PATCH" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setTickets((prev) =>
+          prev.map((t) => (t.id === selectedId ? { ...t, has_unread: true } : t)),
+        );
+        toast({ title: "Marked as unread" });
+      } else {
+        toast({
+          title: "Could not mark unread",
+          description: data.error || "Unknown error",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setMarkingUnread(false);
+    }
+  };
 
   useEffect(() => {
     loadList();
@@ -206,6 +256,9 @@ const SupportTicketsPage = () => {
     );
   }
 
+  const selectedTicket = tickets.find((x) => x.id === selectedId);
+  const selectedTicketUnread = selectedTicket ? ticketHasUnread(selectedTicket) : false;
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-col gap-1 border-b border-slate-200 pb-4">
@@ -250,7 +303,17 @@ const SupportTicketsPage = () => {
                             : "border-transparent bg-[#F9F9F9] hover:bg-slate-100",
                         )}
                       >
-                        <div className="font-semibold text-slate-900 line-clamp-2">{t.subject}</div>
+                        <div className="flex items-start gap-2">
+                          <div className="font-semibold text-slate-900 line-clamp-2 flex-1">
+                            {t.subject}
+                          </div>
+                          {ticketHasUnread(t) && (
+                            <span
+                              className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500"
+                              title="Unread reply"
+                            />
+                          )}
+                        </div>
                         <div className="mt-0.5 text-xs text-slate-500">
                           <span
                             className={cn(
@@ -321,14 +384,33 @@ const SupportTicketsPage = () => {
             </div>
           ) : (
             <>
-              <div className="border-b border-slate-200 px-4 py-3 md:px-6">
-                <h2 className="font-semibold text-slate-900">
-                  {tickets.find((x) => x.id === selectedId)?.subject ?? "Ticket"}
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Status:{" "}
-                  <span className="font-medium text-slate-700">{threadStatus ?? "…"}</span>
-                </p>
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 md:px-6">
+                <div>
+                  <h2 className="font-semibold text-slate-900">
+                    {selectedTicket?.subject ?? "Ticket"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Status:{" "}
+                    <span className="font-medium text-slate-700">{threadStatus ?? "…"}</span>
+                  </p>
+                </div>
+                {messages.some((m) => m.sender_role === "admin") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={markingUnread || selectedTicketUnread}
+                    onClick={handleMarkUnread}
+                    className="shrink-0 border-slate-200 text-slate-700"
+                  >
+                    {markingUnread ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <MailOpen className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Mark unread
+                  </Button>
+                )}
               </div>
               <ScrollArea className="min-h-0 flex-1 px-4 md:px-6">
                 <div className="space-y-3 py-4">

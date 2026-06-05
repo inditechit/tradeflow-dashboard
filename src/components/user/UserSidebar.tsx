@@ -37,6 +37,7 @@ type SidebarWallet = {
 
 const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const [accountWallet, setAccountWallet] = useState<SidebarWallet | null>(null);
+  const [supportUnread, setSupportUnread] = useState<number | null>(null);
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const { loading: subLoading, fetchOk: subOk, isActive, accessRestricted } =
@@ -75,6 +76,30 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     fetchWallet();
   }, [currentUser]);
 
+  useEffect(() => {
+    if (!currentUser?.userId) return;
+
+    let cancelled = false;
+    const loadUnread = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/support/${currentUser.userId}/unread-count`);
+        const data = await res.json();
+        if (!cancelled && data?.success) {
+          setSupportUnread(Number(data.unread_tickets ?? data.unread_count ?? 0));
+        }
+      } catch {
+        // best-effort; leave previous value in place
+      }
+    };
+
+    loadUnread();
+    const id = window.setInterval(loadUnread, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [currentUser?.userId]);
+
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/user/dashboard" },
     // { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
@@ -84,9 +109,9 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },
     { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
-    { name: "Support", icon: LifeBuoy, path: "/user/support" },
+    { name: "Support", icon: LifeBuoy, path: "/user/support", showUnread: true },
     { name: "Profile", icon: User, path: "/user/profile" },
-  ];
+  ] as Array<{ name: string; icon: typeof LayoutDashboard; path: string; showUnread?: boolean }>;
 
   return (
     <>
@@ -182,7 +207,16 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
                   }
                 >
                   <Icon size={18} className="shrink-0" />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {item.showUnread && supportUnread != null && supportUnread > 0 && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800"
+                      title="Unread support replies"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                      {supportUnread}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
