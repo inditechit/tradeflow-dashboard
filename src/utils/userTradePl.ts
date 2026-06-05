@@ -203,13 +203,15 @@ export function estimateUserSharePl(
   depositBaseline: number,
   /** Wallet + other open gross P/L (excludes this trade). Defaults to wallet. */
   equityBefore?: number,
+  /** Fee already debited at trade assign — settlement uses P/L only. */
+  feeAtAssign = true,
 ): number {
   const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
   const baseline = round2(depositBaseline);
   let wallet = round2(walletBefore);
   const equity = round2(equityBefore != null ? equityBefore : walletBefore);
   const gross = round2(rawPl);
-  const feeUsd = round2(Math.max(0, fee));
+  const feeUsd = feeAtAssign ? 0 : round2(Math.max(0, fee));
 
   if (gross <= 0) return round2(Math.max(-wallet, gross - feeUsd));
 
