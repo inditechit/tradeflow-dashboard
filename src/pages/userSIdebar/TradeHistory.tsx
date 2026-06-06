@@ -157,7 +157,7 @@ const TradeHistory = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          isProfit ? "text-yellow-700" : "text-red-600"
+                          isProfit ? "text-emerald-600" : "text-red-600"
                         }`}
                       >
                         {settled ? "" : "~"}

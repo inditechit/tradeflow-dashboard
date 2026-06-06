@@ -289,7 +289,7 @@ const AffiliateProgramPage = () => {
                       ) : null}
                     </td>
                     <td className="p-3">{Number(r.percent_applied).toFixed(2)}%</td>
-                    <td className="p-3 font-medium text-yellow-800">
+                    <td className="p-3 font-medium text-emerald-700">
                       +{Number(r.commission_usd).toFixed(2)} USD
                     </td>
                   </tr>

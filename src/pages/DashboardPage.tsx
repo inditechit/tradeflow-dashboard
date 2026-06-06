@@ -593,13 +593,13 @@ const DashboardPage = () => {
 
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
               <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <TrendingUp className="h-5 w-5 text-yellow-700" />
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
                 <span className="text-xs font-bold uppercase tracking-wide">Open trade P/L</span>
               </div>
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${displayLivePl >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                <p className={`text-2xl font-extrabold tabular-nums ${displayLivePl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {displayLivePl > 0 ? '+' : ''}{formatMoneyAmount(displayLivePl, currency)}
                 </p>
               )}

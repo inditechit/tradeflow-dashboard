@@ -370,7 +370,7 @@ const OpenTrades = () => {
 
                       {/* PROFIT */}
                       <td
-                        className={`px-6 py-4 text-sm font-bold ${isProfit ? "text-yellow-700" : "text-red-600"
+                        className={`px-6 py-4 text-sm font-bold ${isProfit ? "text-emerald-600" : "text-red-600"
                           }`}
                       >
                         {trade.profit}

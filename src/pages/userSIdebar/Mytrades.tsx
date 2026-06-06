@@ -276,7 +276,7 @@ const Mytrades = () => {
                       className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold
                       ${
                         isProfit
-                          ? "bg-[#FFF9E6] text-neutral-900"
+                          ? "bg-emerald-50 text-emerald-700"
                           : "bg-red-100 text-red-700"
                       }`}
                     >

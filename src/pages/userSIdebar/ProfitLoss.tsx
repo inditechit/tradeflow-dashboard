@@ -306,7 +306,7 @@ const ProfitLoss = () => {
           const Icon = c.icon;
           const toneCls =
             c.tone === "profit"
-              ? "text-yellow-700"
+              ? "text-emerald-600"
               : c.tone === "loss"
                 ? "text-red-600"
                 : "text-slate-900";
@@ -414,7 +414,7 @@ const ProfitLoss = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          grossProfit ? "text-yellow-700" : "text-red-600"
+                          grossProfit ? "text-emerald-600" : "text-red-600"
                         }`}
                       >
                         {open ? "~" : ""}
@@ -422,7 +422,7 @@ const ProfitLoss = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          finalProfit ? "text-yellow-700" : "text-red-600"
+                          finalProfit ? "text-emerald-600" : "text-red-600"
                         }`}
                       >
                         {open ? "~" : ""}
@@ -432,7 +432,7 @@ const ProfitLoss = () => {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             open
-                              ? "bg-[#FFF9E6] text-neutral-900"
+                              ? "bg-sky-50 text-sky-700"
                               : "border border-slate-200 bg-slate-100 text-slate-700"
                           }`}
                         >
@@ -450,10 +450,10 @@ const ProfitLoss = () => {
                   <td colSpan={6} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
                     Complete profit (P/L)
                   </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-yellow-700">
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
                     {fmtUsd(tableTotals.grossProfit, currency)}
                   </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-yellow-700">
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
                     {fmtUsd(tableTotals.finalProfit, currency)}
                   </td>
                   <td />
@@ -476,14 +476,14 @@ const ProfitLoss = () => {
                   </td>
                   <td
                     className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.grossNet >= 0 ? "text-yellow-700" : "text-red-600"
+                      tableTotals.grossNet >= 0 ? "text-emerald-600" : "text-red-600"
                     }`}
                   >
                     {fmtUsd(tableTotals.grossNet, currency)}
                   </td>
                   <td
                     className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.finalNet >= 0 ? "text-yellow-700" : "text-red-600"
+                      tableTotals.finalNet >= 0 ? "text-emerald-600" : "text-red-600"
                     }`}
                   >
                     {fmtUsd(tableTotals.finalNet, currency)}
