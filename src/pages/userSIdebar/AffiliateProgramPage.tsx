@@ -1,9 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { ArrowRightLeft, Copy, Users, Wallet } from "lucide-react";
+import { ArrowRightLeft, Copy, Tag, Users, Wallet } from "lucide-react";
 import { plTextClass } from "@/utils/plColors";
+import { API_BASE } from "@/config/api";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+type AffiliateCoupon = {
+  id: number;
+  code: string;
+  name: string | null;
+  package_id: string;
+  package_name?: string | null;
+  discount_percent: number | null;
+  duration_days: number | null;
+  is_active: boolean;
+};
 
 const AffiliateProgramPage = () => {
   const raw = typeof window !== "undefined" ? localStorage.getItem("mt5_user") : null;
@@ -17,6 +27,8 @@ const AffiliateProgramPage = () => {
     directReferrals: number;
     commissionEvents: number;
     referralLinkPath: string;
+    referralKey?: string;
+    coupons?: AffiliateCoupon[];
   } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState("");
@@ -47,6 +59,8 @@ const AffiliateProgramPage = () => {
           directReferrals: Number(sRes.data.directReferrals ?? 0),
           commissionEvents: Number(sRes.data.commissionEvents ?? 0),
           referralLinkPath: String(sRes.data.referralLinkPath ?? ""),
+          referralKey: sRes.data.referralKey ? String(sRes.data.referralKey) : undefined,
+          coupons: Array.isArray(sRes.data.coupons) ? sRes.data.coupons : [],
         });
       }
       if (cRes.data.success) setRows(cRes.data.data ?? []);
@@ -176,6 +190,9 @@ const AffiliateProgramPage = () => {
         </div>
         <div className="border rounded-xl p-5 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Your referral link</p>
+          <p className="text-xs text-gray-600 mb-2">
+            Share this link — friends get your coupon discount automatically. No user ID in the URL.
+          </p>
           <div className="flex flex-wrap gap-2 items-center">
             <code className="text-xs bg-gray-100 px-2 py-1 rounded break-all flex-1 min-w-[200px]">
               {referralUrl || "Loading…"}
@@ -192,6 +209,42 @@ const AffiliateProgramPage = () => {
           </div>
         </div>
       </div>
+
+      {summary?.coupons && summary.coupons.length > 0 ? (
+        <div className="border rounded-xl p-5 shadow-sm mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag size={18} />
+            <h2 className="font-semibold">Your referral coupons</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Each coupon gives a % discount on a package. Your link applies the matching coupon; buyers can also enter the code at checkout.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-600">
+                  <th className="p-2 font-medium">Code</th>
+                  <th className="p-2 font-medium">Name</th>
+                  <th className="p-2 font-medium">Package</th>
+                  <th className="p-2 font-medium">Discount</th>
+                  <th className="p-2 font-medium">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.coupons.map((c) => (
+                  <tr key={c.id} className="border-b last:border-0">
+                    <td className="p-2 font-mono font-semibold">{c.code}</td>
+                    <td className="p-2">{c.name || "—"}</td>
+                    <td className="p-2">{c.package_name || c.package_id}</td>
+                    <td className="p-2">{c.discount_percent != null ? `${c.discount_percent}%` : "—"}</td>
+                    <td className="p-2">{c.duration_days != null ? `${c.duration_days} days` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <div className="border rounded-xl p-5 shadow-sm">

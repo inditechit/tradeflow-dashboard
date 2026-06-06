@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
+import { captureReferralKeyFromUrl } from "@/hooks/usePackages";
 import { Reveal } from "@/components/landing/Reveal";
 import { cn } from "@/lib/utils";
 import {
@@ -167,6 +168,10 @@ export default function LandingPage() {
     if (!isReady || !role) return;
     navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
   }, [isReady, role, navigate]);
+
+  useEffect(() => {
+    captureReferralKeyFromUrl();
+  }, []);
 
   const handleContact = (e: React.FormEvent) => {
     e.preventDefault();

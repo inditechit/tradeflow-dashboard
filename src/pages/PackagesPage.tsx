@@ -192,8 +192,20 @@ const PackagesPage = () => {
                     <span className="text-4xl font-extrabold text-emerald-600">FREE</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-extrabold text-slate-900">${pkg.price}</span>
-                      <span className="text-lg font-medium text-slate-400 line-through">
+                      <span className="text-4xl font-extrabold text-slate-900">
+                        ${pkg.hasDiscount ? pkg.discountedPrice : pkg.price}
+                      </span>
+                      {pkg.hasDiscount ? (
+                        <>
+                          <span className="text-lg font-medium text-slate-500 line-through">
+                            ${pkg.listPrice ?? pkg.price}
+                          </span>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                            -{pkg.discountPercent ?? 0}%
+                          </span>
+                        </>
+                      ) : null}
+                      <span className="text-sm font-medium text-slate-400 line-through">
                         ${pkg.originalPrice}
                       </span>
                     </>

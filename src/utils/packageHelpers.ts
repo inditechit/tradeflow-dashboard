@@ -11,11 +11,17 @@ export type ApiPackage = {
   fund_lock_days: number;
   price_usd: number;
   original_price_usd?: number | null;
+  discounted_price_usd?: number;
+  discount_amount_usd?: number;
+  discount_percent?: number;
+  has_discount?: boolean;
   is_trial: boolean;
   is_active: boolean;
   is_popular: boolean;
   sort_order: number;
   features: string[];
+  coupon_code?: string | null;
+  coupon_name?: string | null;
 };
 
 export const PACKAGE_ICONS: Record<string, LucideIcon> = {
@@ -51,7 +57,11 @@ export function apiPackageToUi(p: ApiPackage): SubscriptionPackage {
     name: p.name,
     duration: formatPackageDuration(p.duration_days),
     originalPrice: Number(p.original_price_usd ?? p.price_usd),
-    price: Number(p.price_usd),
+    price: Number(p.has_discount ? p.discounted_price_usd : p.price_usd),
+    listPrice: Number(p.price_usd),
+    discountedPrice: Number(p.discounted_price_usd ?? p.price_usd),
+    hasDiscount: Boolean(p.has_discount),
+    discountPercent: Number(p.discount_percent ?? 0),
     icon: Icon,
     description: p.description || "",
     features,

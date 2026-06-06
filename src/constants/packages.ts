@@ -16,6 +16,10 @@ export type SubscriptionPackage = {
   isTrial?: boolean;
   durationDays?: number;
   fundLockDays?: number;
+  listPrice?: number;
+  discountedPrice?: number;
+  hasDiscount?: boolean;
+  discountPercent?: number;
 };
 
 export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [

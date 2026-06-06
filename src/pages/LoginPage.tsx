@@ -5,6 +5,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useApp } from "@/context/AppContext";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
+import { captureReferralKeyFromUrl, getStoredReferralKey } from "@/hooks/usePackages";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 // Added a unique `widgetId` prop to prevent conflicts when rendering multiple widgets
@@ -116,6 +117,10 @@ const LoginPage = () => {
     navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
   }, [isReady, role, navigate]);
 
+  useEffect(() => {
+    captureReferralKeyFromUrl();
+  }, []);
+
   // 1. Changed state from telegram to email
   const [form, setForm] = useState({
     email: "",
@@ -187,10 +192,14 @@ const LoginPage = () => {
     setErrorMessage("");
     setIsSubmitting(true);
     try {
+      const storedRef = getStoredReferralKey();
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential }),
+        body: JSON.stringify({
+          credential,
+          ...(storedRef ? { ref_key: storedRef } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data?.success) {

@@ -190,13 +190,11 @@ const SignupPage = () => {
   // Handle URL parsing and cleaning immediately on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const refValue = params.get('ref');
+    const refValue = params.get("r") || params.get("ref");
 
     if (refValue) {
-      // Secretly save to sessionStorage
-      sessionStorage.setItem('referrer_code', refValue);
+      sessionStorage.setItem("referrer_key", refValue);
 
-      // Remove 'ref' from URL without a full page reload
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
     }
@@ -386,7 +384,7 @@ const SignupPage = () => {
     setDocsStatus('');
     setIsSubmitting(true);
 
-    const storedRef = sessionStorage.getItem('referrer_code');
+    const storedRef = sessionStorage.getItem("referrer_key");
 
     try {
       const payload = {
@@ -396,7 +394,7 @@ const SignupPage = () => {
         state: '',
         city: '',
         pincode: '',
-        ...(storedRef ? { ref: storedRef } : {}),
+        ...(storedRef ? { ref_key: storedRef } : {}),
       };
 
       const response = await fetch(`${API_BASE}/signup`, {
@@ -453,10 +451,14 @@ const SignupPage = () => {
     setErrorMessage("");
     setIsSubmitting(true);
     try {
+      const storedRef = sessionStorage.getItem("referrer_key");
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential }),
+        body: JSON.stringify({
+          credential,
+          ...(storedRef ? { ref_key: storedRef } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data?.success) {

@@ -9,6 +9,8 @@ import { QRCodeCanvas } from "qrcode.react";
 import { TRIAL_TERMS } from "@/constants/packages";
 import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
+import { API_BASE } from "@/config/api";
+import { getStoredReferralKey } from "@/hooks/usePackages";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -23,19 +25,91 @@ const PaymentPage = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
 
-  const API_BASE = 'https://api.copytradeengine.org/api';
-
   const [copied, setCopied] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(
     Boolean((location.state as { trialTermsAccepted?: boolean })?.trialTermsAccepted)
   );
+  const [couponCode, setCouponCode] = useState("");
+  const [couponPreview, setCouponPreview] = useState<{
+    code: string;
+    base_amount: number;
+    discount_amount: number;
+    final_amount: number;
+  } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
+  const displayPrice =
+    couponPreview?.final_amount ?? Number(selectedPackage?.price ?? 0);
+
+  useEffect(() => {
+    if (!selectedPackage || isTrial) return;
+    const referralKey = getStoredReferralKey();
+    if (!referralKey) return;
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/coupons/validate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ packageId: selectedPackage.id, r: referralKey }),
+        });
+        const data = await res.json();
+        if (data.success && Number(data.discount_amount) > 0) {
+          setCouponPreview({
+            code: data.code || "REFERRAL",
+            base_amount: Number(data.base_amount),
+            discount_amount: Number(data.discount_amount),
+            final_amount: Number(data.final_amount),
+          });
+        }
+      } catch {
+        // optional referral discount
+      }
+    })();
+  }, [selectedPackage, isTrial]);
 
   const formatAmount = () => {
     if (!paymentData?.amount) return 0;
     return Number(paymentData.amount).toFixed(0);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!selectedPackage || isTrial) return;
+    const code = couponCode.trim();
+    if (!code) {
+      setCouponError("Enter a coupon code");
+      setCouponPreview(null);
+      return;
+    }
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch(`${API_BASE}/coupons/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, packageId: selectedPackage.id }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setCouponPreview(null);
+        setCouponError(data.error || "Invalid coupon");
+        return;
+      }
+      setCouponPreview({
+        code: data.code,
+        base_amount: Number(data.base_amount),
+        discount_amount: Number(data.discount_amount),
+        final_amount: Number(data.final_amount),
+      });
+      setCouponCode(data.code);
+    } catch {
+      setCouponPreview(null);
+      setCouponError("Could not validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
   };
 
   const handleCreatePayment = async () => {
@@ -43,14 +117,23 @@ const PaymentPage = () => {
 
     try {
       setIsSubmitting(true);
+      setErrorMessage("");
+      const body: Record<string, unknown> = {
+        userId: currentUser.userId,
+        packageId: selectedPackage.id,
+        payment_method: "USDT",
+      };
+      if (couponPreview?.code && couponPreview.code !== "REFERRAL") {
+        body.coupon_code = couponPreview.code;
+      } else {
+        const referralKey = getStoredReferralKey();
+        if (referralKey) body.ref_key = referralKey;
+        else if (couponPreview?.code) body.coupon_code = couponPreview.code;
+      }
       const res = await fetch(`${API_BASE}/create-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUser.userId,
-          packageId: selectedPackage.id,
-          payment_method: 'USDT' // Strictly enforced as USDT
-        })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -263,10 +346,52 @@ const PaymentPage = () => {
                       <p className="text-sm text-slate-600 leading-relaxed">
                         You are about to make a payment of{" "}
                         <span className="font-semibold text-slate-800">
-                          ${paymentData ? formatAmount() : selectedPackage.price} USDT
+                          ${displayPrice.toFixed(0)} USDT
                         </span>
+                        {couponPreview ? (
+                          <span className="block mt-1 text-emerald-700 text-xs font-medium">
+                            Coupon {couponPreview.code} applied — saved $
+                            {couponPreview.discount_amount.toFixed(0)} (was $
+                            {couponPreview.base_amount.toFixed(0)})
+                          </span>
+                        ) : null}
                         . Once the transaction is successfully completed, it will be processed instantly.
                       </p>
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                          Have a coupon?
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            type="text"
+                            className="min-w-[140px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono uppercase"
+                            placeholder="COUPON CODE"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponPreview(null);
+                              setCouponError("");
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void handleApplyCoupon()}
+                            disabled={couponLoading}
+                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                          >
+                            {couponLoading ? "Checking…" : "Apply"}
+                          </button>
+                        </div>
+                        {couponError ? (
+                          <p className="mt-2 text-xs text-red-600">{couponError}</p>
+                        ) : null}
+                        {couponPreview ? (
+                          <p className="mt-2 text-xs text-emerald-700 font-medium">
+                            ✓ {couponPreview.code} — pay ${couponPreview.final_amount.toFixed(0)} instead of $
+                            {couponPreview.base_amount.toFixed(0)}
+                          </p>
+                        ) : null}
+                      </div>
                       <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
                         By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset settlements, all processed transactions are final and strictly non-refundable.
                       </p>
