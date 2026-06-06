@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { ArrowRightLeft, Copy, Users, Wallet } from "lucide-react";
+import { plTextClass } from "@/utils/plColors";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -289,7 +290,7 @@ const AffiliateProgramPage = () => {
                       ) : null}
                     </td>
                     <td className="p-3">{Number(r.percent_applied).toFixed(2)}%</td>
-                    <td className="p-3 font-medium text-emerald-700">
+                    <td className={`p-3 font-medium ${plTextClass(Number(r.commission_usd))}`}>
                       +{Number(r.commission_usd).toFixed(2)} USD
                     </td>
                   </tr>

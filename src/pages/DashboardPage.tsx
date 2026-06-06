@@ -10,6 +10,7 @@ import {
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
+import { plTextClass } from '@/utils/plColors';
 import { io } from 'socket.io-client';
 import {
   resolveEffectiveSlice,
@@ -599,7 +600,7 @@ const DashboardPage = () => {
               {loadingFinance ? (
                 <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
               ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${displayLivePl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-extrabold tabular-nums ${plTextClass(displayLivePl)}`}>
                   {displayLivePl > 0 ? '+' : ''}{formatMoneyAmount(displayLivePl, currency)}
                 </p>
               )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { plTextClass } from "@/utils/plColors";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -124,7 +125,7 @@ const AdminWalletLedgerPage = () => {
                     <span className="font-mono text-xs">{r.user_id}</span>{" "}
                     <span className="text-slate-700">{r.user_telegram ?? ""}</span>
                   </td>
-                  <td className={`p-3 font-mono ${Number(r.delta_usd) >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                  <td className={`p-3 font-mono ${plTextClass(Number(r.delta_usd))}`}>
                     {Number(r.delta_usd) >= 0 ? "+" : ""}
                     {Number(r.delta_usd).toFixed(4)}
                   </td>

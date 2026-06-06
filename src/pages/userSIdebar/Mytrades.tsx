@@ -10,6 +10,7 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { plBadgeClass, plDotClass } from "@/utils/plColors";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
@@ -273,17 +274,10 @@ const Mytrades = () => {
                     </div> */}
 
                     <div
-                      className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold
-                      ${
-                        isProfit
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                      className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold ${plBadgeClass(isProfit)}`}
                     >
                       <span
-                        className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${
-                          isProfit ? "bg-emerald-500" : "bg-red-500"
-                        } ${!isConnected ? "opacity-40" : ""}`}
+                        className={`w-2 h-2 rounded-full ${isConnected ? "animate-pulse" : ""} ${plDotClass(isProfit)} ${!isConnected ? "opacity-40" : ""}`}
                       />
 
                       {isProfit ? "+" : ""}

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
 import { rowUserFacingPl, type UserTradeRowLike } from "@/utils/userTradePl";
+import { plTextClass } from "@/utils/plColors";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -157,7 +158,7 @@ const TradeHistory = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          isProfit ? "text-emerald-600" : "text-red-600"
+                          isProfit ? plTextClass(pl) : plTextClass(-1)
                         }`}
                       >
                         {settled ? "" : "~"}
@@ -165,7 +166,7 @@ const TradeHistory = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-semibold tabular-nums ${
-                          wPl >= 0 ? "text-emerald-700" : "text-red-600"
+                          wPl >= 0 ? plTextClass(wPl) : plTextClass(-1)
                         }`}
                         title="Your share credited on withdraw (profit % after fee; losses full)"
                       >

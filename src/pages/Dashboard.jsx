@@ -13,6 +13,7 @@ import {
   Percent,
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
+import { plBadgeClass, plDotClass, plTextClass } from "@/utils/plColors";
 import { API_BASE, SOCKET_URL } from "@/config/api";
 
 const socket = io(SOCKET_URL, {
@@ -252,26 +253,9 @@ const Dashboard = () => {
     </div>
   );
 
-  const plColor =
-  stats.floatingPl > 0
-    ? "text-yellow-700"
-    : stats.floatingPl < 0
-    ? "text-red-600"
-    : "text-gray-500";
-
-    const combinedColor =
-  stats.combinedNet > 0
-    ? "text-yellow-700"
-    : stats.combinedNet < 0
-    ? "text-red-600"
-    : "text-gray-500";
-
-    const realizedColor =
-  stats.realizedNet > 0
-    ? "text-yellow-700"
-    : stats.realizedNet < 0
-    ? "text-red-600"
-    : "text-gray-500";
+  const plColor = plTextClass(stats.floatingPl);
+  const combinedColor = plTextClass(stats.combinedNet);
+  const realizedColor = plTextClass(stats.realizedNet);
 
   return (
     <div className="max-w-7xl mx-auto p-4">
@@ -352,7 +336,7 @@ const Dashboard = () => {
             `Sum of in-app balances · ${platformTotals.liveUsers} users online`
           )}
           {statCard(
-            <PieChart className="h-4 w-4 text-yellow-700" />,
+            <PieChart className={`h-4 w-4 ${plColor}`} />,
             "Master floating P/L (open)",
             <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
             "Full broker position profit — compare trend, not 1:1 with one user"
@@ -364,15 +348,15 @@ const Dashboard = () => {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
 
          {statCard(
-          <TrendingUp className="h-4 w-4 text-green-600" />,
+          <TrendingUp className="h-4 w-4 text-emerald-600" />,
           "Realized profit",
-          fmtMoney(stats.realizedProfit),
+          <span className="text-emerald-600">{fmtMoney(stats.realizedProfit)}</span>,
           "CLOSED trades with profit &gt; 0 only."
         )}
         {statCard(
           <TrendingDown className="h-4 w-4 text-red-500" />,
           "Realized loss",
-          fmtMoney(stats.realizedLoss),
+          <span className="text-red-600">{fmtMoney(stats.realizedLoss)}</span>,
           "CLOSED trades with profit &lt; 0 (absolute sum)."
         )}
 
@@ -471,16 +455,11 @@ const Dashboard = () => {
                   <div className="text-right">
                     <div className="text-sm text-slate-600">{trade.price}</div>
                     <div
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold shadow-sm
-    ${isProfit
-                          ? "bg-[#FFF9E6] text-neutral-900"
-                          : "bg-red-100 text-red-700"
-                        }`}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${plBadgeClass(isProfit)}`}
                     >
                       <span
-                        className={`animate-pulse w-2 h-2 rounded-full ${isProfit ? "bg-[#FFF9E6]0" : "bg-red-500"
-                          }`}
-                      ></span>
+                        className={`animate-pulse w-2 h-2 rounded-full ${plDotClass(isProfit)}`}
+                      />
 
                       {isProfit ? "+" : ""}
                       {trade.profit}

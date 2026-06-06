@@ -13,6 +13,7 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { plBadgeClass, plTextClass } from "@/utils/plColors";
 
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
@@ -301,7 +302,7 @@ const ProfitLoss = () => {
         </button>
       </div>
 
-      {/* <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
         {cards.map((c) => {
           const Icon = c.icon;
           const toneCls =
@@ -324,7 +325,7 @@ const ProfitLoss = () => {
             </div>
           );
         })}
-      </section> */}
+      </section>
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
         <div className="px-6 py-4 border-b border-slate-100">
@@ -414,7 +415,7 @@ const ProfitLoss = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          grossProfit ? "text-emerald-600" : "text-red-600"
+                          grossProfit ? plTextClass(1) : plTextClass(-1)
                         }`}
                       >
                         {open ? "~" : ""}
@@ -422,7 +423,7 @@ const ProfitLoss = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          finalProfit ? "text-emerald-600" : "text-red-600"
+                          finalProfit ? plTextClass(1) : plTextClass(-1)
                         }`}
                       >
                         {open ? "~" : ""}
@@ -476,14 +477,14 @@ const ProfitLoss = () => {
                   </td>
                   <td
                     className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.grossNet >= 0 ? "text-emerald-600" : "text-red-600"
+                      tableTotals.grossNet >= 0 ? plTextClass(tableTotals.grossNet) : plTextClass(-1)
                     }`}
                   >
                     {fmtUsd(tableTotals.grossNet, currency)}
                   </td>
                   <td
                     className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.finalNet >= 0 ? "text-emerald-600" : "text-red-600"
+                      tableTotals.finalNet >= 0 ? plTextClass(tableTotals.finalNet) : plTextClass(-1)
                     }`}
                   >
                     {fmtUsd(tableTotals.finalNet, currency)}
