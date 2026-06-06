@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
@@ -33,6 +34,7 @@ type ReferrerFilter = {
 };
 
 const AdminReferralsPage = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<RefRow[]>([]);
   const [top, setTop] = useState<TopRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -97,6 +99,10 @@ const AdminReferralsPage = () => {
     return r.referrer_id ? `#${r.referrer_id}` : "—";
   };
 
+  const openProfile = (id: number) => {
+    navigate(`/admin/user-profile/${id}`);
+  };
+
   if (loading && rows.length === 0) {
     return (
       <div className="flex justify-center py-20">
@@ -108,9 +114,9 @@ const AdminReferralsPage = () => {
   return (
     <div className="mx-auto max-w-[1600px] space-y-8 p-6 md:p-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Referrals</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Refer a friend</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Click a referrer name to show everyone who signed up through them.
+          Click a user name to open their profile. Referrer names filter the list.
         </p>
       </div>
 
@@ -173,9 +179,29 @@ const AdminReferralsPage = () => {
                   const canFilter = r.referrer_id != null && refName !== "—";
                   return (
                     <tr key={r.id} className="border-t border-slate-100">
-                      <td className="p-3 font-mono">{r.id}</td>
+                      <td className="p-3 font-mono">
+                        <button
+                          type="button"
+                          onClick={() => openProfile(r.id)}
+                          className="font-medium text-indigo-700 underline-offset-2 hover:underline"
+                        >
+                          {r.id}
+                        </button>
+                      </td>
                       <td className="p-3">{r.telegram ?? "—"}</td>
-                      <td className="p-3">{r.name ?? "—"}</td>
+                      <td className="p-3">
+                        {r.name ? (
+                          <button
+                            type="button"
+                            onClick={() => openProfile(r.id)}
+                            className="text-left font-medium text-slate-800 underline-offset-2 hover:text-indigo-700 hover:underline"
+                          >
+                            {r.name}
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className="p-3">{r.referrer_id ?? "—"}</td>
                       <td className="p-3">
                         {canFilter ? (
@@ -184,12 +210,13 @@ const AdminReferralsPage = () => {
                             onClick={() =>
                               filterByReferrer(Number(r.referrer_id), refName)
                             }
+                            onDoubleClick={() => openProfile(Number(r.referrer_id))}
                             className={`text-left font-medium underline-offset-2 hover:underline ${
                               referrerFilter?.id === r.referrer_id
                                 ? "text-indigo-700"
                                 : "text-slate-800 hover:text-indigo-700"
                             }`}
-                            title="Show all users referred by this person"
+                            title="Click to filter · double-click to open profile"
                           >
                             {refName}
                           </button>
@@ -242,9 +269,11 @@ const AdminReferralsPage = () => {
                   <button
                     type="button"
                     onClick={() => filterByReferrer(t.user_id, label)}
+                    onDoubleClick={() => openProfile(t.user_id)}
                     className={`flex w-full items-start gap-2 p-3 text-left transition hover:bg-indigo-50/60 ${
                       active ? "bg-indigo-50" : ""
                     }`}
+                    title="Click to filter · double-click to open profile"
                   >
                     <span className="w-6 shrink-0 pt-1 font-mono text-xs text-slate-500">{i + 1}.</span>
                     <div className="min-w-0 flex-1">

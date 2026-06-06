@@ -108,7 +108,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     // { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },
-    { name: "Affiliate", icon: Share2, path: "/user/affiliate" },
+    { name: "Refer a friend", icon: Share2, path: "/user/affiliate" },
     { name: "Support", icon: LifeBuoy, path: "/user/support", showUnread: true },
     { name: "Profile", icon: User, path: "/user/profile" },
   ] as Array<{ name: string; icon: typeof LayoutDashboard; path: string; showUnread?: boolean }>;

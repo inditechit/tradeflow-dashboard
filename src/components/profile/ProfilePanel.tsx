@@ -62,6 +62,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const [pwdConfirm, setPwdConfirm] = useState("");
   const [pwdSending, setPwdSending] = useState(false);
   const [pwdSubmitting, setPwdSubmitting] = useState(false);
+  const [affiliateTierCycles, setAffiliateTierCycles] = useState(1);
+  const [affiliateTierSaving, setAffiliateTierSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,6 +97,22 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!showAdminExtras || !targetUserId) return;
+    const loadAffiliate = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/affiliate/summary/${targetUserId}`);
+        const data = await res.json();
+        if (data.success) {
+          setAffiliateTierCycles(Number(data.affiliateTierCycles ?? 1) || 1);
+        }
+      } catch {
+        /* optional */
+      }
+    };
+    loadAffiliate();
+  }, [showAdminExtras, targetUserId]);
 
   /** Deep-link from withdraw flow: /user/profile#trc20-payout */
   const scrollToTrc20 = useCallback(() => {
@@ -201,6 +219,37 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       toast({ title: "Update failed", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveAffiliateTierCycles = async () => {
+    if (!showAdminExtras || currentUser?.role !== "admin") return;
+    const n = Math.floor(Number(affiliateTierCycles));
+    if (!Number.isFinite(n) || n < 1 || n > 100) {
+      toast({ title: "Invalid value", description: "Use 1–100 tier cycles.", variant: "destructive" });
+      return;
+    }
+    setAffiliateTierSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${targetUserId}/affiliate-settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ affiliate_tier_cycles: n }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAffiliateTierCycles(Number(data.affiliate_tier_cycles ?? n));
+        toast({
+          title: "Refer-a-friend cycles updated",
+          description: `${n} cycle(s) × 4 tier referrals before 10% flat.`,
+        });
+      } else {
+        toast({ title: "Update failed", description: data.error ?? "", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Update failed", variant: "destructive" });
+    } finally {
+      setAffiliateTierSaving(false);
     }
   };
 
@@ -365,6 +414,42 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
                     <SelectItem value="rejected">rejected</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {showAdminExtras && isAdmin && (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Refer a friend
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Tier bonus cycles before 10% flat (each cycle = 4 direct referrals&apos; first packages).
+                </p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <Label htmlFor="aff-tier-cycles" className={fieldLabelClass}>
+                      Tier cycles (N × 4 referrals)
+                    </Label>
+                    <Input
+                      id="aff-tier-cycles"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={affiliateTierCycles}
+                      onChange={(e) => setAffiliateTierCycles(Number(e.target.value))}
+                      className={fieldInputClass}
+                      disabled={affiliateTierSaving}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-[#FFD700] font-semibold text-black hover:bg-[#E6C200]"
+                    disabled={affiliateTierSaving}
+                    onClick={saveAffiliateTierCycles}
+                  >
+                    {affiliateTierSaving ? "Saving…" : "Save cycles"}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

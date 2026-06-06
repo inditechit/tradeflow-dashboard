@@ -72,8 +72,10 @@ const AffiliateRulesAdminPage = () => {
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-2">Affiliate commission rules</h1>
       <p className="text-sm text-slate-500 mb-4">
-        Set percentage <strong>per level</strong> (1 = direct upline … 4).{" "}
-        <strong>Min / Max USD</strong> are optional brackets: they match the <em>gross</em> recharge amount (e.g. only pay these % if recharge is between min and max).
+        Set percentage <strong>per level</strong> (1 = direct referrer … 4 = fourth upline).{" "}
+        <strong>Min / Max USD</strong> match the referred user&apos;s <em>first package</em> price.
+        First <strong>4 direct referrals</strong> per cycle use these rules (4 levels); after that, direct referrer gets{" "}
+        <strong>10% flat</strong> on each new referral&apos;s first package only.
       </p>
       <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-slate-800">
         <p className="font-semibold text-neutral-900 mb-1">How payouts are calculated</p>

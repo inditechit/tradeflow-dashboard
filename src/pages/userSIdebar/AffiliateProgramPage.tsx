@@ -74,9 +74,10 @@ const AffiliateProgramPage = () => {
   return (
     <div className="w-full min-h-screen bg-white p-8 text-black">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Affiliate Program</h1>
+        <h1 className="text-3xl font-bold">Refer a friend</h1>
         <p className="text-gray-600 text-sm mt-1">
-          Share your link. When your referrals recharge their wallet, you earn up to 4 levels deep — percentages are set by admin.
+          Share your link. When someone you refer buys their <strong>first package</strong>, you earn commission —
+          tier bonuses for your first 4 referrals per cycle (up to 4 levels deep), then 10% flat on later referrals.
         </p>
       </div>
 
@@ -129,7 +130,7 @@ const AffiliateProgramPage = () => {
                 <th className="p-3 font-medium">Date</th>
                 <th className="p-3 font-medium">Level</th>
                 <th className="p-3 font-medium">From user</th>
-                <th className="p-3 font-medium">Recharge</th>
+                <th className="p-3 font-medium">Package</th>
                 <th className="p-3 font-medium">%</th>
                 <th className="p-3 font-medium">You earned</th>
               </tr>
@@ -138,7 +139,7 @@ const AffiliateProgramPage = () => {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-6 text-center text-gray-500">
-                    No commissions yet. Share your link and wait for referrals to recharge.
+                    No commissions yet. Share your link — earnings start when a referral buys their first package.
                   </td>
                 </tr>
               ) : (
@@ -149,7 +150,12 @@ const AffiliateProgramPage = () => {
                     </td>
                     <td className="p-3">{r.level}</td>
                     <td className="p-3">{r.source_telegram || `#${r.source_user_id}`}</td>
-                    <td className="p-3">{Number(r.recharge_amount_usd).toFixed(2)} USD</td>
+                    <td className="p-3">
+                      {Number(r.purchase_amount_usd ?? r.recharge_amount_usd ?? 0).toFixed(2)} USD
+                      {r.package_id ? (
+                        <span className="block text-xs text-gray-500">{r.package_id}</span>
+                      ) : null}
+                    </td>
                     <td className="p-3">{Number(r.percent_applied).toFixed(2)}%</td>
                     <td className="p-3 font-medium text-yellow-800">
                       +{Number(r.commission_usd).toFixed(2)} USD
