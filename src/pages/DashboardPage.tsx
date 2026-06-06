@@ -228,7 +228,7 @@ const DashboardPage = () => {
         const isSoft = summaryData.soft_bust === true;
         setIsBusted(busted);
         setSoftBust(isSoft);
-        if (busted && !isSoft) {
+        if (busted && !isSoft && Number(summaryData.wallet_balance ?? 0) <= 0.01) {
           setWallet({ balance: 0, currency: summaryData.currency || "USD" });
           setPendingClosedPl(0);
           setLivePl(0);
