@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, Loader2, Search, Send, Users, Zap } from "lucide-react";
+import { Bell, Loader2, Search, Send, Trash2, Users, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,10 @@ const PACKAGE_FILTER_OPTIONS = [
   { value: "1-year", label: "1 Year Pack" },
 ];
 
+function isCustomRule(ruleKey: string) {
+  return ruleKey.startsWith("custom_");
+}
+
 type RecipientUser = {
   id: number;
   name: string;
@@ -70,6 +74,7 @@ const AdminNotificationsPage = () => {
   const [users, setUsers] = useState<RecipientUser[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadRules = useCallback(async () => {
     setLoadingRules(true);
@@ -237,6 +242,29 @@ const AdminNotificationsPage = () => {
         description: e instanceof Error ? e.message : "Error",
         variant: "destructive",
       });
+    }
+  };
+
+  const deleteRule = async (rule: AutomationRule) => {
+    if (!isCustomRule(rule.rule_key)) return;
+    if (!window.confirm(`Delete rule "${rule.title}"? This cannot be undone.`)) return;
+    setDeletingId(rule.id);
+    try {
+      const res = await fetch(`${API_BASE}/admin/notifications/automation-rules/${rule.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      toast({ title: "Rule deleted" });
+      setRules((prev) => prev.filter((r) => r.id !== rule.id));
+    } catch (e: unknown) {
+      toast({
+        title: "Delete failed",
+        description: e instanceof Error ? e.message : "Error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -632,9 +660,29 @@ const AdminNotificationsPage = () => {
                     </>
                   )}
                 </div>
-                <Button type="button" size="sm" className="mt-3" onClick={() => saveRule(rule)}>
-                  Save rule
-                </Button>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" onClick={() => saveRule(rule)}>
+                    Save rule
+                  </Button>
+                  {isCustomRule(rule.rule_key) ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={deletingId === rule.id}
+                      onClick={() => void deleteRule(rule)}
+                    >
+                      {deletingId === rule.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Delete
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-slate-400">Built-in rule — use Active toggle to disable</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
