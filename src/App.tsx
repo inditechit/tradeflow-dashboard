@@ -48,6 +48,8 @@ import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
 import AdminMaintenancePage from "./pages/AdminMaintenancePage";
+import AdminNotificationsPage from "./pages/AdminNotificationsPage";
+import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import LandingPage from "./pages/LandingPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
@@ -100,6 +102,7 @@ const App = () => (
               <Route path="post-signup" element={<PostSignupOnboardingPage />} />
               <Route path="required-setup" element={<RequiredSetupPage />} />
               <Route path="affiliate" element={<AffiliateProgramPage />} />
+              <Route path="notifications" element={<UserNotificationsPage />} />
               <Route path="profile" element={<My_Profile />} />
               <Route path="support" element={<SupportTicketsPage />} />
 
@@ -129,6 +132,7 @@ const App = () => (
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />
+              <Route path="notifications" element={<AdminNotificationsPage />} />
 
             </Route>
 

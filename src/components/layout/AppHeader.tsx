@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useApp } from "@/context/AppContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
 import { proofImageSrc } from "@/components/profile/ProfilePanel";
@@ -114,6 +115,10 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
           >
             {walletLabel}
           </button>
+        ) : null}
+
+        {variant === "user" ? (
+          <NotificationBell userId={currentUser.userId} />
         ) : null}
 
       <DropdownMenu>

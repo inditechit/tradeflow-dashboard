@@ -13,6 +13,7 @@ import {
   BarChart3,
   Package,
   ShieldAlert,
+  Bell,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -109,6 +110,7 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },
     { name: "Refer a friend", icon: Share2, path: "/user/affiliate" },
+    { name: "Notifications", icon: Bell, path: "/user/notifications" },
     { name: "Support", icon: LifeBuoy, path: "/user/support", showUnread: true },
     { name: "Profile", icon: User, path: "/user/profile" },
   ] as Array<{ name: string; icon: typeof LayoutDashboard; path: string; showUnread?: boolean }>;

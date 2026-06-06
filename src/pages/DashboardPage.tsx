@@ -11,6 +11,7 @@ import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { plTextClass } from '@/utils/plColors';
+import { DashboardNotificationsBanner } from '@/components/notifications/DashboardNotificationsBanner';
 import { io } from 'socket.io-client';
 import {
   resolveEffectiveSlice,
@@ -472,8 +473,11 @@ const DashboardPage = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
+        {currentUser?.role !== 'admin' && (
+          <DashboardNotificationsBanner userId={currentUser?.userId} />
+        )}
         
-        {/* Header Profile Card */}  
+        {/* Header Profile Card */}
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-neutral-900/8 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center border border-yellow-200 text-neutral-900">

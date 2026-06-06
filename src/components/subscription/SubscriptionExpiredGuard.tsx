@@ -5,6 +5,7 @@ import PlanExpiredOverlay from "./PlanExpiredOverlay";
 const WITHDRAW_PATH = "/user/withdraw";
 const DASHBOARD_PATH = "/user/dashboard";
 const POST_SIGNUP_PATH = "/user/post-signup";
+const NOTIFICATIONS_PATH = "/user/notifications";
 
 type Props = { children: React.ReactNode };
 
@@ -13,7 +14,9 @@ function pathAllowed(pathname: string) {
   const w = pathname === WITHDRAW_PATH || pathname.startsWith(`${WITHDRAW_PATH}/`);
   const onboard =
     pathname === POST_SIGNUP_PATH || pathname.startsWith(`${POST_SIGNUP_PATH}/`);
-  return dash || w || onboard;
+  const notifications =
+    pathname === NOTIFICATIONS_PATH || pathname.startsWith(`${NOTIFICATIONS_PATH}/`);
+  return dash || w || onboard || notifications;
 }
 
 /** Blocks main content with a non-skippable modal when there is no active package or plan expired. */

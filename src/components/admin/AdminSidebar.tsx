@@ -15,6 +15,7 @@ import {
   Headphones,
   Map as MapIcon,
   Construction,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
     { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
     { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
+    { name: "Notifications", icon: Bell, path: "/admin/notifications" },
     { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
     { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
     { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
