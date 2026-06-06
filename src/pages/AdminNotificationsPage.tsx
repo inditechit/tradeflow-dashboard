@@ -17,7 +17,36 @@ type AutomationRule = {
   trigger_type: string;
   trigger_value: number;
   is_active: number;
+  package_filter?: string | null;
+  min_amount?: number | string | null;
+  max_amount?: number | string | null;
 };
+
+const TRIGGER_LABELS: Record<string, string> = {
+  user_signup: "When user signs up",
+  days_after_signup: "Days after signup",
+  days_before_expiry: "Days before package expires",
+  on_recharge_success: "When recharge succeeds",
+  on_package_purchase: "When package purchase succeeds",
+};
+
+const TRIGGER_TYPES = [
+  "user_signup",
+  "days_after_signup",
+  "days_before_expiry",
+  "on_recharge_success",
+  "on_package_purchase",
+] as const;
+
+const PACKAGE_FILTER_OPTIONS = [
+  { value: "", label: "Any package / recharge" },
+  { value: "recharge", label: "Wallet recharge only" },
+  { value: "7-day-trial", label: "7-day trial" },
+  { value: "1-month", label: "1 Month Pack" },
+  { value: "3-month", label: "3 Month Pack" },
+  { value: "6-month", label: "6 Month Pack" },
+  { value: "1-year", label: "1 Year Pack" },
+];
 
 type RecipientUser = {
   id: number;
@@ -27,12 +56,6 @@ type RecipientUser = {
 };
 
 type TargetMode = "all" | "selected";
-
-const TRIGGER_LABELS: Record<string, string> = {
-  user_signup: "When user signs up",
-  days_after_signup: "Days after signup",
-  days_before_expiry: "Days before package expires",
-};
 
 const AdminNotificationsPage = () => {
   const { toast } = useToast();
@@ -199,6 +222,9 @@ const AdminNotificationsPage = () => {
           trigger_type: rule.trigger_type,
           trigger_value: rule.trigger_value,
           is_active: rule.is_active,
+          package_filter: rule.package_filter ?? null,
+          min_amount: rule.min_amount ?? null,
+          max_amount: rule.max_amount ?? null,
         }),
       });
       const data = await res.json();
@@ -208,6 +234,39 @@ const AdminNotificationsPage = () => {
     } catch (e: unknown) {
       toast({
         title: "Save failed",
+        description: e instanceof Error ? e.message : "Error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const createRule = async () => {
+    const ruleKey = `custom_${Date.now()}`;
+    try {
+      const res = await fetch(`${API_BASE}/admin/notifications/automation-rules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rule_key: ruleKey,
+          ruleKey,
+          title: "New automatic notification",
+          message:
+            "Hello {user_name}! Your payment of ${amount} USD for {package_name} was successful. Invoice {invoice_number}.",
+          link_url: "/user/invoices",
+          trigger_type: "on_recharge_success",
+          triggerType: "on_recharge_success",
+          trigger_value: 0,
+          is_active: 0,
+          package_filter: "",
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      toast({ title: "Rule created", description: "Edit the new rule below and save." });
+      loadRules();
+    } catch (e: unknown) {
+      toast({
+        title: "Create failed",
         description: e instanceof Error ? e.message : "Error",
         variant: "destructive",
       });
@@ -405,13 +464,20 @@ const AdminNotificationsPage = () => {
             <Zap className="h-5 w-5" />
             Automatic notifications
           </h2>
+          <Button type="button" variant="outline" size="sm" onClick={createRule}>
+            Add rule
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={runAutomationNow}>
-            Run automation now
+            Run time-based automation
           </Button>
         </div>
         <p className="mb-4 text-sm text-slate-500">
-          Default rules: welcome on signup, check-in after N days, package expiry reminder. System runs
-          every 6 hours automatically.
+          Payment rules fire instantly when a recharge or package payment succeeds. Time-based rules
+          (signup, days after signup, expiry) run every 6 hours. Use placeholders:{" "}
+          <code className="rounded bg-slate-100 px-1">{`{amount}`}</code>,{" "}
+          <code className="rounded bg-slate-100 px-1">{`{package_name}`}</code>,{" "}
+          <code className="rounded bg-slate-100 px-1">{`{invoice_number}`}</code>,{" "}
+          <code className="rounded bg-slate-100 px-1">{`{user_name}`}</code>.
         </p>
         {loadingRules ? (
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-slate-400" />
@@ -467,6 +533,105 @@ const AdminNotificationsPage = () => {
                     )
                   }
                 />
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <Label className="text-xs text-slate-500">Trigger</Label>
+                    <select
+                      className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      value={rule.trigger_type}
+                      onChange={(e) =>
+                        setRules((prev) =>
+                          prev.map((r) =>
+                            r.id === rule.id ? { ...r, trigger_type: e.target.value } : r,
+                          ),
+                        )
+                      }
+                    >
+                      {TRIGGER_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {TRIGGER_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {(rule.trigger_type === "days_after_signup" ||
+                    rule.trigger_type === "days_before_expiry") && (
+                    <div>
+                      <Label className="text-xs text-slate-500">Days</Label>
+                      <Input
+                        type="number"
+                        className="mt-1"
+                        value={rule.trigger_value}
+                        onChange={(e) =>
+                          setRules((prev) =>
+                            prev.map((r) =>
+                              r.id === rule.id
+                                ? { ...r, trigger_value: Number(e.target.value) || 0 }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+                  {(rule.trigger_type === "on_recharge_success" ||
+                    rule.trigger_type === "on_package_purchase") && (
+                    <>
+                      <div>
+                        <Label className="text-xs text-slate-500">Package filter</Label>
+                        <select
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                          value={rule.package_filter ?? ""}
+                          onChange={(e) =>
+                            setRules((prev) =>
+                              prev.map((r) =>
+                                r.id === rule.id ? { ...r, package_filter: e.target.value || null } : r,
+                              ),
+                            )
+                          }
+                        >
+                          {PACKAGE_FILTER_OPTIONS.map((opt) => (
+                            <option key={opt.value || "any"} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">Min amount (USD)</Label>
+                        <Input
+                          type="number"
+                          className="mt-1"
+                          placeholder="Any"
+                          value={rule.min_amount ?? ""}
+                          onChange={(e) =>
+                            setRules((prev) =>
+                              prev.map((r) =>
+                                r.id === rule.id ? { ...r, min_amount: e.target.value || null } : r,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">Max amount (USD)</Label>
+                        <Input
+                          type="number"
+                          className="mt-1"
+                          placeholder="Any"
+                          value={rule.max_amount ?? ""}
+                          onChange={(e) =>
+                            setRules((prev) =>
+                              prev.map((r) =>
+                                r.id === rule.id ? { ...r, max_amount: e.target.value || null } : r,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
                 <Button type="button" size="sm" className="mt-3" onClick={() => saveRule(rule)}>
                   Save rule
                 </Button>

@@ -6,6 +6,7 @@ const WITHDRAW_PATH = "/user/withdraw";
 const DASHBOARD_PATH = "/user/dashboard";
 const POST_SIGNUP_PATH = "/user/post-signup";
 const NOTIFICATIONS_PATH = "/user/notifications";
+const INVOICES_PATH = "/user/invoices";
 
 type Props = { children: React.ReactNode };
 
@@ -16,7 +17,8 @@ function pathAllowed(pathname: string) {
     pathname === POST_SIGNUP_PATH || pathname.startsWith(`${POST_SIGNUP_PATH}/`);
   const notifications =
     pathname === NOTIFICATIONS_PATH || pathname.startsWith(`${NOTIFICATIONS_PATH}/`);
-  return dash || w || onboard || notifications;
+  const invoices = pathname === INVOICES_PATH || pathname.startsWith(`${INVOICES_PATH}/`);
+  return dash || w || onboard || notifications || invoices;
 }
 
 /** Blocks main content with a non-skippable modal when there is no active package or plan expired. */
