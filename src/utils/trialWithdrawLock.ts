@@ -1,38 +1,71 @@
 import type { SubscriptionSegment } from "@/hooks/useSubscriptionStatus";
-import { TRIAL_WITHDRAW_NOTICE } from "@/constants/packages";
 
-export type TrialWithdrawLock = {
+export type PackageFundWithdrawLock = {
   locked: boolean;
   trialActive: boolean;
   unlockAt: string | null;
   daysRemaining: number;
   message: string | null;
+  packageName: string | null;
 };
 
-/** Client-side trial fund lock — uses existing /user/subscription data only. */
-export function getTrialWithdrawLock(
+/** Fund-lock from active subscription segment (dynamic package days from admin). */
+export function getPackageFundWithdrawLock(
   isActive: boolean,
   activeSegment: SubscriptionSegment | null,
-): TrialWithdrawLock {
-  if (!isActive || !activeSegment || activeSegment.packageId !== "7-day-trial") {
+  withdrawLock?: {
+    locked?: boolean;
+    unlockAt?: string | null;
+    daysRemaining?: number;
+    packageName?: string | null;
+    isTrial?: boolean;
+  } | null,
+): PackageFundWithdrawLock {
+  const unlocked: PackageFundWithdrawLock = {
+    locked: false,
+    trialActive: false,
+    unlockAt: null,
+    daysRemaining: 0,
+    message: null,
+    packageName: null,
+  };
+
+  if (withdrawLock?.locked && withdrawLock.unlockAt) {
+    const name = withdrawLock.packageName || "your plan";
+    const days = Number(withdrawLock.daysRemaining ?? 0);
     return {
-      locked: false,
-      trialActive: false,
-      unlockAt: null,
-      daysRemaining: 0,
-      message: null,
+      locked: true,
+      trialActive: Boolean(withdrawLock.isTrial),
+      unlockAt: withdrawLock.unlockAt,
+      daysRemaining: days,
+      packageName: withdrawLock.packageName ?? null,
+      message: withdrawLock.isTrial
+        ? `Free trial — funds locked for ${days} day${days === 1 ? "" : "s"}. Stop trading anytime; withdrawal opens when the trial ends.`
+        : `${name} — withdrawals locked for ${days} more day${days === 1 ? "" : "s"}.`,
     };
   }
 
-  const end = new Date(activeSegment.periodEnd);
-  const msLeft = end.getTime() - Date.now();
+  if (!isActive || !activeSegment?.fundLockUntil) return unlocked;
+
+  const until = new Date(activeSegment.fundLockUntil);
+  if (until.getTime() <= Date.now()) return unlocked;
+
+  const msLeft = until.getTime() - Date.now();
   const daysRemaining = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+  const isTrial = Boolean(activeSegment.isTrial);
+  const lockDays = activeSegment.fundLockDays ?? activeSegment.durationDays;
 
   return {
     locked: true,
-    trialActive: true,
-    unlockAt: activeSegment.periodEnd,
+    trialActive: isTrial,
+    unlockAt: activeSegment.fundLockUntil,
     daysRemaining,
-    message: `${TRIAL_WITHDRAW_NOTICE} You can stop trading anytime; withdrawal opens when the trial ends.`,
+    packageName: activeSegment.packageName ?? null,
+    message: isTrial
+      ? `Free trial — funds locked for ${lockDays} day${lockDays === 1 ? "" : "s"}. Stop trading anytime; withdrawal opens when the trial ends.`
+      : `${activeSegment.packageName} — withdrawals locked until ${until.toLocaleDateString()}.`,
   };
 }
+
+/** @deprecated use getPackageFundWithdrawLock */
+export const getTrialWithdrawLock = getPackageFundWithdrawLock;

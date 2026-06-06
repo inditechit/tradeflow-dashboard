@@ -11,6 +11,19 @@ export type SubscriptionSegment = {
   periodStart: string;
   periodEnd: string;
   durationDays: number;
+  fundLockDays?: number;
+  fundLockUntil?: string | null;
+  locksWithdraw?: boolean;
+  isTrial?: boolean;
+};
+
+export type WithdrawLockInfo = {
+  locked: boolean;
+  unlockAt: string | null;
+  daysRemaining: number;
+  packageId: string | null;
+  packageName: string | null;
+  isTrial: boolean;
 };
 
 export type RestrictionReason = "none" | "no_package" | "expired";
@@ -25,6 +38,7 @@ export type SubscriptionStatus = {
   expiresAt: string | null;
   segments: SubscriptionSegment[];
   activeSegment: SubscriptionSegment | null;
+  withdrawLock: WithdrawLockInfo | null;
   /** No active plan (never bought, or stacked period ended) — full app gated except dashboard + withdraw + onboarding. */
   accessRestricted: boolean;
   restrictionReason: RestrictionReason;
@@ -39,6 +53,7 @@ const EMPTY: Omit<SubscriptionStatus, "loading" | "refetch" | "accessRestricted"
   expiresAt: null,
   segments: [],
   activeSegment: null,
+  withdrawLock: null,
 };
 
 export function useSubscriptionStatus(): SubscriptionStatus {
@@ -70,6 +85,7 @@ export function useSubscriptionStatus(): SubscriptionStatus {
         expiresAt: json.expiresAt ?? null,
         segments: Array.isArray(json.segments) ? json.segments : [],
         activeSegment: json.activeSegment ?? null,
+        withdrawLock: json.withdrawLock ?? null,
       });
     } catch {
       setData(EMPTY);

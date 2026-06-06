@@ -14,6 +14,8 @@ export type SubscriptionPackage = {
   subtitle?: string;
   /** Free trial — terms + no USDT payment */
   isTrial?: boolean;
+  durationDays?: number;
+  fundLockDays?: number;
 };
 
 export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [

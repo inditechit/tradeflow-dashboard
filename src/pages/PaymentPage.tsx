@@ -6,7 +6,7 @@ import {
   ShieldCheck, ArrowRight, Copy, Check
 } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
-import { isTrialPackageId, TRIAL_TERMS } from "@/constants/packages";
+import { TRIAL_TERMS } from "@/constants/packages";
 import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 
@@ -31,7 +31,7 @@ const PaymentPage = () => {
     Boolean((location.state as { trialTermsAccepted?: boolean })?.trialTermsAccepted)
   );
 
-  const isTrial = selectedPackage ? isTrialPackageId(selectedPackage.id) : false;
+  const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
 
   const formatAmount = () => {
     if (!paymentData?.amount) return 0;

@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { useUserFinance } from "@/hooks/useUserFinance";
-import { getTrialWithdrawLock } from "@/utils/trialWithdrawLock";
+import { getPackageFundWithdrawLock } from "@/utils/trialWithdrawLock";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +37,18 @@ const WithdrawPage = () => {
   const { toast } = useToast();
   const userId = currentUser?.userId;
   const subscription = useSubscriptionStatus();
-  const trialLock = useMemo(
-    () => getTrialWithdrawLock(subscription.isActive, subscription.activeSegment),
-    [subscription.isActive, subscription.activeSegment],
+  const fundLock = useMemo(
+    () =>
+      getPackageFundWithdrawLock(
+        subscription.isActive,
+        subscription.activeSegment,
+        subscription.withdrawLock,
+      ),
+    [
+      subscription.isActive,
+      subscription.activeSegment,
+      subscription.withdrawLock,
+    ],
   );
 
   const { refresh: refreshFinance, ...finance } = useUserFinance(userId);
@@ -130,12 +139,12 @@ const WithdrawPage = () => {
 
   const handleSubmit = async () => {
     if (!userId) return;
-    if (trialLock.locked) {
+    if (fundLock.locked) {
       toast({
-        title: "Trial withdrawal locked",
+        title: "Withdrawal locked",
         description:
-          trialLock.message ??
-          "Withdrawals unlock when your 7-day free trial ends. You can stop trading anytime.",
+          fundLock.message ??
+          "Withdrawals are locked until your package fund-lock period ends.",
         variant: "destructive",
       });
       return;
@@ -209,8 +218,8 @@ const WithdrawPage = () => {
   }
 
   const hasAddress = Boolean(payoutSaved);
-  const withdrawBlocked = trialLock.locked || !canWithdraw || openPositions > 0;
-  const unlockLabel = trialLock.unlockAt
+  const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0;
+  const unlockLabel = fundLock.unlockAt
     ? new Date(trialLock.unlockAt).toLocaleString(undefined, {
         dateStyle: "medium",
         timeStyle: "short",
@@ -229,21 +238,34 @@ const WithdrawPage = () => {
         </p>
       </div>
 
-      {withdrawBlocked && (
+      {withdrawBlocked && fundLock.locked && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <p className="font-bold text-amber-900">Free trial — withdrawals locked</p>
+          <p className="font-bold text-amber-900">
+            {fundLock.trialActive ? "Free trial — withdrawals locked" : "Withdrawals locked"}
+          </p>
           <p className="mt-2">
-            {trialLock.message ??
-              "Your funds stay locked during the 7-day trial. You can stop trading anytime, but withdrawal opens when the trial ends."}
+            {fundLock.message ??
+              "Your funds stay locked during the package fund-lock period. You can stop trading anytime."}
           </p>
           {unlockLabel && (
             <p className="mt-2 font-semibold tabular-nums">
               Unlocks: {unlockLabel}
-              {trialLock.daysRemaining > 0
-                ? ` (${trialLock.daysRemaining} day${trialLock.daysRemaining === 1 ? "" : "s"} left)`
+              {fundLock.daysRemaining > 0
+                ? ` (${fundLock.daysRemaining} day${fundLock.daysRemaining === 1 ? "" : "s"} left)`
                 : ""}
             </p>
           )}
+        </div>
+      )}
+
+      {withdrawBlocked && !fundLock.locked && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          <p className="font-bold text-amber-900">Withdrawal unavailable</p>
+          <p className="mt-2">
+            {openPositions > 0
+              ? "Close all open copy trades before withdrawing."
+              : "Withdrawal is not available right now."}
+          </p>
         </div>
       )}
 

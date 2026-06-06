@@ -50,6 +50,7 @@ import AdminUserMapPage from "./pages/AdminUserMapPage";
 import AdminMaintenancePage from "./pages/AdminMaintenancePage";
 import AdminNotificationsPage from "./pages/AdminNotificationsPage";
 import AdminInvoicesPage from "./pages/AdminInvoicesPage";
+import AdminPackagesPage from "./pages/AdminPackagesPage";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="maintenance" element={<AdminMaintenancePage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="invoices" element={<AdminInvoicesPage />} />
+              <Route path="packages" element={<AdminPackagesPage />} />
 
             </Route>
 

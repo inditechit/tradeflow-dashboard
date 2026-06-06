@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useApp, PurchasedPackage } from "@/context/AppContext";
 import { Sparkles, Check, X, AlertTriangle } from "lucide-react";
 import {
-  SUBSCRIPTION_PACKAGES,
   TRIAL_TERMS,
-  TRIAL_WITHDRAW_NOTICE,
   PAID_WITHDRAW_NOTICE,
   WITHDRAW_USP,
   type SubscriptionPackage,
 } from "@/constants/packages";
+import { usePackages } from "@/hooks/usePackages";
+import { fundLockNotice } from "@/utils/packageHelpers";
 
 const riskProfiles = [
   {
@@ -53,6 +53,9 @@ const PackagesPage = () => {
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { packages, loading: packagesLoading } = usePackages();
+  const trialPkg = packages.find((p) => p.isTrial);
+  const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
 
   const handleSelectPackageClick = (pkg: SubscriptionPackage) => {
     setPendingPackage(pkg);
@@ -120,12 +123,12 @@ const PackagesPage = () => {
           Select Your Premium Plan
         </h1>
         <p className="text-slate-500 text-sm md:text-base">
-          Start with a free 7-day trial or choose a paid plan for full access.
+          Start with a free trial or choose a paid plan for full access.
         </p>
         <div className="mt-6 grid gap-3 text-left sm:grid-cols-2 max-w-3xl mx-auto">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950">
             <p className="font-bold text-emerald-900">Free trial</p>
-            <p className="mt-1">{TRIAL_WITHDRAW_NOTICE}</p>
+            <p className="mt-1">{fundLockNotice(trialLockDays)}</p>
           </div>
           <div className="rounded-xl border border-yellow-300 bg-[#FFF9E6] px-4 py-3 text-sm text-neutral-900">
             <p className="font-bold">{WITHDRAW_USP.headline}</p>
@@ -135,7 +138,10 @@ const PackagesPage = () => {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 w-full max-w-[90rem] items-stretch">
-        {SUBSCRIPTION_PACKAGES.map((pkg) => {
+        {packagesLoading ? (
+          <p className="col-span-full text-center text-slate-500">Loading plans…</p>
+        ) : null}
+        {packages.map((pkg) => {
           const Icon = pkg.icon;
           const isPopular = pkg.popular;
           const isTrial = pkg.isTrial;
