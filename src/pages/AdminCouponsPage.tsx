@@ -23,6 +23,7 @@ type CouponRow = {
   used_count: number;
   expires_at: string | null;
   is_active: boolean;
+  is_suggested: boolean;
 };
 
 type EditableCoupon = CouponRow & { isNew?: boolean };
@@ -40,6 +41,7 @@ const emptyCoupon = (): EditableCoupon => ({
   used_count: 0,
   expires_at: null,
   is_active: true,
+  is_suggested: false,
   isNew: true,
 });
 
@@ -107,6 +109,7 @@ const AdminCouponsPage = () => {
           max_uses: coupon.max_uses,
           expires_at: coupon.expires_at || null,
           is_active: coupon.is_active,
+          is_suggested: coupon.is_suggested,
         }),
       });
       const data = await res.json();
@@ -198,6 +201,14 @@ const AdminCouponsPage = () => {
                       onChange={(e) => updateCoupon(rowKey, { is_active: e.target.checked })}
                     />
                     Active
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={coupon.is_suggested}
+                      onChange={(e) => updateCoupon(rowKey, { is_suggested: e.target.checked })}
+                    />
+                    Suggested on packages page
                   </label>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">

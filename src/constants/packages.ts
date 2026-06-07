@@ -21,6 +21,8 @@ export type SubscriptionPackage = {
   discountedPrice?: number;
   hasDiscount?: boolean;
   discountPercent?: number;
+  listDiscountPercent?: number;
+  couponCode?: string | null;
 };
 
 export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [

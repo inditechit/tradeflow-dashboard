@@ -65,6 +65,15 @@ export function apiPackageToUi(p: ApiPackage): SubscriptionPackage {
     discountedPrice: Number(p.discounted_price_usd ?? p.price_usd),
     hasDiscount: Boolean(p.has_discount),
     discountPercent: Number(p.discount_percent ?? 0),
+    listDiscountPercent:
+      Number(p.original_price_usd ?? p.price_usd) > Number(p.price_usd)
+        ? Math.round(
+            ((Number(p.original_price_usd ?? p.price_usd) - Number(p.price_usd)) /
+              Number(p.original_price_usd ?? p.price_usd)) *
+              100,
+          )
+        : 0,
+    couponCode: p.coupon_code ?? null,
     icon: Icon,
     description: p.description || "",
     features,

@@ -155,7 +155,8 @@ const FAQ = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isReady, role } = useVerifiedSession();
-  const { packages: subscriptionPlans, loading: plansLoading } = usePackages();
+  const { packages: subscriptionPlans, loading: plansLoading, referralApplied, couponApplied } =
+    usePackages();
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -556,7 +557,12 @@ export default function LandingPage() {
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
                     <div className="mt-4">
-                      <PackagePriceDisplay pkg={plan} size="lg" />
+                      <PackagePriceDisplay
+                        pkg={plan}
+                        size="lg"
+                        referralApplied={referralApplied}
+                        couponApplied={couponApplied}
+                      />
                     </div>
                     <p className="mt-3 text-sm leading-relaxed text-slate-600">{plan.description}</p>
                     <ul className="mt-6 space-y-2.5">

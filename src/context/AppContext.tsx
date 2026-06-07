@@ -44,6 +44,7 @@ export interface PurchasedPackage {
   originalPrice?: number;
   listPrice?: number;
   referralPrice?: number;
+  couponCode?: string;
   hasReferralDiscount?: boolean;
   isTrial?: boolean;
 }

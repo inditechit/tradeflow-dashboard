@@ -116,6 +116,7 @@ const AdminUserMapPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [onlineFilter, setOnlineFilter] = useState<"all" | "online" | "offline">("all");
 
   const fetchUsers = async () => {
     try {
@@ -155,9 +156,12 @@ const AdminUserMapPage: React.FC = () => {
 
   const filteredPins: PinUser[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return allPins;
     return allPins.filter((p) => {
+      if (onlineFilter === "online" && !isUserOnline(p)) return false;
+      if (onlineFilter === "offline" && isUserOnline(p)) return false;
+      if (!q) return true;
       const haystack = [
+        p.id,
         p.name,
         p.email,
         p.mobile,
@@ -172,7 +176,7 @@ const AdminUserMapPage: React.FC = () => {
         .join(" ");
       return haystack.includes(q);
     });
-  }, [allPins, query]);
+  }, [allPins, query, onlineFilter]);
 
   const usersWithoutLocation = users.length - allPins.length;
 
@@ -200,13 +204,22 @@ const AdminUserMapPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={onlineFilter}
+            onChange={(e) => setOnlineFilter(e.target.value as "all" | "online" | "offline")}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+          >
+            <option value="all">All users</option>
+            <option value="online">Online only</option>
+            <option value="offline">Offline only</option>
+          </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, email, city…"
+              placeholder="Search by name, email, ID…"
               className="rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 min-w-[260px]"
             />
           </div>
@@ -311,7 +324,8 @@ const AdminUserMapPage: React.FC = () => {
 
       {filteredPins.length === 0 && !loading && (
         <div className="mt-4 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-500">
-          No users with a location {query ? "match your search." : "yet."}
+          No users with a location
+          {query || onlineFilter !== "all" ? " match your filters." : " yet."}
         </div>
       )}
     </div>

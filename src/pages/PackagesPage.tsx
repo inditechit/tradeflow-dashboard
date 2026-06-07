@@ -8,9 +8,11 @@ import {
   WITHDRAW_USP,
   type SubscriptionPackage,
 } from "@/constants/packages";
-import { usePackages } from "@/hooks/usePackages";
+import { usePackages, getStoredCouponCode } from "@/hooks/usePackages";
 import { fundLockNotice } from "@/utils/packageHelpers";
 import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
+import { PackageCouponSection } from "@/components/packages/PackageCouponSection";
+import { API_BASE } from "@/config/api";
 
 const riskProfiles = [
   {
@@ -47,14 +49,14 @@ const PackagesPage = () => {
   const navigate = useNavigate();
   const { setSelectedPackage, currentUser } = useApp();
 
-  const API_BASE = "https://api.copytradeengine.org/api";
+  const API_BASE_LOCAL = API_BASE;
 
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [pendingPackage, setPendingPackage] = useState<SubscriptionPackage | null>(null);
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { packages, loading: packagesLoading } = usePackages();
+  const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages();
   const trialPkg = packages.find((p) => p.isTrial);
   const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
 
@@ -86,15 +88,16 @@ const PackagesPage = () => {
     setIsSubmitting(true);
 
     try {
-      await fetch(`${API_BASE}/user/${currentUser?.userId}/save-risk-profile`, {
+      await fetch(`${API_BASE_LOCAL}/user/${currentUser?.userId}/save-risk-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ risks: selectedRisks }),
       });
 
       const payPrice = pendingPackage.hasDiscount
-        ? pendingPackage.referralPrice ?? pendingPackage.discountedPrice ?? pendingPackage.price
+        ? pendingPackage.discountedPrice ?? pendingPackage.referralPrice ?? pendingPackage.price
         : pendingPackage.listPrice ?? pendingPackage.price;
+      const appliedCoupon = getStoredCouponCode();
       const selected: PurchasedPackage = {
         id: pendingPackage.id,
         name: pendingPackage.name,
@@ -102,7 +105,8 @@ const PackagesPage = () => {
         originalPrice: pendingPackage.originalPrice,
         listPrice: pendingPackage.listPrice ?? pendingPackage.price,
         referralPrice: pendingPackage.referralPrice,
-        hasReferralDiscount: pendingPackage.hasDiscount,
+        hasReferralDiscount: pendingPackage.hasDiscount && referralApplied,
+        couponCode: appliedCoupon || pendingPackage.couponCode || undefined,
         isTrial: pendingPackage.isTrial,
         icon: pendingPackage.icon.name,
         purchasedAt: new Date().toISOString(),
@@ -145,6 +149,8 @@ const PackagesPage = () => {
           </div>
         </div>
       </div>
+
+      <PackageCouponSection onCouponChange={() => void reload()} />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 w-full max-w-[90rem] items-stretch">
         {packagesLoading ? (
@@ -197,7 +203,11 @@ const PackagesPage = () => {
                 </div>
 
                 <div className="mb-4">
-                  <PackagePriceDisplay pkg={pkg} />
+                  <PackagePriceDisplay
+                    pkg={pkg}
+                    referralApplied={referralApplied}
+                    couponApplied={couponApplied}
+                  />
                 </div>
 
                 <p className="text-slate-600 text-sm mb-6 leading-relaxed">{pkg.description}</p>
