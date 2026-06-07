@@ -93,7 +93,7 @@ const PackagesPage = () => {
       });
 
       const payPrice = pendingPackage.hasDiscount
-        ? pendingPackage.discountedPrice ?? pendingPackage.price
+        ? pendingPackage.referralPrice ?? pendingPackage.discountedPrice ?? pendingPackage.price
         : pendingPackage.listPrice ?? pendingPackage.price;
       const selected: PurchasedPackage = {
         id: pendingPackage.id,
@@ -101,6 +101,7 @@ const PackagesPage = () => {
         price: payPrice,
         originalPrice: pendingPackage.originalPrice,
         listPrice: pendingPackage.listPrice ?? pendingPackage.price,
+        referralPrice: pendingPackage.referralPrice,
         hasReferralDiscount: pendingPackage.hasDiscount,
         isTrial: pendingPackage.isTrial,
         icon: pendingPackage.icon.name,

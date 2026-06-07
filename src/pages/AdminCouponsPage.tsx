@@ -316,7 +316,8 @@ const AdminCouponsPage = () => {
                 {preview != null && pkg ? (
                   <p className="mt-3 text-sm text-emerald-700">
                     Pricing: original ${Number(pkg.original_price_usd ?? pkg.price_usd).toFixed(0)} ·
-                    list ${Number(pkg.price_usd).toFixed(0)} · after discount ${preview.toFixed(0)}
+                    discounted ${Number(pkg.price_usd).toFixed(0)} · after referral $
+                    {Number(pkg.referral_price_usd ?? preview).toFixed(0)}
                   </p>
                 ) : null}
                 <div className="mt-4 flex gap-2">

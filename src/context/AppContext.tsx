@@ -43,6 +43,7 @@ export interface PurchasedPackage {
   transactionId?: string;
   originalPrice?: number;
   listPrice?: number;
+  referralPrice?: number;
   hasReferralDiscount?: boolean;
   isTrial?: boolean;
 }

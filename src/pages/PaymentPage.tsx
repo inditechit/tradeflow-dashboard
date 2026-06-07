@@ -45,6 +45,11 @@ const PaymentPage = () => {
   const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
   const listPrice = Number(selectedPackage?.listPrice ?? couponPreview?.list_price_usd ?? selectedPackage?.price ?? 0);
   const originalPrice = Number(selectedPackage?.originalPrice ?? couponPreview?.original_price_usd ?? listPrice);
+  const referralPrice = Number(
+    (selectedPackage as { referralPrice?: number })?.referralPrice ??
+      couponPreview?.final_amount ??
+      listPrice,
+  );
   const displayPrice =
     couponPreview?.final_amount ?? Number(selectedPackage?.price ?? 0);
 
@@ -356,10 +361,15 @@ const PaymentPage = () => {
                         <span className="font-semibold text-slate-800">
                           ${displayPrice.toFixed(0)} USDT
                         </span>
-                        {!isTrial && originalPrice > listPrice ? (
+                        {!isTrial ? (
                           <span className="block mt-1 text-xs text-slate-500">
-                            Original ${originalPrice.toFixed(0)} · List ${listPrice.toFixed(0)}
-                            {couponPreview ? ` · After discount $${displayPrice.toFixed(0)}` : ""}
+                            Original ${originalPrice.toFixed(0)} · Discounted ${listPrice.toFixed(0)}
+                            {referralPrice < listPrice
+                              ? ` · After referral $${referralPrice.toFixed(0)}`
+                              : ""}
+                            {couponPreview && displayPrice < listPrice
+                              ? ` · You pay $${displayPrice.toFixed(0)}`
+                              : ""}
                           </span>
                         ) : null}
                         {couponPreview ? (

@@ -17,6 +17,7 @@ export type SubscriptionPackage = {
   durationDays?: number;
   fundLockDays?: number;
   listPrice?: number;
+  referralPrice?: number;
   discountedPrice?: number;
   hasDiscount?: boolean;
   discountPercent?: number;

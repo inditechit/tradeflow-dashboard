@@ -27,6 +27,7 @@ function fromEditable(p: EditablePackage) {
     fund_lock_days: p.is_trial ? p.duration_days : p.fund_lock_days,
     price_usd: p.price_usd,
     original_price_usd: p.original_price_usd,
+    referral_price_usd: p.referral_price_usd,
     is_trial: p.is_trial,
     is_active: p.is_active,
     is_popular: p.is_popular,
@@ -114,6 +115,7 @@ const AdminPackagesPage = () => {
           fund_lock_days: 0,
           price_usd: 99,
           original_price_usd: 120,
+          referral_price_usd: 89,
           is_trial: false,
           is_active: false,
           is_popular: false,
@@ -165,9 +167,9 @@ const AdminPackagesPage = () => {
             Subscription packages
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Set duration and three price tiers: original (MRP), list price (shown on site), and referral
-            discounts come from each user&apos;s coupon. Packages must be <strong>Active</strong> to
-            appear on the frontend. Free/trial fund-lock days always match duration.
+            Set three prices per plan: <strong>Original (MRP)</strong>, <strong>Discounted (list)</strong>, and{" "}
+            <strong>After referral</strong>. Referral links and coupon codes charge the referral price. Package
+            must be <strong>Active</strong> to show on the frontend.
           </p>
         </div>
         <Button type="button" onClick={addPackage}>
@@ -308,10 +310,10 @@ const AdminPackagesPage = () => {
                       })
                     }
                   />
-                  <p className="mt-1 text-xs text-slate-500">Strikethrough price on the site</p>
+                  <p className="mt-1 text-xs text-slate-500">1. Strikethrough price on site</p>
                 </div>
                 <div>
-                  <Label>List price / discounted (USD)</Label>
+                  <Label>Discounted / list price (USD)</Label>
                   <Input
                     type="number"
                     className="mt-1"
@@ -319,8 +321,23 @@ const AdminPackagesPage = () => {
                     value={pkg.price_usd}
                     onChange={(e) => updatePkg(pkg.id, { price_usd: Math.max(0, Number(e.target.value) || 0) })}
                   />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Shown to everyone · referral price is list minus coupon %
+                  <p className="mt-1 text-xs text-slate-500">2. Default price everyone sees</p>
+                </div>
+                <div>
+                  <Label>After referral price (USD)</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    disabled={pkg.is_trial}
+                    value={pkg.referral_price_usd ?? ""}
+                    onChange={(e) =>
+                      updatePkg(pkg.id, {
+                        referral_price_usd: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                  <p className="mt-1 text-xs text-emerald-700">
+                    3. Price when user comes via referral link or coupon
                   </p>
                 </div>
               </div>
