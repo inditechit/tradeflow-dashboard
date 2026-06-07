@@ -10,6 +10,7 @@ import {
 } from "@/constants/packages";
 import { usePackages } from "@/hooks/usePackages";
 import { fundLockNotice } from "@/utils/packageHelpers";
+import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 
 const riskProfiles = [
   {
@@ -91,10 +92,17 @@ const PackagesPage = () => {
         body: JSON.stringify({ risks: selectedRisks }),
       });
 
+      const payPrice = pendingPackage.hasDiscount
+        ? pendingPackage.discountedPrice ?? pendingPackage.price
+        : pendingPackage.listPrice ?? pendingPackage.price;
       const selected: PurchasedPackage = {
         id: pendingPackage.id,
         name: pendingPackage.name,
-        price: pendingPackage.price,
+        price: payPrice,
+        originalPrice: pendingPackage.originalPrice,
+        listPrice: pendingPackage.listPrice ?? pendingPackage.price,
+        hasReferralDiscount: pendingPackage.hasDiscount,
+        isTrial: pendingPackage.isTrial,
         icon: pendingPackage.icon.name,
         purchasedAt: new Date().toISOString(),
       };
@@ -187,29 +195,8 @@ const PackagesPage = () => {
                   </div>
                 </div>
 
-                <div className="mb-4 flex items-baseline gap-2">
-                  {isTrial ? (
-                    <span className="text-4xl font-extrabold text-emerald-600">FREE</span>
-                  ) : (
-                    <>
-                      <span className="text-4xl font-extrabold text-slate-900">
-                        ${pkg.hasDiscount ? pkg.discountedPrice : pkg.price}
-                      </span>
-                      {pkg.hasDiscount ? (
-                        <>
-                          <span className="text-lg font-medium text-slate-500 line-through">
-                            ${pkg.listPrice ?? pkg.price}
-                          </span>
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                            -{pkg.discountPercent ?? 0}%
-                          </span>
-                        </>
-                      ) : null}
-                      <span className="text-sm font-medium text-slate-400 line-through">
-                        ${pkg.originalPrice}
-                      </span>
-                    </>
-                  )}
+                <div className="mb-4">
+                  <PackagePriceDisplay pkg={pkg} />
                 </div>
 
                 <p className="text-slate-600 text-sm mb-6 leading-relaxed">{pkg.description}</p>

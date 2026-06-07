@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ApiPackage } from "@/utils/packageHelpers";
+import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 
 type CouponRow = {
   id: number;
@@ -217,21 +218,24 @@ const AdminCouponsPage = () => {
                     />
                   </div>
                   <div>
-                    <Label>Owner user ID (referrer)</Label>
-                    <Input
-                      type="number"
-                      className="mt-1"
-                      placeholder="e.g. 71"
-                      value={coupon.owner_user_id ?? ""}
-                      onChange={(e) =>
+                    <Label>Owner (referrer)</Label>
+                    <UserSearchSelect
+                      value={coupon.owner_user_id}
+                      selectedLabel={
+                        coupon.owner_name
+                          ? `${coupon.owner_name} · #${coupon.owner_user_id}`
+                          : null
+                      }
+                      onChange={(userId, user) =>
                         updateCoupon(rowKey, {
-                          owner_user_id: e.target.value === "" ? null : Number(e.target.value),
+                          owner_user_id: userId,
+                          owner_name: user?.name ?? coupon.owner_name ?? null,
                         })
                       }
                     />
-                    {coupon.owner_name ? (
-                      <p className="mt-1 text-xs text-slate-500">{coupon.owner_name}</p>
-                    ) : null}
+                    <p className="mt-1 text-xs text-slate-500">
+                      Buyer using this coupon becomes their referral if they had none
+                    </p>
                   </div>
                   <div>
                     <Label>Package</Label>

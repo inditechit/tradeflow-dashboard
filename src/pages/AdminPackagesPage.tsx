@@ -165,8 +165,9 @@ const AdminPackagesPage = () => {
             Subscription packages
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Set duration and prices per plan. For free/trial packages, fund-lock days always match
-            duration — withdrawals stay blocked until that period ends.
+            Set duration and three price tiers: original (MRP), list price (shown on site), and referral
+            discounts come from each user&apos;s coupon. Packages must be <strong>Active</strong> to
+            appear on the frontend. Free/trial fund-lock days always match duration.
           </p>
         </div>
         <Button type="button" onClick={addPackage}>
@@ -295,20 +296,11 @@ const AdminPackagesPage = () => {
                   )}
                 </div>
                 <div>
-                  <Label>Price (USD)</Label>
+                  <Label>Original price / MRP (USD)</Label>
                   <Input
                     type="number"
                     className="mt-1"
                     disabled={pkg.is_trial}
-                    value={pkg.price_usd}
-                    onChange={(e) => updatePkg(pkg.id, { price_usd: Math.max(0, Number(e.target.value) || 0) })}
-                  />
-                </div>
-                <div>
-                  <Label>Original price (USD)</Label>
-                  <Input
-                    type="number"
-                    className="mt-1"
                     value={pkg.original_price_usd ?? ""}
                     onChange={(e) =>
                       updatePkg(pkg.id, {
@@ -316,6 +308,20 @@ const AdminPackagesPage = () => {
                       })
                     }
                   />
+                  <p className="mt-1 text-xs text-slate-500">Strikethrough price on the site</p>
+                </div>
+                <div>
+                  <Label>List price / discounted (USD)</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    disabled={pkg.is_trial}
+                    value={pkg.price_usd}
+                    onChange={(e) => updatePkg(pkg.id, { price_usd: Math.max(0, Number(e.target.value) || 0) })}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Shown to everyone · referral price is list minus coupon %
+                  </p>
                 </div>
               </div>
 

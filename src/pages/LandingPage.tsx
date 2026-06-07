@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
-import { captureReferralKeyFromUrl } from "@/hooks/usePackages";
+import { captureReferralKeyFromUrl, usePackages } from "@/hooks/usePackages";
 import { Reveal } from "@/components/landing/Reveal";
 import { cn } from "@/lib/utils";
 import {
@@ -26,11 +26,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  SUBSCRIPTION_PACKAGES,
   TRIAL_WITHDRAW_NOTICE,
   WITHDRAW_USP,
   CONTACT_EMAIL,
 } from "@/constants/packages";
+import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 
 const BRAND = "Copy Trade Engine";
 
@@ -155,6 +155,7 @@ const FAQ = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isReady, role } = useVerifiedSession();
+  const { packages: subscriptionPlans, loading: plansLoading } = usePackages();
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -527,7 +528,10 @@ export default function LandingPage() {
               </div>
             </Reveal>
             <div className="grid h-full gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {SUBSCRIPTION_PACKAGES.map((plan, i) => (
+              {plansLoading ? (
+                <p className="col-span-full text-center text-slate-500">Loading plans…</p>
+              ) : null}
+              {subscriptionPlans.map((plan, i) => (
                 <Reveal key={plan.id} delay={i * 70}>
                   <div
                     className={cn(
@@ -551,17 +555,8 @@ export default function LandingPage() {
                   )}
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                    <div className="mt-4 flex items-baseline gap-2">
-                      {plan.isTrial ? (
-                        <span className="text-4xl font-extrabold text-emerald-600">FREE</span>
-                      ) : (
-                        <>
-                          <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
-                          <span className="text-lg font-medium text-slate-400 line-through">
-                            ${plan.originalPrice}
-                          </span>
-                        </>
-                      )}
+                    <div className="mt-4">
+                      <PackagePriceDisplay pkg={plan} size="lg" />
                     </div>
                     <p className="mt-3 text-sm leading-relaxed text-slate-600">{plan.description}</p>
                     <ul className="mt-6 space-y-2.5">

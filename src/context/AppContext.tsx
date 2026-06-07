@@ -41,6 +41,10 @@ export interface PurchasedPackage {
   icon: string;
   purchasedAt: string;
   transactionId?: string;
+  originalPrice?: number;
+  listPrice?: number;
+  hasReferralDiscount?: boolean;
+  isTrial?: boolean;
 }
 
 export interface MockLocation {

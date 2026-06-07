@@ -33,6 +33,8 @@ const PaymentPage = () => {
   const [couponCode, setCouponCode] = useState("");
   const [couponPreview, setCouponPreview] = useState<{
     code: string;
+    original_price_usd: number;
+    list_price_usd: number;
     base_amount: number;
     discount_amount: number;
     final_amount: number;
@@ -41,6 +43,8 @@ const PaymentPage = () => {
   const [couponLoading, setCouponLoading] = useState(false);
 
   const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
+  const listPrice = Number(selectedPackage?.listPrice ?? couponPreview?.list_price_usd ?? selectedPackage?.price ?? 0);
+  const originalPrice = Number(selectedPackage?.originalPrice ?? couponPreview?.original_price_usd ?? listPrice);
   const displayPrice =
     couponPreview?.final_amount ?? Number(selectedPackage?.price ?? 0);
 
@@ -59,6 +63,8 @@ const PaymentPage = () => {
         if (data.success && Number(data.discount_amount) > 0) {
           setCouponPreview({
             code: data.code || "REFERRAL",
+            original_price_usd: Number(data.original_price_usd ?? selectedPackage.originalPrice ?? data.base_amount),
+            list_price_usd: Number(data.list_price_usd ?? selectedPackage.listPrice ?? data.base_amount),
             base_amount: Number(data.base_amount),
             discount_amount: Number(data.discount_amount),
             final_amount: Number(data.final_amount),
@@ -99,6 +105,8 @@ const PaymentPage = () => {
       }
       setCouponPreview({
         code: data.code,
+        original_price_usd: Number(data.original_price_usd ?? selectedPackage?.originalPrice ?? data.base_amount),
+        list_price_usd: Number(data.list_price_usd ?? selectedPackage?.listPrice ?? data.base_amount),
         base_amount: Number(data.base_amount),
         discount_amount: Number(data.discount_amount),
         final_amount: Number(data.final_amount),
@@ -344,15 +352,21 @@ const PaymentPage = () => {
                   ) : (
                     <>
                       <p className="text-sm text-slate-600 leading-relaxed">
-                        You are about to make a payment of{" "}
+                        You are about to pay{" "}
                         <span className="font-semibold text-slate-800">
                           ${displayPrice.toFixed(0)} USDT
                         </span>
+                        {!isTrial && originalPrice > listPrice ? (
+                          <span className="block mt-1 text-xs text-slate-500">
+                            Original ${originalPrice.toFixed(0)} · List ${listPrice.toFixed(0)}
+                            {couponPreview ? ` · After discount $${displayPrice.toFixed(0)}` : ""}
+                          </span>
+                        ) : null}
                         {couponPreview ? (
                           <span className="block mt-1 text-emerald-700 text-xs font-medium">
                             Coupon {couponPreview.code} applied — saved $
-                            {couponPreview.discount_amount.toFixed(0)} (was $
-                            {couponPreview.base_amount.toFixed(0)})
+                            {couponPreview.discount_amount.toFixed(0)} off list price ($
+                            {couponPreview.list_price_usd.toFixed(0)})
                           </span>
                         ) : null}
                         . Once the transaction is successfully completed, it will be processed instantly.
@@ -387,8 +401,9 @@ const PaymentPage = () => {
                         ) : null}
                         {couponPreview ? (
                           <p className="mt-2 text-xs text-emerald-700 font-medium">
-                            ✓ {couponPreview.code} — pay ${couponPreview.final_amount.toFixed(0)} instead of $
-                            {couponPreview.base_amount.toFixed(0)}
+                            ✓ {couponPreview.code} — pay ${couponPreview.final_amount.toFixed(0)} (list $
+                            {couponPreview.list_price_usd.toFixed(0)}, original $
+                            {couponPreview.original_price_usd.toFixed(0)})
                           </p>
                         ) : null}
                       </div>
