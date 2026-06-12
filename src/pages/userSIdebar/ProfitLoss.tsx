@@ -208,7 +208,7 @@ const ProfitLoss = () => {
 
   const cycleNote = useMemo(() => {
     if (!cycle?.since_last_recharge) return null;
-    const at = cycle.last_recharge_at;
+    const at = cycle.trade_filter_at ?? cycle.last_recharge_at;
     if (!at) return "Showing all trades in your current account cycle.";
     const d = new Date(at);
     const label = Number.isNaN(d.getTime())
@@ -216,12 +216,12 @@ const ProfitLoss = () => {
       : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
     const dep =
       cycle.cycle_deposit_usd != null && cycle.cycle_deposit_usd > 0
-        ? ` · cycle start ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
+        ? ` · funded ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
         : "";
     const scope =
       cycle.wallet_correction === true || cycle.pinned_baseline === true
         ? "Trades from ticket 6286933 onward (wallet correction"
-        : "Trades since last recharge (";
+        : "Trades in your current cycle (from ";
     return `${scope} ${label})${dep}.`;
   }, [cycle, summary?.currency]);
 

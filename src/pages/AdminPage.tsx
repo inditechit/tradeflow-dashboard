@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
@@ -21,7 +22,16 @@ import UserLabelsDisplay from '../components/admin/UserLabelsDisplay';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
-import { API_BASE } from "@/config/api";
+import { API_BASE, SOCKET_URL } from "@/config/api";
+import {
+  buildFinanceOverlay,
+  groupOpenRowsByUser,
+  type AdminFinanceOverlay,
+  type AdminOpenAssignRow,
+} from "@/utils/adminLiveFinance";
+import type { UserTradeRowLike } from "@/utils/userTradePl";
+
+const adminSocket = io(SOCKET_URL, { transports: ["websocket"] });
 import {
   formatAdminDate,
   kycBadgeStyles,
@@ -57,6 +67,8 @@ const AdminPage = () => {
   const [filterTag, setFilterTag] = useState('all');
   const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
+  const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
 
   const { currentUser } = useApp();
   const isVoiceAdmin = currentUser?.role === "admin";
@@ -79,6 +91,18 @@ const AdminPage = () => {
   const [isExtendOpen, setIsExtendOpen] = useState(false);
 
   const { toast } = useToast();
+
+  const fetchOpenAssignments = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/open-assignments`);
+      const data = await response.json();
+      if (data.success && Array.isArray(data.assignments)) {
+        setOpenRowsByUser(groupOpenRowsByUser(data.assignments as AdminOpenAssignRow[]));
+      }
+    } catch {
+      // best-effort — table still shows polled wallet/live_pl
+    }
+  }, []);
 
   const fetchLocations = async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -112,8 +136,60 @@ const AdminPage = () => {
 
   useEffect(() => {
     fetchLocations();
-    const id = window.setInterval(() => fetchLocations({ silent: true }), 30_000);
-    return () => window.clearInterval(id);
+    void fetchOpenAssignments();
+    const usersPoll = window.setInterval(() => fetchLocations({ silent: true }), 10_000);
+    const openPoll = window.setInterval(() => void fetchOpenAssignments(), 60_000);
+    return () => {
+      window.clearInterval(usersPoll);
+      window.clearInterval(openPoll);
+    };
+  }, [fetchOpenAssignments]);
+
+  useEffect(() => {
+    const overlay: Record<number, AdminFinanceOverlay> = {};
+    for (const loc of locations) {
+      const uid = Number(loc.id);
+      if (!uid) continue;
+      const wallet = Number(loc.wallet_balance ?? 0);
+      const baseline = Number(loc.deposit_baseline ?? 0);
+      const rows = openRowsByUser[uid] ?? [];
+      overlay[uid] = buildFinanceOverlay(wallet, baseline, rows);
+    }
+    setFinanceOverlay(overlay);
+  }, [locations, openRowsByUser]);
+
+  useEffect(() => {
+    const applyLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+      const ticket = String(payload.ticket ?? "");
+      const raw = Number(payload.profit);
+      if (!ticket || !Number.isFinite(raw)) return;
+
+      setOpenRowsByUser((prev) => {
+        let any = false;
+        const next: Record<number, UserTradeRowLike[]> = { ...prev };
+        for (const [uidKey, rows] of Object.entries(prev)) {
+          let userTouched = false;
+          const updated = rows.map((r) => {
+            if (String(r.ticket_id ?? "") !== ticket) return r;
+            userTouched = true;
+            return { ...r, mt5_total_profit: raw };
+          });
+          if (userTouched) {
+            any = true;
+            next[Number(uidKey)] = updated;
+          }
+        }
+        return any ? next : prev;
+      });
+    };
+
+    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => applyLive(payload);
+    adminSocket.on("mt5live", onLive);
+    adminSocket.on("mt5data", onLive);
+    return () => {
+      adminSocket.off("mt5live", onLive);
+      adminSocket.off("mt5data", onLive);
+    };
   }, []);
 
   const refreshTags = async () => {
@@ -545,7 +621,16 @@ const AdminPage = () => {
             </thead>
 
             <tbody>
-              {filteredLocations.map((loc) => (
+              {filteredLocations.map((loc) => {
+                const fin = financeOverlay[Number(loc.id)];
+                const walletBal = Number(loc.wallet_balance ?? 0);
+                const livePl = fin?.live_pl ?? Number(loc.live_pl ?? 0);
+                const equityVal = fin?.equity ?? Number(loc.equity ?? walletBal);
+                const withdrawableVal =
+                  fin?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
+                const openPos = Number(loc.open_positions ?? 0);
+
+                return (
                 <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
                   {/* User name */}
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
@@ -602,11 +687,14 @@ const AdminPage = () => {
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
                       USD{" "}
-                      {Number(loc.equity ?? 0).toLocaleString("en-US", {
+                      {equityVal.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </div>
+                    {openPos > 0 && (
+                      <span className="text-[11px] text-slate-500">{openPos} open</span>
+                    )}
                     {loc.soft_bust && (
                       <span className="text-[11px] font-medium text-amber-800">Soft bust</span>
                     )}
@@ -615,11 +703,11 @@ const AdminPage = () => {
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`font-semibold tabular-nums ${
-                        Number(loc.live_pl ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"
+                        livePl >= 0 ? "text-emerald-700" : "text-red-700"
                       }`}
                     >
-                      {loc.live_pl != null
-                        ? Number(loc.live_pl).toLocaleString("en-US", {
+                      {openPos > 0 || loc.live_pl != null
+                        ? livePl.toLocaleString("en-US", {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })
@@ -630,7 +718,7 @@ const AdminPage = () => {
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span className="font-semibold tabular-nums text-slate-900">
                       USD{" "}
-                      {Number(loc.withdrawable_equity ?? 0).toLocaleString("en-US", {
+                      {withdrawableVal.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -780,7 +868,8 @@ const AdminPage = () => {
                     )}
                   </td>
                 </tr>
-              ))}
+              );
+              })}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
                   <td colSpan={18} className="px-6 py-8 text-center text-slate-500">
