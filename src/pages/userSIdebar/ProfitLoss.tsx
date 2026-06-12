@@ -14,6 +14,7 @@ import {
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
+import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
@@ -31,7 +32,11 @@ type Summary = {
   fee_per_lot_usd: number;
 };
 
-type UserTradeRow = UserTradeRowLike;
+type UserTradeRow = UserTradeRowLike & {
+  open_time?: string | null;
+  close_time?: string | null;
+  assignment_created_at?: string | null;
+};
 
 type TradeCycle = {
   since_last_recharge?: boolean;
@@ -343,6 +348,8 @@ const ProfitLoss = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Opened</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Closed</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy price</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell price</th>
@@ -355,14 +362,14 @@ const ProfitLoss = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                     No trades yet
                   </td>
                 </tr>
@@ -387,6 +394,12 @@ const ProfitLoss = () => {
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
+                        {formatIsoDateTime(r.open_time ?? r.assignment_created_at ?? null)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
+                        {open ? "—" : formatIsoDateTime(r.close_time ?? null)}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
                         {vol > 0 ? vol.toFixed(4) : "—"}
                       </td>
@@ -448,7 +461,7 @@ const ProfitLoss = () => {
             {sortedRows.length > 0 && (
               <tfoot className="border-t-2 border-slate-200 bg-slate-50">
                 <tr>
-                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
                     Complete profit (P/L)
                   </td>
                   <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
@@ -460,7 +473,7 @@ const ProfitLoss = () => {
                   <td />
                 </tr>
                 <tr>
-                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
                     Complete loss (P/L)
                   </td>
                   <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
@@ -472,7 +485,7 @@ const ProfitLoss = () => {
                   <td />
                 </tr>
                 <tr className="border-t border-slate-200">
-                  <td colSpan={6} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
+                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
                     Net (P/L / Final)
                   </td>
                   <td

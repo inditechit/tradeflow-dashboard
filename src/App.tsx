@@ -43,6 +43,7 @@ import My_Profile from "./pages/userSIdebar/My_Profile";
 import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
 import AdminProfilePage from "./pages/AdminProfilePage";
 import AdminUserProfilePage from "./pages/AdminUserProfilePage";
+import AdminUserTradesPage from "./pages/AdminUserTradesPage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
@@ -127,6 +128,7 @@ const App = () => (
               <Route path="profile" element={<AdminProfilePage />} />
               <Route path="open-trades" element={<OpenTrades />} />
               <Route path="users" element={<AdminPage />} />
+              <Route path="users/:userId/trades" element={<AdminUserTradesPage />} />
               <Route path="user-map" element={<AdminUserMapPage />} />
               <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />

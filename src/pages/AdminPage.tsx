@@ -634,7 +634,13 @@ const AdminPage = () => {
                 <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
                   {/* User name */}
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="font-semibold text-slate-900">{loc.name}</div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
+                      className="text-left font-semibold text-yellow-900 underline-offset-2 hover:underline"
+                    >
+                      {loc.name}
+                    </button>
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
                   </td>
 
