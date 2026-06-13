@@ -53,6 +53,7 @@ import AdminNotificationsPage from "./pages/AdminNotificationsPage";
 import AdminInvoicesPage from "./pages/AdminInvoicesPage";
 import AdminPackagesPage from "./pages/AdminPackagesPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
+import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
@@ -136,6 +137,7 @@ const App = () => (
               <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />
               <Route path="referrals" element={<AdminReferralsPage />} />
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
+              <Route path="financial-stats" element={<AdminFinancialStatsPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />
