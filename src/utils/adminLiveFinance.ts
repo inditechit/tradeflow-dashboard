@@ -76,3 +76,59 @@ export function groupOpenRowsByUser(
   }
   return out;
 }
+
+export type FinanceUserRow = {
+  id: number;
+  wallet_balance?: number;
+  deposit_baseline?: number;
+};
+
+/** Sum wallets + socket-based open user P/L + pending withdrawals. */
+export function sumPlatformLiveLiability(
+  users: FinanceUserRow[],
+  openRowsByUser: Record<number, UserTradeRowLike[]>,
+  pendingWithdrawalsUsd: number,
+) {
+  let wallets = 0;
+  let livePl = 0;
+  for (const u of users) {
+    const uid = Number(u.id);
+    if (!uid) continue;
+    const wallet = Number(u.wallet_balance ?? 0);
+    wallets += wallet;
+    const rows = openRowsByUser[uid] ?? [];
+    livePl += buildFinanceOverlay(
+      wallet,
+      Number(u.deposit_baseline ?? 0),
+      rows,
+    ).live_pl;
+  }
+  wallets = Math.round(wallets * 100) / 100;
+  livePl = Math.round(livePl * 100) / 100;
+  const pending = Math.round((Number(pendingWithdrawalsUsd) || 0) * 100) / 100;
+  return {
+    wallets_usd: wallets,
+    open_live_user_pl_usd: livePl,
+    pending_withdrawals_usd: pending,
+    owe_users_now_usd: Math.round((wallets + pending + livePl) * 100) / 100,
+  };
+}
+
+/** Master open P/L from unique tickets (uses socket-updated mt5_total_profit on rows). */
+export function sumSocketMt5OpenProfit(
+  openRowsByUser: Record<number, UserTradeRowLike[]>,
+): number {
+  const seen = new Set<string>();
+  let sum = 0;
+  for (const rows of Object.values(openRowsByUser)) {
+    for (const r of rows) {
+      if (isTradeClosed(r)) continue;
+      const ticket = String(r.ticket_id ?? "");
+      if (!ticket || seen.has(ticket)) continue;
+      seen.add(ticket);
+      const p = Number(r.mt5_total_profit ?? 0);
+      if (Number.isFinite(p)) sum += p;
+    }
+  }
+  return Math.round(sum * 100) / 100;
+}

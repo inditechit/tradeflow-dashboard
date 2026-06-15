@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import {
   RefreshCw,
@@ -24,9 +24,17 @@ import {
   YAxis,
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { SOCKET_URL } from "@/config/api";
+import { API_BASE, SOCKET_URL } from "@/config/api";
+import {
+  groupOpenRowsByUser,
+  sumPlatformLiveLiability,
+  sumSocketMt5OpenProfit,
+  type AdminOpenAssignRow,
+  type FinanceUserRow,
+} from "@/utils/adminLiveFinance";
+import type { UserTradeRowLike } from "@/utils/userTradePl";
+import { plTextClass } from "@/utils/plColors";
 
-const API_BASE = "https://api.copytradeengine.org/api";
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
 const PIE_COLORS = ["#E6B800", "#6366f1", "#10b981", "#f59e0b", "#94a3b8"];
@@ -68,6 +76,12 @@ type FinancialStats = {
   };
 };
 
+type Mt5Metrics = {
+  balance?: number;
+  equity?: number;
+  updated_at?: string;
+};
+
 function fmt(n: number | undefined | null) {
   return Number(n ?? 0).toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -81,12 +95,16 @@ function HeroCard({
   sub,
   icon: Icon,
   accent = "slate",
+  valueClass,
+  live,
 }: {
   title: string;
   value: string;
   sub?: string;
   icon: React.ElementType;
   accent?: "red" | "gold" | "emerald" | "purple" | "blue";
+  valueClass?: string;
+  live?: boolean;
 }) {
   const styles = {
     red: "border-red-200 bg-red-50",
@@ -100,8 +118,17 @@ function HeroCard({
     <div className={`rounded-2xl border p-5 shadow-sm ${styles[accent]}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">${value}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+            {live && (
+              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                LIVE
+              </span>
+            )}
+          </div>
+          <p className={`mt-2 text-3xl font-bold tabular-nums ${valueClass ?? "text-slate-900"}`}>
+            ${value}
+          </p>
           {sub && <p className="mt-2 text-xs leading-relaxed text-slate-600">{sub}</p>}
         </div>
         <Icon className="h-6 w-6 shrink-0 text-slate-400" />
@@ -113,17 +140,28 @@ function HeroCard({
 const AdminFinancialStatsPage = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<FinancialStats | null>(null);
+  const [financeUsers, setFinanceUsers] = useState<FinanceUserRow[]>([]);
+  const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
+  const [mt5Metrics, setMt5Metrics] = useState<Mt5Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [socketLive, setSocketLive] = useState(false);
-  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [liveTick, setLiveTick] = useState(0);
+  const walletPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async (quiet = false) => {
+  const loadStatic = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/admin/financial-stats`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to load");
       setStats(data.stats);
+      if (data.mt5_live_metrics) {
+        setMt5Metrics({
+          balance: data.mt5_live_metrics.balance,
+          equity: data.mt5_live_metrics.equity,
+          updated_at: data.mt5_live_metrics.updated_at,
+        });
+      }
     } catch (e) {
       if (!quiet) {
         toast({
@@ -137,47 +175,128 @@ const AdminFinancialStatsPage = () => {
     }
   }, [toast]);
 
-  const scheduleReload = useCallback(() => {
-    if (reloadTimer.current) clearTimeout(reloadTimer.current);
-    reloadTimer.current = setTimeout(() => {
-      void load(true);
-    }, 800);
-  }, [load]);
+  const loadLiveContext = useCallback(async () => {
+    try {
+      const [usersRes, openRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/users?finance=1`),
+        fetch(`${API_BASE}/admin/open-assignments`),
+      ]);
+      const usersData = await usersRes.json();
+      const openData = await openRes.json();
+      if (usersData.success && Array.isArray(usersData.users)) {
+        setFinanceUsers(
+          usersData.users.map((u: Record<string, unknown>) => ({
+            id: Number(u.id),
+            wallet_balance: Number(u.wallet_balance ?? 0),
+            deposit_baseline: Number(u.deposit_baseline ?? 0),
+          })),
+        );
+      }
+      if (openData.success && Array.isArray(openData.assignments)) {
+        setOpenRowsByUser(groupOpenRowsByUser(openData.assignments as AdminOpenAssignRow[]));
+      }
+    } catch {
+      /* keep last socket state */
+    }
+  }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadStatic();
+    void loadLiveContext();
+    walletPollRef.current = setInterval(() => void loadLiveContext(), 30_000);
+    return () => {
+      if (walletPollRef.current) clearInterval(walletPollRef.current);
+    };
+  }, [loadStatic, loadLiveContext]);
 
   useEffect(() => {
+    const applyTicketProfit = (payload: { ticket?: unknown; profit?: unknown }) => {
+      const ticket = String(payload.ticket ?? "");
+      const raw = Number(payload.profit);
+      if (!ticket || !Number.isFinite(raw)) return;
+
+      setOpenRowsByUser((prev) => {
+        let any = false;
+        const next: Record<number, UserTradeRowLike[]> = { ...prev };
+        for (const [uidKey, rows] of Object.entries(prev)) {
+          let userTouched = false;
+          const updated = rows.map((r) => {
+            if (String(r.ticket_id ?? "") !== ticket) return r;
+            userTouched = true;
+            return { ...r, mt5_total_profit: raw };
+          });
+          if (userTouched) {
+            any = true;
+            next[Number(uidKey)] = updated;
+          }
+        }
+        return any ? next : prev;
+      });
+      setLiveTick((t) => t + 1);
+    };
+
+    const onMetrics = (payload: { metrics?: Mt5Metrics } & Mt5Metrics) => {
+      const m = payload?.metrics ?? payload;
+      if (m && (m.equity != null || m.balance != null)) {
+        setMt5Metrics({
+          balance: m.balance != null ? Number(m.balance) : undefined,
+          equity: m.equity != null ? Number(m.equity) : undefined,
+          updated_at: new Date().toISOString(),
+        });
+        setLiveTick((t) => t + 1);
+      }
+    };
+
     const onConnect = () => setSocketLive(true);
     const onDisconnect = () => setSocketLive(false);
-    const onMt5 = () => scheduleReload();
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("mt5live", onMt5);
-    socket.on("mt5data", onMt5);
-    socket.on("mt5close", onMt5);
-    socket.on("mt5metrics", onMt5);
+    socket.on("mt5live", applyTicketProfit);
+    socket.on("mt5data", applyTicketProfit);
+    socket.on("mt5metrics", onMetrics);
     setSocketLive(socket.connected);
-
-    const poll = setInterval(() => void load(true), 60000);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("mt5live", onMt5);
-      socket.off("mt5data", onMt5);
-      socket.off("mt5close", onMt5);
-      socket.off("mt5metrics", onMt5);
-      clearInterval(poll);
-      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      socket.off("mt5live", applyTicketProfit);
+      socket.off("mt5data", applyTicketProfit);
+      socket.off("mt5metrics", onMetrics);
     };
-  }, [load, scheduleReload]);
+  }, []);
 
-  const b = stats?.owe_users_breakdown;
+  const pendingWithdrawals =
+    stats?.facts.pending_withdrawals_usd ??
+    stats?.owe_users_breakdown.pending_withdrawals_usd ??
+    0;
+
+  const liveLiability = useMemo(() => {
+    void liveTick;
+    if (!financeUsers.length) {
+      return stats?.owe_users_breakdown ?? null;
+    }
+    return sumPlatformLiveLiability(financeUsers, openRowsByUser, pendingWithdrawals);
+  }, [financeUsers, openRowsByUser, pendingWithdrawals, stats, liveTick]);
+
+  const liveCopyPl = liveLiability?.open_live_user_pl_usd ?? stats?.live.copy_live_user_pl_usd ?? 0;
+  const liveMt5OpenPl = useMemo(() => {
+    void liveTick;
+    const fromSocket = sumSocketMt5OpenProfit(openRowsByUser);
+    if (Object.keys(openRowsByUser).length > 0) return fromSocket;
+    return stats?.live.mt5_open_profit_usd ?? 0;
+  }, [openRowsByUser, stats, liveTick]);
+
+  const oweNow = liveLiability?.owe_users_now_usd ?? stats?.owe_users_now_usd ?? 0;
+  const walletsUsd = liveLiability?.wallets_usd ?? stats?.owe_users_breakdown.wallets_usd ?? 0;
+
   const monthly = stats?.charts.monthly_revenue ?? [];
   const incomeSplit = stats?.charts.admin_income_split ?? [];
+
+  const refreshAll = () => {
+    void loadStatic();
+    void loadLiveContext();
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-8">
@@ -185,21 +304,21 @@ const AdminFinancialStatsPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Admin finances</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Simple snapshot — what you owe users, what you earned, updated live from MT5.
+            What you owe users and what you earned — open P/L updates live from MT5 socket.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
             {stats?.generated_at && (
-              <span>Updated {new Date(stats.generated_at).toLocaleString()}</span>
+              <span>Base data {new Date(stats.generated_at).toLocaleString()}</span>
             )}
             <span className="inline-flex items-center gap-1">
               <Radio className={`h-3 w-3 ${socketLive ? "text-emerald-500" : "text-slate-300"}`} />
-              {socketLive ? "Live socket connected" : "Socket offline — polling every 60s"}
+              {socketLive ? "Socket live — P/L updates instantly" : "Socket offline"}
             </span>
           </div>
         </div>
         <button
           type="button"
-          onClick={() => load()}
+          onClick={refreshAll}
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-lg bg-[#FFD700] px-4 py-2 text-sm font-semibold text-black hover:bg-[#E6C200] disabled:opacity-60"
         >
@@ -218,14 +337,11 @@ const AdminFinancialStatsPage = () => {
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <HeroCard
               title="Pay users if all stop now"
-              value={fmt(stats.owe_users_now_usd)}
-              sub={
-                b
-                  ? `Wallets $${fmt(b.wallets_usd)} + pending withdrawals $${fmt(b.pending_withdrawals_usd)} + open P/L $${fmt(b.open_live_user_pl_usd)}`
-                  : undefined
-              }
+              value={fmt(oweNow)}
+              sub={`Wallets $${fmt(walletsUsd)} + pending $${fmt(pendingWithdrawals)} + open P/L $${fmt(liveCopyPl)}`}
               icon={Wallet}
               accent="red"
+              live={socketLive && financeUsers.length > 0}
             />
             <HeroCard
               title="Brokerage fees (all time)"
@@ -282,7 +398,7 @@ const AdminFinancialStatsPage = () => {
                 </li>
                 <li className="flex justify-between">
                   <span>Pending withdrawals</span>
-                  <span className="font-medium tabular-nums">${fmt(stats.facts.pending_withdrawals_usd)}</span>
+                  <span className="font-medium tabular-nums">${fmt(pendingWithdrawals)}</span>
                 </li>
                 <li className="flex justify-between">
                   <span>Open MT5 tickets</span>
@@ -292,36 +408,43 @@ const AdminFinancialStatsPage = () => {
             </div>
 
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 text-sm shadow-sm md:col-span-2">
-              <p className="font-semibold text-indigo-900">MT5 live</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-indigo-900">MT5 live</p>
+                {socketLive && (
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    LIVE
+                  </span>
+                )}
+              </div>
               <div className="mt-3 grid gap-4 sm:grid-cols-4">
                 <div>
                   <p className="text-xs text-indigo-600">Master equity</p>
                   <p className="text-lg font-bold tabular-nums text-indigo-950">
-                    {stats.live.mt5_equity_usd != null ? `$${fmt(stats.live.mt5_equity_usd)}` : "—"}
+                    {mt5Metrics?.equity != null ? `$${fmt(mt5Metrics.equity)}` : "—"}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-indigo-600">Master balance</p>
                   <p className="text-lg font-bold tabular-nums text-indigo-950">
-                    {stats.live.mt5_balance_usd != null ? `$${fmt(stats.live.mt5_balance_usd)}` : "—"}
+                    {mt5Metrics?.balance != null ? `$${fmt(mt5Metrics.balance)}` : "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-indigo-600">Open P/L (DB)</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">
-                    ${fmt(stats.live.mt5_open_profit_usd)}
+                  <p className="text-xs text-indigo-600">Open P/L (socket)</p>
+                  <p className={`text-lg font-bold tabular-nums ${plTextClass(liveMt5OpenPl)}`}>
+                    ${fmt(liveMt5OpenPl)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-indigo-600">Copy user open P/L</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">
-                    ${fmt(stats.live.copy_live_user_pl_usd)}
+                  <p className={`text-lg font-bold tabular-nums ${plTextClass(liveCopyPl)}`}>
+                    ${fmt(liveCopyPl)}
                   </p>
                 </div>
               </div>
-              {stats.live.mt5_updated_at && (
+              {mt5Metrics?.updated_at && (
                 <p className="mt-2 text-xs text-indigo-500">
-                  Last EA push: {new Date(stats.live.mt5_updated_at).toLocaleString()}
+                  Last metrics push: {new Date(mt5Metrics.updated_at).toLocaleString()}
                 </p>
               )}
             </div>
