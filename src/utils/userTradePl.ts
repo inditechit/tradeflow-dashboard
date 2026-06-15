@@ -5,8 +5,11 @@
  */
 
 export type UserTradeRowLike = {
+  assignment_id?: unknown;
   ticket_id?: unknown;
   symbol?: unknown;
+  open_time?: unknown;
+  assignment_created_at?: unknown;
   mt5_status?: unknown;
   mt5_volume?: unknown;
   total_trade_volume?: unknown;
@@ -37,6 +40,38 @@ export type UserTradeRowLike = {
 };
 
 const FEE_PER_LOT_USD = 30;
+
+function round2(n: number): number {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function parseChronTime(
+  r: UserTradeRowLike & { open_time?: unknown; assignment_created_at?: unknown },
+): number {
+  const candidates = [
+    r.close_time,
+    r.open_time,
+    r.assignment_created_at,
+  ];
+  for (const c of candidates) {
+    if (c == null || String(c).trim() === "" || String(c) === "0000-00-00 00:00:00") {
+      continue;
+    }
+    const t = Date.parse(String(c).replace(" ", "T"));
+    if (Number.isFinite(t)) return t;
+  }
+  return 0;
+}
+
+/** Same order as backend ASSIGNMENTS_FOR_EQUITY_SQL. */
+export function sortTradesChronological<T extends UserTradeRowLike>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const ka = parseChronTime(a);
+    const kb = parseChronTime(b);
+    if (ka !== kb) return ka - kb;
+    return Number(a.assignment_id ?? 0) - Number(b.assignment_id ?? 0);
+  });
+}
 
 export function parseMt5Price(raw: unknown): number | null {
   const n = Number(raw);
@@ -206,7 +241,6 @@ export function estimateUserSharePl(
   /** Fee already debited at trade assign — settlement uses P/L only. */
   feeAtAssign = true,
 ): number {
-  const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
   const baseline = round2(depositBaseline);
   let wallet = round2(walletBefore);
   const equity = round2(equityBefore != null ? equityBefore : walletBefore);
@@ -240,6 +274,100 @@ export type UserShareContext = {
   equityBefore?: number;
   useBaseline?: boolean;
 };
+
+/**
+ * Chronological baseline waterfall — mirrors backend buildBaselineUserFacingPlMap.
+ * Key = assignment_id.
+ */
+export function buildSequentialUserFacingPlMap(
+  rows: UserTradeRowLike[],
+  walletBalance: number,
+  depositBaseline: number,
+  liveProfitByTicket?: Record<string, number>,
+): Map<number, number> {
+  const map = new Map<number, number>();
+  const baseline = Math.max(0, Number(depositBaseline) || 0);
+  let simWallet = round2(Math.max(0, Number(walletBalance) || 0));
+  const ordered = sortTradesChronological(rows);
+
+  let openRawSum = 0;
+  for (const r of ordered) {
+    if (isTradeClosed(r)) continue;
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    openRawSum += proportionalRawPl(r, live);
+  }
+  openRawSum = round2(openRawSum);
+
+  for (const r of ordered) {
+    const assignId = Number(r.assignment_id ?? 0);
+    const settled = r.wallet_settled_at != null;
+    const closed = isTradeClosed(r);
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    const raw = proportionalRawPl(r, live);
+    const { fee, pct } = resolveEffectiveSlice(r);
+
+    if (settled) {
+      const pl = round2(Number(r.final_profit_loss ?? r.user_facing_pl ?? 0));
+      if (assignId) map.set(assignId, pl);
+      continue;
+    }
+
+    if (!closed) {
+      const equityBefore = round2(simWallet + openRawSum - raw);
+      const pl =
+        baseline > 0
+          ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore)
+          : applyUserRules(raw, fee, pct);
+      if (assignId) map.set(assignId, pl);
+      continue;
+    }
+
+    const equityBefore = round2(simWallet + openRawSum);
+    const pl =
+      baseline > 0
+        ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore)
+        : applyUserRules(raw, fee, pct);
+    if (assignId) map.set(assignId, pl);
+    simWallet = round2(simWallet + pl);
+  }
+
+  return map;
+}
+
+/** Sum user-facing P/L on open positions (dashboard + admin overlay). */
+export function recomputeOpenUserLivePl(
+  rows: UserTradeRowLike[],
+  walletBalance: number,
+  depositBaseline: number,
+  liveProfitByTicket?: Record<string, number>,
+): number {
+  const wallet = Math.max(0, Number(walletBalance) || 0);
+  const openRows = rows.filter((r) => !isTradeClosed(r));
+  if (wallet <= 0.01 || !openRows.length) return 0;
+
+  const map = buildSequentialUserFacingPlMap(
+    rows,
+    wallet,
+    depositBaseline,
+    liveProfitByTicket,
+  );
+  let sum = 0;
+  for (const r of openRows) {
+    const assignId = Number(r.assignment_id ?? 0);
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    sum +=
+      assignId && map.has(assignId)
+        ? map.get(assignId)!
+        : rowUserSharePl(r, live, {
+            walletBefore: wallet,
+            depositBaseline,
+          });
+  }
+  return round2(sum);
+}
 
 /** P/L shown to user (their wallet share, not full proportional pool slice). */
 export function rowUserSharePl(
@@ -334,11 +462,30 @@ export function rowUserFacingPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number,
   ctx?: UserShareContext,
+  facingMap?: Map<number, number>,
 ): number {
+  const assignId = Number(r.assignment_id ?? 0);
+  const hasLive = liveMt5Profit != null && Number.isFinite(liveMt5Profit);
+  const settled = r.wallet_settled_at != null;
+
+  if (settled) {
+    const settledPl = Number(
+      r.final_profit_loss ?? r.user_facing_pl ?? r.user_wallet_credit ?? r.user_wallet_pl ?? NaN,
+    );
+    if (Number.isFinite(settledPl)) return settledPl;
+  }
+
+  if (hasLive || ctx || facingMap) {
+    if (facingMap && assignId && facingMap.has(assignId)) {
+      return facingMap.get(assignId)!;
+    }
+    return rowUserSharePl(r, liveMt5Profit, ctx);
+  }
+
   const apiFacing = r.user_facing_pl != null ? Number(r.user_facing_pl) : NaN;
   if (Number.isFinite(apiFacing)) return apiFacing;
 
-  if (isTradeClosed(r) || r.wallet_settled_at != null) {
+  if (isTradeClosed(r)) {
     const settled = Number(
       r.final_profit_loss ?? r.user_wallet_credit ?? r.user_wallet_pl ?? NaN,
     );
@@ -367,13 +514,14 @@ export function rowGrossPl(
   return rowDisplayPl(r, liveMt5Profit);
 }
 
-/** Wallet credit after fee (and profit-share rules on wins). */
+/** Wallet credit after fee, baseline recovery, and profit-share rules. */
 export function rowFinalWalletPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number,
   ctx?: UserShareContext,
+  facingMap?: Map<number, number>,
 ): number {
-  return rowWalletPl(r, liveMt5Profit) ?? rowUserFacingPl(r, liveMt5Profit, ctx);
+  return rowUserFacingPl(r, liveMt5Profit, ctx, facingMap);
 }
 
 /** @deprecated Use rowFinalWalletPl */
@@ -399,32 +547,31 @@ export function sumUserTradeNetPl(
 }
 
 export function isOpenTrade(r: UserTradeRowLike): boolean {
-  const st = String(r.mt5_status ?? "").toUpperCase();
-  if (st.includes("CLOSE")) return false;
-  const ct = r.close_time;
-  const hasClose =
-    ct != null &&
-    String(ct).trim() !== "" &&
-    String(ct) !== "0000-00-00 00:00:00";
-  if (hasClose) return false;
-  if (st.includes("OPEN")) return true;
-  if (r.wallet_settled_at != null) return false;
-  return true;
+  return !isTradeClosed(r);
 }
 
 export function sumLiveProfitLoss(
   rows: UserTradeRowLike[],
-  liveProfitByTicket?: Record<string, number>
+  liveProfitByTicket?: Record<string, number>,
+  walletBalance = 0,
+  depositBaseline = 0,
 ): { profit: number; loss: number; net: number } {
+  const wallet = Math.max(0, Number(walletBalance) || 0);
+  const baseline = Math.max(0, Number(depositBaseline) || 0);
+  const facingMap =
+    wallet > 0 || baseline > 0
+      ? buildSequentialUserFacingPlMap(rows, wallet, baseline, liveProfitByTicket)
+      : undefined;
+
   let profit = 0;
   let loss = 0;
   for (const r of rows) {
     if (!isOpenTrade(r)) continue;
     const ticket = String(r.ticket_id ?? "");
     const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
-    const pl = rowDisplayPl(r, live);
+    const pl = rowUserFacingPl(r, live, undefined, facingMap);
     if (pl >= 0) profit += pl;
     else loss += pl;
   }
-  return { profit, loss, net: profit + loss };
+  return { profit: round2(profit), loss: round2(loss), net: round2(profit + loss) };
 }

@@ -12,8 +12,10 @@ const PAGE_SIZE = 50;
 import {
   fmtMt5Price,
   isOpenTrade,
+  isTradeClosed,
   rowFinalWalletPl,
   rowGrossPl,
+  buildSequentialUserFacingPlMap,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
@@ -41,8 +43,8 @@ function tradeOpenedAt(r: UserTradeRow): string {
 }
 
 function tradeClosedAt(r: UserTradeRow): string {
-  if (isOpenTrade(r)) return "—";
-  return formatIsoDateTime(r.close_time ?? null);
+  if (!isTradeClosed(r)) return "—";
+  return formatIsoDateTime(r.close_time ?? r.wallet_settled_at ?? null);
 }
 
 const AdminUserTradesPage = () => {
@@ -52,6 +54,8 @@ const AdminUserTradesPage = () => {
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [depositBaseline, setDepositBaseline] = useState(0);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -59,11 +63,19 @@ const AdminUserTradesPage = () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesData] = await Promise.all([
+      const [profileRes, tradesData, summaryRes] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
-        fetchAllUserTrades(userId),
+        fetchAllUserTrades(userId, { admin: true }),
+        fetch(`${API_BASE}/user/summary/${userId}`),
       ]);
       const profileData = await profileRes.json();
+      const summaryData = await summaryRes.json();
+      if (summaryData?.success) {
+        setWalletBalance(Number(summaryData.wallet_balance ?? 0));
+        setDepositBaseline(
+          Number(summaryData.deposit_baseline ?? summaryData.total_invested ?? 0),
+        );
+      }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
       }
@@ -94,6 +106,11 @@ const AdminUserTradesPage = () => {
     PAGE_SIZE,
   );
 
+  const facingMap = useMemo(
+    () => buildSequentialUserFacingPlMap(rows, walletBalance, depositBaseline),
+    [rows, walletBalance, depositBaseline],
+  );
+
   if (!userId) {
     return <Navigate to="/admin/users" replace />;
   }
@@ -118,7 +135,7 @@ const AdminUserTradesPage = () => {
             </h1>
             <p className="mt-1 text-sm text-slate-500">
               User #{userId} · {openCount} open · {closedCount} closed · {totalLoaded || rows.length}{" "}
-              total
+              assigned trades (full history)
             </p>
           </div>
         </div>
@@ -191,9 +208,9 @@ const AdminUserTradesPage = () => {
                 </tr>
               ) : (
                 pageItems.map((r) => {
-                  const open = isOpenTrade(r);
+                  const open = !isTradeClosed(r);
                   const grossPl = rowGrossPl(r);
-                  const finalPl = rowFinalWalletPl(r);
+                  const finalPl = rowFinalWalletPl(r, undefined, undefined, facingMap);
                   const vol = Number(r.allocated_volume ?? 0);
                   const fee = Number(r.proportional_fee ?? 0);
                   const buyPrice = Number(r.price);

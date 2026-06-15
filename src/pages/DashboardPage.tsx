@@ -17,8 +17,8 @@ import { io } from 'socket.io-client';
 import {
   resolveEffectiveSlice,
   isTradeClosed,
-  rowUserSharePl,
-  proportionalRawPl,
+  recomputeOpenUserLivePl,
+  type UserTradeRowLike,
 } from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
@@ -115,9 +115,9 @@ const DashboardPage = () => {
   const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
   const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
-  const openPlByTicketRef = useRef<Record<string, number>>({});
   const depositBaselineRef = useRef(0);
-  const openTradeRowsRef = useRef<Array<{ ticket: string; row: Record<string, unknown> }>>([]);
+  const allTradeRowsRef = useRef<UserTradeRowLike[]>([]);
+  const liveRawByTicketRef = useRef<Record<string, number>>({});
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
@@ -131,29 +131,12 @@ const DashboardPage = () => {
   const displayPendingClosedPl = pendingClosedPl;
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
-    const baseline = depositBaselineRef.current;
-    const sim = walletStart;
-    const rows = openTradeRowsRef.current;
-    let openRawSum = 0;
-    const rawByTicket: Record<string, number> = {};
-    for (const { ticket, row } of rows) {
-      const raw = proportionalRawPl(row as Parameters<typeof proportionalRawPl>[0]);
-      rawByTicket[ticket] = raw;
-      openRawSum += raw;
-    }
-    const next: Record<string, number> = {};
-    for (const { ticket, row } of rows) {
-      const raw = rawByTicket[ticket] ?? 0;
-      const equityBefore = sim + openRawSum - raw;
-      const pl = rowUserSharePl(row as Parameters<typeof rowUserSharePl>[0], undefined, {
-        walletBefore: sim,
-        depositBaseline: baseline,
-        equityBefore,
-      });
-      next[ticket] = pl;
-    }
-    openPlByTicketRef.current = next;
-    return Object.values(next).reduce((s, n) => s + (Number(n) || 0), 0);
+    return recomputeOpenUserLivePl(
+      allTradeRowsRef.current,
+      walletStart,
+      depositBaselineRef.current,
+      liveRawByTicketRef.current,
+    );
   }, []);
 
   const loadFinance = useCallback(async () => {
@@ -199,17 +182,19 @@ const DashboardPage = () => {
 
       const tradesData = await fetchAllUserTrades(uid);
 
-      depositBaselineRef.current = Number(summaryData?.deposit_baseline ?? 0);
+      depositBaselineRef.current = Number(
+        summaryData?.deposit_baseline ?? summaryData?.total_invested ?? 0,
+      );
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
-      const openRows: Array<{ ticket: string; row: Record<string, unknown> }> = [];
       let openCount = 0;
+      const allRows: UserTradeRowLike[] = [];
       if (tradesData?.success && Array.isArray(tradesData.trades)) {
         for (const t of tradesData.trades) {
+          allRows.push(t as UserTradeRowLike);
           if (isTradeClosed(t)) continue;
           openCount += 1;
           const ticket = String(t.ticket_id ?? '');
           if (!ticket) continue;
-          openRows.push({ ticket, row: t });
           const slice = resolveEffectiveSlice(t);
           nextSlice[ticket] = {
             v_i: slice.v_i,
@@ -219,7 +204,7 @@ const DashboardPage = () => {
           };
         }
       }
-      openTradeRowsRef.current = openRows;
+      allTradeRowsRef.current = allRows;
       liveTicketRef.current = nextSlice;
       setOpenPositionCount(openCount);
       const wBal = Number(wData?.wallet?.balance ?? assignData?.balance ?? 0);
@@ -334,15 +319,17 @@ const DashboardPage = () => {
     if (isBusted) return;
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
-    const entry = openTradeRowsRef.current.find((x) => x.ticket === ticket);
-    if (entry) {
-      entry.row = {
-        ...entry.row,
-        mt5_total_profit: rawProfit,
-        mt5_volume: ctx.V,
-        allocated_volume: ctx.v_i,
-      };
-    }
+    liveRawByTicketRef.current = { ...liveRawByTicketRef.current, [ticket]: rawProfit };
+    allTradeRowsRef.current = allTradeRowsRef.current.map((row) =>
+      String(row.ticket_id ?? '') === ticket
+        ? {
+            ...row,
+            mt5_total_profit: rawProfit,
+            mt5_volume: ctx.V,
+            allocated_volume: ctx.v_i,
+          }
+        : row,
+    );
     const sum = recomputeOpenPlSequential(walletBalance);
     setLivePl(sum);
     if (walletBalance + sum <= 0) {

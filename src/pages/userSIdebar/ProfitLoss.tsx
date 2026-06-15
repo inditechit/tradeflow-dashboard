@@ -6,6 +6,8 @@ import {
   sumLiveProfitLoss,
   rowGrossPl,
   rowFinalWalletPl,
+  buildSequentialUserFacingPlMap,
+  recomputeOpenUserLivePl,
   resolveMt5BuySellPrices,
   fmtMt5Price,
   isOpenTrade,
@@ -26,6 +28,7 @@ type Summary = {
   currency: string;
   wallet_balance: number;
   total_invested: number;
+  deposit_baseline?: number;
   realised_profit: number;
   realised_loss: number;
   realised_net: number;
@@ -180,6 +183,20 @@ const ProfitLoss = () => {
 
   const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
 
+  const walletBalance = Number(summary?.wallet_balance ?? 0);
+  const depositBaseline = Number(summary?.deposit_baseline ?? summary?.total_invested ?? 0);
+
+  const facingMap = useMemo(
+    () =>
+      buildSequentialUserFacingPlMap(
+        sortedRows,
+        walletBalance,
+        depositBaseline,
+        liveRawByTicket,
+      ),
+    [sortedRows, walletBalance, depositBaseline, liveRawByTicket],
+  );
+
   const tableTotals = useMemo(() => {
     let grossProfit = 0;
     let grossLoss = 0;
@@ -189,7 +206,7 @@ const ProfitLoss = () => {
       const ticket = String(r.ticket_id ?? "");
       const live = liveRawByTicket[ticket];
       const gross = rowGrossPl(r, live);
-      const final = rowFinalWalletPl(r, live);
+      const final = rowFinalWalletPl(r, live, undefined, facingMap);
       if (gross >= 0) grossProfit += gross;
       else grossLoss += gross;
       if (final >= 0) finalProfit += final;
@@ -214,7 +231,7 @@ const ProfitLoss = () => {
       finalLoss,
       finalNet: finalProfit + finalLoss,
     };
-  }, [sortedRows, liveRawByTicket, apiTotals]);
+  }, [sortedRows, liveRawByTicket, apiTotals, facingMap]);
 
   const cycleNote = useMemo(() => {
     if (total > 0) {
@@ -226,19 +243,27 @@ const ProfitLoss = () => {
   const currency = summary?.currency || "USD";
 
   const liveFromSocket = useMemo(
-    () => sumLiveProfitLoss(rows, liveRawByTicket),
-    [rows, liveRawByTicket]
+    () => sumLiveProfitLoss(rows, liveRawByTicket, walletBalance, depositBaseline),
+    [rows, liveRawByTicket, walletBalance, depositBaseline],
   );
 
   const liveFromApi = useMemo(
-    () => sumLiveProfitLoss(rows),
-    [rows]
+    () => sumLiveProfitLoss(rows, undefined, walletBalance, depositBaseline),
+    [rows, walletBalance, depositBaseline],
+  );
+
+  const livePlComputed = useMemo(
+    () => recomputeOpenUserLivePl(rows, walletBalance, depositBaseline, liveRawByTicket),
+    [rows, walletBalance, depositBaseline, liveRawByTicket],
   );
 
   const hasSocketLive = Object.keys(liveRawByTicket).length > 0;
+  const openCount = rows.filter((r) => isOpenTrade(r)).length;
   const livePl =
-    Number(summary?.live_pl ?? 0) ||
-    (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
+    openCount > 0 && walletBalance > 0.01
+      ? livePlComputed
+      : Number(summary?.live_pl ?? 0) ||
+        (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
 
   const cards = [
     {
@@ -371,7 +396,7 @@ const ProfitLoss = () => {
                   const ticket = String(r.ticket_id ?? "");
                   const open = isOpenTrade(r);
                   const grossPl = rowGrossPl(r, liveRawByTicket[ticket]);
-                  const finalPl = rowFinalWalletPl(r, liveRawByTicket[ticket]);
+                  const finalPl = rowFinalWalletPl(r, liveRawByTicket[ticket], undefined, facingMap);
                   const grossProfit = grossPl >= 0;
                   const finalProfit = finalPl >= 0;
                   

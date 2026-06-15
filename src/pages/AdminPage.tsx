@@ -157,7 +157,12 @@ const AdminPage = () => {
       const wallet = Number(loc.wallet_balance ?? 0);
       const baseline = Number(loc.deposit_baseline ?? 0);
       const rows = openRowsByUser[uid] ?? [];
-      overlay[uid] = buildFinanceOverlay(wallet, baseline, rows);
+      overlay[uid] = buildFinanceOverlay(
+        wallet,
+        baseline,
+        rows,
+        Number(loc.live_pl ?? 0),
+      );
     }
     setFinanceOverlay(overlay);
   }, [locations, openRowsByUser]);

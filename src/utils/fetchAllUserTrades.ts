@@ -22,6 +22,8 @@ type FetchOpts = {
   /** When false (default), returns every assign row in the DB. */
   sinceLastRecharge?: boolean;
   pageSize?: number;
+  /** Admin user-trades page: full history, no settle-on-read side effects. */
+  admin?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export async function fetchAllUserTrades(
   opts: FetchOpts = {},
 ): Promise<FetchAllUserTradesResult> {
   const sinceLastRecharge = opts.sinceLastRecharge ?? false;
+  const admin = opts.admin === true;
   const pageSize = Math.min(Math.max(opts.pageSize ?? 500, 1), 5000);
   const sinceParam = sinceLastRecharge ? "1" : "0";
 
@@ -48,6 +51,7 @@ export async function fetchAllUserTrades(
       limit: String(pageSize),
       page: String(page),
     });
+    if (admin) qs.set("admin", "1");
     const res = await fetch(`${API_BASE}/user/trades/${userId}?${qs.toString()}`);
     const data = await res.json();
     if (!data?.success) {

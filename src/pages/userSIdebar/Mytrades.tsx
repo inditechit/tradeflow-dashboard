@@ -7,6 +7,7 @@ import {
   isOpenTrade,
   resolveEffectiveSlice,
   rowUserFacingPl,
+  buildSequentialUserFacingPlMap,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plBadgeClass, plDotClass } from "@/utils/plColors";
@@ -61,6 +62,8 @@ const Mytrades = () => {
   const [assignFunded, setAssignFunded] = useState(true);
   const [shareMap, setShareMap] = useState<Record<string, UserSlice>>({});
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [depositBaseline, setDepositBaseline] = useState(0);
   const myTicketIdsRef = useRef<Set<string>>(new Set());
   const myRatiosRef = useRef<Record<string, number>>({});
 
@@ -71,11 +74,19 @@ const Mytrades = () => {
     const uid = currentUser.userId;
     try {
       setLoading(true);
-      const [assignRes, utData] = await Promise.all([
+      const [assignRes, utData, summaryRes] = await Promise.all([
         fetch(`${API_BASE}/user/trade-assign/${uid}`),
         fetchAllUserTrades(uid),
+        fetch(`${API_BASE}/user/summary/${uid}`),
       ]);
       const assignData = await assignRes.json();
+      const summaryData = await summaryRes.json();
+      if (summaryData?.success) {
+        setWalletBalance(Number(summaryData.wallet_balance ?? 0));
+        setDepositBaseline(
+          Number(summaryData.deposit_baseline ?? summaryData.total_invested ?? 0),
+        );
+      }
 
       const utRows: UserTradeRow[] = utData.trades as UserTradeRow[];
       const ticketSet = new Set<string>();
@@ -152,6 +163,17 @@ const Mytrades = () => {
   );
 
   const { page, setPage, pageItems, totalPages, total } = useClientPagination(openTrades, PAGE_SIZE);
+
+  const facingMap = useMemo(
+    () =>
+      buildSequentialUserFacingPlMap(
+        rows,
+        walletBalance,
+        depositBaseline,
+        liveRawByTicket,
+      ),
+    [rows, walletBalance, depositBaseline, liveRawByTicket],
+  );
 
   return (
     <div className="max-w-8xl mx-auto p-4">
@@ -233,6 +255,8 @@ const Mytrades = () => {
               const displayPl = rowUserFacingPl(
                 trade,
                 Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined,
+                undefined,
+                facingMap,
               );
               const isProfit = displayPl >= 0;
               const yourVol = slice.v_i > 0 ? slice.v_i : Number(trade.allocated_volume || 0);

@@ -3,7 +3,11 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
-import { rowUserFacingPl, type UserTradeRowLike } from "@/utils/userTradePl";
+import {
+  rowUserFacingPl,
+  buildSequentialUserFacingPlMap,
+  type UserTradeRowLike,
+} from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
 
 import { API_BASE } from "@/config/api";
@@ -24,6 +28,8 @@ const TradeHistory = () => {
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [assignFunded, setAssignFunded] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [depositBaseline, setDepositBaseline] = useState(0);
 
   const fetchAssignedTickets = async () => {
     if (!currentUser?.userId) return;
@@ -40,7 +46,17 @@ const TradeHistory = () => {
     if (!currentUser?.userId) return;
     try {
       setLoading(true);
-      const data = await fetchAllUserTrades(currentUser.userId);
+      const [data, summaryRes] = await Promise.all([
+        fetchAllUserTrades(currentUser.userId),
+        fetch(`${API_BASE}/user/summary/${currentUser.userId}`),
+      ]);
+      const summaryData = await summaryRes.json();
+      if (summaryData?.success) {
+        setWalletBalance(Number(summaryData.wallet_balance ?? 0));
+        setDepositBaseline(
+          Number(summaryData.deposit_baseline ?? summaryData.total_invested ?? 0),
+        );
+      }
       setRows(data.trades as UserTradeRow[]);
     } catch (err) {
       console.error("user/trades:", err);
@@ -67,8 +83,13 @@ const TradeHistory = () => {
 
   const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
 
-  const sharePl = (r: UserTradeRow) => rowUserFacingPl(r);
-  const walletPl = (r: UserTradeRow) => rowUserFacingPl(r);
+  const facingMap = useMemo(
+    () => buildSequentialUserFacingPlMap(sortedRows, walletBalance, depositBaseline),
+    [sortedRows, walletBalance, depositBaseline],
+  );
+
+  const sharePl = (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap);
+  const walletPl = (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap);
 
   return (
     <div className="mx-auto max-w-7xl p-4">
