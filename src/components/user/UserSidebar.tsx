@@ -61,14 +61,12 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
 
     const fetchWallet = async () => {
       try {
-        const res = await axios.get(
-          `${API_BASE}/user/wallet/${currentUser.userId}`,
-        );
-        const w = res.data?.wallet;
-        if (!w) return;
+        const res = await axios.get(`${API_BASE}/user/summary/${currentUser.userId}`);
+        const data = res.data;
+        if (!data?.success) return;
         setAccountWallet({
-          currency: w.currency ?? "USD",
-          balance: Math.max(0, Number(w.balance ?? 0)),
+          currency: data.currency ?? "USD",
+          balance: Math.max(0, Number(data.wallet_balance ?? 0)),
         });
       } catch (err) {
         console.error("Wallet fetch error:", err);
@@ -76,6 +74,8 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
     };
 
     fetchWallet();
+    const id = window.setInterval(fetchWallet, 10_000);
+    return () => window.clearInterval(id);
   }, [currentUser]);
 
   useEffect(() => {

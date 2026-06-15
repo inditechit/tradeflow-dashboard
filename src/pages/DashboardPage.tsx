@@ -182,8 +182,14 @@ const DashboardPage = () => {
 
       const tradesData = await fetchAllUserTrades(uid);
 
+      const summaryAfterRes = await fetch(`${API_BASE}/user/summary/${uid}`);
+      const summaryAfter = await summaryAfterRes.json();
+
       depositBaselineRef.current = Number(
-        summaryData?.deposit_baseline ?? summaryData?.total_invested ?? 0,
+        summaryAfter?.deposit_baseline ??
+          summaryData?.deposit_baseline ??
+          summaryData?.total_invested ??
+          0,
       );
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       let openCount = 0;
@@ -212,16 +218,25 @@ const DashboardPage = () => {
       allTradeRowsRef.current = allRows;
       liveTicketRef.current = nextSlice;
       setOpenPositionCount(openCount);
-      const wBal = Number(wData?.wallet?.balance ?? assignData?.balance ?? 0);
+      const wBal = Number(
+        summaryAfter?.wallet_balance ??
+          summaryData?.wallet_balance ??
+          wData?.wallet?.balance ??
+          assignData?.balance ??
+          0,
+      );
       const openPlSum = openCount > 0 ? recomputeOpenPlSequential(wBal) : 0;
 
-      if (summaryData?.success) {
-        const busted = summaryData.busted === true;
-        const isSoft = summaryData.soft_bust === true;
+      const effectiveSummary =
+        summaryAfter?.success === true ? summaryAfter : summaryData;
+
+      if (effectiveSummary?.success) {
+        const busted = effectiveSummary.busted === true;
+        const isSoft = effectiveSummary.soft_bust === true;
         setIsBusted(busted);
         setSoftBust(isSoft);
-        if (busted && !isSoft && Number(summaryData.wallet_balance ?? 0) <= 0.01) {
-          setWallet({ balance: 0, currency: summaryData.currency || "USD" });
+        if (busted && !isSoft && Number(effectiveSummary.wallet_balance ?? 0) <= 0.01) {
+          setWallet({ balance: 0, currency: effectiveSummary.currency || "USD" });
           setPendingClosedPl(0);
           setLivePl(0);
           setWithdrawableFromApi(0);
@@ -229,28 +244,30 @@ const DashboardPage = () => {
           setTradingActive(false);
           setAssignFunded(false);
         } else if (busted && isSoft) {
-          if (summaryData.wallet_balance != null) {
+          if (effectiveSummary.wallet_balance != null) {
             setWallet({
-              balance: summaryData.wallet_balance,
-              currency: summaryData.currency || "USD",
+              balance: effectiveSummary.wallet_balance,
+              currency: effectiveSummary.currency || "USD",
             });
           }
-          setPendingClosedPl(Number(summaryData.pending_closed_pl ?? 0));
-          setLivePl(Number(summaryData.live_pl ?? openPlSum));
+          setPendingClosedPl(Number(effectiveSummary.pending_closed_pl ?? 0));
+          setLivePl(Number(effectiveSummary.live_pl ?? openPlSum));
           setWithdrawableFromApi(
-            Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
+            Number(
+              effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? wBal : 0,
+            ),
           );
           setTradingActive(false);
         } else {
-          const summaryWallet = Number(summaryData.wallet_balance ?? wBal);
-          if (summaryData.wallet_balance != null) {
+          const summaryWallet = Number(effectiveSummary.wallet_balance ?? wBal);
+          if (effectiveSummary.wallet_balance != null) {
             setWallet({
               balance: summaryWallet,
-              currency: summaryData.currency || wData?.wallet?.currency || "USD",
+              currency: effectiveSummary.currency || wData?.wallet?.currency || "USD",
             });
           }
-          const apiLive = Number(summaryData.live_pl ?? 0);
-          const apiPending = Number(summaryData.pending_closed_pl ?? 0);
+          const apiLive = Number(effectiveSummary.live_pl ?? 0);
+          const apiPending = Number(effectiveSummary.pending_closed_pl ?? 0);
           setPendingClosedPl(apiPending);
           setLivePl(
             openCount > 0
@@ -260,7 +277,7 @@ const DashboardPage = () => {
               : apiLive,
           );
           setWithdrawableFromApi(
-            Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
+            Number(effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? summaryWallet : 0),
           );
         }
       } else {

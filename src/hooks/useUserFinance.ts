@@ -77,6 +77,8 @@ export function useUserFinance(userId: number | undefined) {
 
   useEffect(() => {
     refresh();
+    const id = window.setInterval(refresh, 10_000);
+    return () => window.clearInterval(id);
   }, [refresh]);
 
   return { ...state, refresh };
