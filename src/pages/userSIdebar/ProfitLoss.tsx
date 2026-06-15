@@ -259,11 +259,13 @@ const ProfitLoss = () => {
 
   const hasSocketLive = Object.keys(liveRawByTicket).length > 0;
   const openCount = rows.filter((r) => isOpenTrade(r)).length;
+  const apiLive = Number(summary?.live_pl ?? 0);
   const livePl =
     openCount > 0 && walletBalance > 0.01
-      ? livePlComputed
-      : Number(summary?.live_pl ?? 0) ||
-        (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
+      ? Math.abs(livePlComputed) > 0.001 || Math.abs(apiLive) < 0.001
+        ? livePlComputed
+        : apiLive
+      : apiLive || (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
 
   const cards = [
     {

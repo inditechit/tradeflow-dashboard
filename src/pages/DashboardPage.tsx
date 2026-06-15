@@ -190,12 +190,17 @@ const DashboardPage = () => {
       const allRows: UserTradeRowLike[] = [];
       if (tradesData?.success && Array.isArray(tradesData.trades)) {
         for (const t of tradesData.trades) {
-          allRows.push(t as UserTradeRowLike);
-          if (isTradeClosed(t)) continue;
-          openCount += 1;
           const ticket = String(t.ticket_id ?? '');
+          const liveRaw = ticket ? liveRawByTicketRef.current[ticket] : undefined;
+          const row =
+            liveRaw != null && Number.isFinite(liveRaw)
+              ? { ...t, mt5_total_profit: liveRaw }
+              : t;
+          allRows.push(row as UserTradeRowLike);
+          if (isTradeClosed(row)) continue;
+          openCount += 1;
           if (!ticket) continue;
-          const slice = resolveEffectiveSlice(t);
+          const slice = resolveEffectiveSlice(row as UserTradeRowLike);
           nextSlice[ticket] = {
             v_i: slice.v_i,
             V: slice.V,
@@ -247,7 +252,13 @@ const DashboardPage = () => {
           const apiLive = Number(summaryData.live_pl ?? 0);
           const apiPending = Number(summaryData.pending_closed_pl ?? 0);
           setPendingClosedPl(apiPending);
-          setLivePl(openCount > 0 ? openPlSum : apiLive);
+          setLivePl(
+            openCount > 0
+              ? Math.abs(openPlSum) > 0.001 || Math.abs(apiLive) < 0.001
+                ? openPlSum
+                : apiLive
+              : apiLive,
+          );
           setWithdrawableFromApi(
             Number(summaryData.can_withdraw ? summaryData.wallet_balance ?? summaryWallet : 0),
           );

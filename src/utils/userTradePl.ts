@@ -344,27 +344,44 @@ export function recomputeOpenUserLivePl(
   liveProfitByTicket?: Record<string, number>,
 ): number {
   const wallet = Math.max(0, Number(walletBalance) || 0);
+  const baseline = Math.max(0, Number(depositBaseline) || 0);
   const openRows = rows.filter((r) => !isTradeClosed(r));
   if (wallet <= 0.01 || !openRows.length) return 0;
 
   const map = buildSequentialUserFacingPlMap(
     rows,
     wallet,
-    depositBaseline,
+    baseline,
     liveProfitByTicket,
   );
+
+  let openRawSum = 0;
+  const rawByTicket = new Map<string, number>();
+  for (const r of openRows) {
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    const raw = proportionalRawPl(r, live);
+    if (ticket) rawByTicket.set(ticket, raw);
+    openRawSum += raw;
+  }
+  openRawSum = round2(openRawSum);
+
   let sum = 0;
   for (const r of openRows) {
     const assignId = Number(r.assignment_id ?? 0);
     const ticket = String(r.ticket_id ?? "");
     const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
-    sum +=
-      assignId && map.has(assignId)
-        ? map.get(assignId)!
-        : rowUserSharePl(r, live, {
-            walletBefore: wallet,
-            depositBaseline,
-          });
+    if (assignId && map.has(assignId)) {
+      sum += map.get(assignId)!;
+      continue;
+    }
+    const raw = rawByTicket.get(ticket) ?? proportionalRawPl(r, live);
+    const equityBefore = round2(wallet + openRawSum - raw);
+    sum += rowUserSharePl(r, live, {
+      walletBefore: wallet,
+      depositBaseline: baseline,
+      equityBefore,
+    });
   }
   return round2(sum);
 }
@@ -479,6 +496,11 @@ export function rowUserFacingPl(
     if (facingMap && assignId && facingMap.has(assignId)) {
       return facingMap.get(assignId)!;
     }
+    return rowUserSharePl(r, liveMt5Profit, ctx);
+  }
+
+  // Open trades: recompute from slice — API user_facing_pl is stale on socket ticks.
+  if (!settled && isOpenTrade(r)) {
     return rowUserSharePl(r, liveMt5Profit, ctx);
   }
 

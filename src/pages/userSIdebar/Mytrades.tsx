@@ -16,7 +16,11 @@ import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE, SOCKET_URL } from "@/config/api";
 
+import { formatIsoDateTime } from "@/utils/mt5TradeDates";
+
 const PAGE_SIZE = 50;
+
+type StatusFilter = "all" | "open" | "closed";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
@@ -68,6 +72,7 @@ const Mytrades = () => {
   const myRatiosRef = useRef<Record<string, number>>({});
 
   const [isConnected, setIsConnected] = useState(socket.connected);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const fetchBoard = useCallback(async () => {
     if (!currentUser?.userId) return;
@@ -157,12 +162,24 @@ const Mytrades = () => {
     };
   }, [currentUser?.userId, fetchBoard]);
 
-  const openTrades = useMemo(
-    () => rows.filter((t) => isOpenTrade(t)),
-    [rows]
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id))),
+    [rows],
   );
 
-  const { page, setPage, pageItems, totalPages, total } = useClientPagination(openTrades, PAGE_SIZE);
+  const openCount = useMemo(() => rows.filter((t) => isOpenTrade(t)).length, [rows]);
+  const closedCount = rows.length - openCount;
+
+  const filteredRows = useMemo(() => {
+    if (statusFilter === "open") return sortedRows.filter((t) => isOpenTrade(t));
+    if (statusFilter === "closed") return sortedRows.filter((t) => !isOpenTrade(t));
+    return sortedRows;
+  }, [sortedRows, statusFilter]);
+
+  const { page, setPage, pageItems, totalPages, total } = useClientPagination(
+    filteredRows,
+    PAGE_SIZE,
+  );
 
   const facingMap = useMemo(
     () =>
@@ -192,13 +209,15 @@ const Mytrades = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-black flex items-center gap-3">
-            Open trades
+            My trades
             <span
               className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-red-500"}`}
               title={isConnected ? "VM Connected" : "VM Disconnected"}
             />
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Open positions</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Open and closed — {rows.length} assigned ({openCount} open, {closedCount} closed)
+          </p>
         </div>
 
         <button
@@ -211,56 +230,66 @@ const Mytrades = () => {
         </button>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(
+          [
+            ["all", `All (${rows.length})`],
+            ["open", `Open (${openCount})`],
+            ["closed", `Closed (${closedCount})`],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => {
+              setStatusFilter(key);
+              setPage(1);
+            }}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              statusFilter === key
+                ? "bg-slate-900 text-white"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
   <div className="min-h-[300px]">
-    {loading && openTrades.length === 0 ? (
+    {loading && filteredRows.length === 0 ? (
       <div className="p-10 text-center text-slate-500">
         <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
         Loading trades...
       </div>
-    ) : openTrades.length === 0 ? (
+    ) : filteredRows.length === 0 ? (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div className="relative">
-          {/* Glow Background */}
-          <div className="absolute inset-0 rounded-full bg-yellow-400/30 blur-2xl animate-pulse"></div>
-
-          {/* Icon Circle */}
-          <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-slate-900 border border-yellow-500 shadow-lg shadow-yellow-500/40">
-            <RefreshCw className="w-9 h-9 text-yellow-400 animate-spin" />
-          </div>
-        </div>
-
         <h2 className="mt-6 text-2xl font-bold text-slate-800">
-          Waiting for Open Trades
+          {statusFilter === "open" ? "No open trades" : "No trades yet"}
         </h2>
 
         <p className="mt-2 max-w-md text-sm text-slate-500 leading-relaxed">
-          If your wallet has been recharged successfully, open trades will
-          automatically appear here once they become available.
+          {statusFilter === "closed"
+            ? "Closed trades appear here after MT5 closes and your share is settled to the wallet."
+            : "If your wallet has been recharged, new master trades will be assigned automatically."}
         </p>
-
-        {/* Animated Dots */}
-        <div className="flex gap-2 mt-5">
-          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce"></span>
-          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce [animation-delay:0.2s]"></span>
-          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce [animation-delay:0.4s]"></span>
-        </div>
       </div>
           ) : (
             pageItems.map((trade, i) => {
               const ticket = String(trade.ticket_id ?? "");
               const rawLiveSocket = liveRawByTicket[ticket];
               const slice = resolveEffectiveSlice(trade);
+              const open = isOpenTrade(trade);
 
               const displayPl = rowUserFacingPl(
                 trade,
-                Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined,
+                open && Number.isFinite(rawLiveSocket) ? rawLiveSocket : undefined,
                 undefined,
                 facingMap,
               );
               const isProfit = displayPl >= 0;
               const yourVol = slice.v_i > 0 ? slice.v_i : Number(trade.allocated_volume || 0);
-              const investment = Number(trade.user_investment_amount || 0);
 
               return (
                 <div
@@ -268,17 +297,22 @@ const Mytrades = () => {
                   className="flex flex-col gap-2 px-6 py-5 border-b hover:bg-yellow-50/50 transition md:flex-row md:items-center md:justify-between"
                 >
                   <div>
-                    <div className="font-bold text-slate-800 text-lg">
+                    <div className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       {String(trade.symbol || "-")}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          open ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {open ? "Open" : "Closed"}
+                      </span>
                     </div>
-                    <div className="text-xs text-slate-500">
-                      Ticket: {ticket}
-                    </div>
-                    {/* {investment > 0 && (
-                      <div className="text-xs text-slate-500 mt-1">
-                        Invested: <span className="font-semibold tabular-nums">${investment.toFixed(2)}</span>
+                    <div className="text-xs text-slate-500">Ticket: {ticket}</div>
+                    {!open && (
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        Closed {formatIsoDateTime(trade.close_time ?? trade.wallet_settled_at ?? null)}
                       </div>
-                    )} */}
+                    )}
                   </div>
 
                   <div className="text-sm text-slate-600 flex flex-col gap-0.5 md:items-center">
