@@ -1,118 +1,71 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
 import {
   RefreshCw,
   Loader2,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   Wallet,
-  ArrowDownToLine,
   Percent,
+  TrendingUp,
   Package,
-  Calendar,
+  Users,
+  Radio,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { plTextClass } from "@/utils/plColors";
+import { SOCKET_URL } from "@/config/api";
 
 const API_BASE = "https://api.copytradeengine.org/api";
+const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
-type LedgerTypeRow = {
-  entry_type: string;
-  row_count: number;
-  total_delta: number;
-};
-
-type PackageRow = {
-  package_id: string;
-  payment_count: number;
-  success_count: number;
-  success_usd: number;
-  pending_usd: number;
-};
-
-type PeriodMetrics = {
-  recharges: { success_usd: number; pending_usd: number; success_count: number; pending_count: number };
-  packages: { total_success_usd: number; success_count: number; by_package: PackageRow[] };
-  withdrawals: {
-    completed_usd: number;
-    pending_usd: number;
-    completed_count: number;
-    pending_count: number;
-    fee_usd: number;
-  };
-  fees: {
-    assign_net_usd: number;
-    assign_collected_usd: number;
-    assign_refunds_usd: number;
-    assign_fee_rows: number;
-  };
-  affiliate: { paid_usd: number; reversed_usd: number; net_usd: number };
-  profit_loss: {
-    mt5_closed_profit_usd: number;
-    mt5_closed_tickets: number;
-    settlement_raw_pl_usd: number;
-    settlement_user_wallet_usd: number;
-    settlement_credits_usd: number;
-    settlement_debits_usd: number;
-    settlement_net_usd: number;
-    settled_assign_profit_usd: number;
-    settled_assign_loss_usd: number;
-    settled_assign_net_usd: number;
-    settled_assign_rows: number;
-  };
-  admin_earnings: {
-    assign_fees_usd: number;
-    profit_share_usd: number;
-    package_sales_usd: number;
-    withdrawal_fees_usd: number;
-    affiliate_paid_usd: number;
-    total_usd: number;
-  };
-  ledger_by_type: LedgerTypeRow[];
-};
+const PIE_COLORS = ["#E6B800", "#6366f1", "#10b981", "#f59e0b", "#94a3b8"];
 
 type FinancialStats = {
   generated_at: string;
-  fee_per_lot_usd: number;
-  baseline_profit_share: boolean;
-  filter: { active: boolean; from: string | null; to: string | null; label: string };
+  owe_users_now_usd: number;
+  owe_users_breakdown: {
+    wallets_usd: number;
+    pending_withdrawals_usd: number;
+    open_live_user_pl_usd: number;
+  };
+  brokerage_fees_usd: number;
+  admin_profit_share_usd: number;
+  package_revenue_usd: number;
+  referral_payable_usd: number;
+  referral_earned_all_time_usd: number;
+  admin_total_earned_usd: number;
   live: {
-    open_tickets: number;
-    open_volume: number;
     mt5_open_profit_usd: number;
-    open_assign_rows: number;
-    open_users: number;
-    copy_live_raw_pl_usd: number;
+    mt5_open_tickets: number;
     copy_live_user_pl_usd: number;
-    copy_live_admin_estimate_usd: number;
-    copy_live_fees_on_open_usd: number;
-    copy_live_equity_usd: number;
-    funded_wallets_usd: number;
+    mt5_balance_usd: number | null;
+    mt5_equity_usd: number | null;
+    mt5_updated_at: string | null;
   };
-  display: PeriodMetrics;
-  snapshot: {
-    user_wallets_total_usd: number;
+  facts: {
     funded_users: number;
-    net_user_liability_usd: number;
-    mt5_open_profit_all_time_usd: number;
-    mt5_closed_profit_all_time_usd: number;
-    mt5_total_profit_all_time_usd: number;
+    wallet_users: number;
+    total_recharged_usd: number;
+    recharge_count: number;
+    total_withdrawn_usd: number;
+    pending_withdrawals_usd: number;
+    package_sales_count: number;
   };
-  top_funded_users: Array<{
-    user_id: number;
-    name: string | null;
-    email: string | null;
-    wallet_usd: number;
-    recharge_total_usd: number;
-  }>;
-};
-
-type Mt5LiveMetrics = {
-  equity?: number;
-  balance?: number;
-  margin?: number;
-  free_margin?: number;
-  updated_at?: string;
+  charts: {
+    monthly_revenue: Array<{ month: string; recharges_usd: number; packages_usd: number }>;
+    admin_income_split: Array<{ name: string; value: number; key: string }>;
+  };
 };
 
 function fmt(n: number | undefined | null) {
@@ -122,113 +75,131 @@ function fmt(n: number | undefined | null) {
   });
 }
 
-function StatCard({
+function HeroCard({
   title,
   value,
   sub,
   icon: Icon,
   accent = "slate",
-  valueClass,
 }: {
   title: string;
   value: string;
   sub?: string;
   icon: React.ElementType;
-  accent?: "gold" | "emerald" | "red" | "blue" | "slate" | "purple";
-  valueClass?: string;
+  accent?: "red" | "gold" | "emerald" | "purple" | "blue";
 }) {
-  const accents = {
-    gold: "border-[#FFD700]/40 bg-[#FFF9E6]",
-    emerald: "border-emerald-200 bg-emerald-50",
+  const styles = {
     red: "border-red-200 bg-red-50",
-    blue: "border-blue-200 bg-blue-50",
+    gold: "border-[#FFD700]/50 bg-[#FFF9E6]",
+    emerald: "border-emerald-200 bg-emerald-50",
     purple: "border-purple-200 bg-purple-50",
+    blue: "border-blue-200 bg-blue-50",
     slate: "border-slate-200 bg-white",
   };
   return (
-    <div className={`rounded-xl border p-4 shadow-sm ${accents[accent]}`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`rounded-2xl border p-5 shadow-sm ${styles[accent]}`}>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${valueClass ?? "text-slate-900"}`}>${value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-600">{sub}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">${value}</p>
+          {sub && <p className="mt-2 text-xs leading-relaxed text-slate-600">{sub}</p>}
         </div>
-        <Icon className="h-5 w-5 shrink-0 text-slate-400" />
+        <Icon className="h-6 w-6 shrink-0 text-slate-400" />
       </div>
     </div>
   );
 }
 
-const PACKAGE_LABELS: Record<string, string> = {
-  "7-day-trial": "7-day trial",
-  "1-month": "1 month",
-  "3-month": "3 months",
-  "6-month": "6 months",
-  "1-year": "1 year",
-  "india-tour": "India tour",
-  "intl-tour": "International tour",
-  "meet-guru": "Meet guru",
-};
-
 const AdminFinancialStatsPage = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<FinancialStats | null>(null);
-  const [mt5Live, setMt5Live] = useState<Mt5LiveMetrics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [socketLive, setSocketLive] = useState(false);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     try {
-      const qs = new URLSearchParams();
-      if (dateFrom) qs.set("from", dateFrom);
-      if (dateTo) qs.set("to", dateTo);
-      const res = await fetch(`${API_BASE}/admin/financial-stats?${qs}`);
+      const res = await fetch(`${API_BASE}/admin/financial-stats`);
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to load stats");
+      if (!data.success) throw new Error(data.error || "Failed to load");
       setStats(data.stats);
-      setMt5Live(data.mt5_live_metrics ?? null);
     } catch (e) {
-      toast({
-        title: "Error",
-        description: e instanceof Error ? e.message : "Could not load financial stats",
-        variant: "destructive",
-      });
+      if (!quiet) {
+        toast({
+          title: "Error",
+          description: e instanceof Error ? e.message : "Could not load stats",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
-  }, [toast, dateFrom, dateTo]);
+  }, [toast]);
 
-  useEffect(() => {
-    load();
+  const scheduleReload = useCallback(() => {
+    if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    reloadTimer.current = setTimeout(() => {
+      void load(true);
+    }, 800);
   }, [load]);
 
-  const d = stats?.display;
-  const live = stats?.live;
-  const snap = stats?.snapshot;
-  const pl = d?.profit_loss;
-  const admin = d?.admin_earnings;
-  const periodLabel = stats?.filter.active ? stats.filter.label : "All time";
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const onConnect = () => setSocketLive(true);
+    const onDisconnect = () => setSocketLive(false);
+    const onMt5 = () => scheduleReload();
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("mt5live", onMt5);
+    socket.on("mt5data", onMt5);
+    socket.on("mt5close", onMt5);
+    socket.on("mt5metrics", onMt5);
+    setSocketLive(socket.connected);
+
+    const poll = setInterval(() => void load(true), 60000);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("mt5live", onMt5);
+      socket.off("mt5data", onMt5);
+      socket.off("mt5close", onMt5);
+      socket.off("mt5metrics", onMt5);
+      clearInterval(poll);
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    };
+  }, [load, scheduleReload]);
+
+  const b = stats?.owe_users_breakdown;
+  const monthly = stats?.charts.monthly_revenue ?? [];
+  const incomeSplit = stats?.charts.admin_income_split ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6 md:p-8">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Financial reconciliation</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Admin finances</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Live P/L, admin earnings, package sales — match with your MT5 app.
+            Simple snapshot — what you owe users, what you earned, updated live from MT5.
           </p>
-          {stats?.generated_at && (
-            <p className="mt-1 text-xs text-slate-400">
-              Last updated: {new Date(stats.generated_at).toLocaleString()}
-              {stats.filter.active && ` · Showing: ${stats.filter.label}`}
-            </p>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+            {stats?.generated_at && (
+              <span>Updated {new Date(stats.generated_at).toLocaleString()}</span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Radio className={`h-3 w-3 ${socketLive ? "text-emerald-500" : "text-slate-300"}`} />
+              {socketLive ? "Live socket connected" : "Socket offline — polling every 60s"}
+            </span>
+          </div>
         </div>
         <button
           type="button"
-          onClick={load}
+          onClick={() => load()}
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-lg bg-[#FFD700] px-4 py-2 text-sm font-semibold text-black hover:bg-[#E6C200] disabled:opacity-60"
         >
@@ -237,350 +208,176 @@ const AdminFinancialStatsPage = () => {
         </button>
       </div>
 
-      {/* Date filter */}
-      <section className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <Calendar className="h-4 w-4 text-slate-400" />
-          Date range
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-slate-500">From</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-black"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-slate-500">To</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-black"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-        >
-          Apply
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setDateFrom("");
-            setDateTo("");
-          }}
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700"
-        >
-          Clear dates
-        </button>
-        <p className="w-full text-xs text-slate-500">
-          Period stats filter recharges, settlements, fees, and closed MT5 trades by date. Live section is always current.
-        </p>
-      </section>
-
       {loading && !stats ? (
-        <div className="flex items-center justify-center py-20 text-slate-500">
+        <div className="flex justify-center py-24 text-slate-500">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading stats…
+          Loading…
         </div>
-      ) : stats && d && live && snap && pl && admin ? (
+      ) : stats ? (
         <>
-          {/* LIVE — always current */}
-          <section>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-indigo-600">Live now (open trades)</h2>
-            <p className="mb-3 text-xs text-slate-500">Updates on refresh — compare with MT5 app open P/L.</p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              <StatCard
-                title="MT5 open P/L"
-                value={fmt(live.mt5_open_profit_usd)}
-                sub={`${live.open_tickets} tickets · ${fmt(live.open_volume)} lots`}
-                icon={TrendingUp}
-                accent={live.mt5_open_profit_usd >= 0 ? "emerald" : "red"}
-                valueClass={plTextClass(live.mt5_open_profit_usd)}
-              />
-              <StatCard
-                title="Copy pool raw P/L"
-                value={fmt(live.copy_live_raw_pl_usd)}
-                sub="Gross proportional share before fee split"
-                icon={TrendingUp}
-                valueClass={plTextClass(live.copy_live_raw_pl_usd)}
-              />
-              <StatCard
-                title="Copy pool user P/L"
-                value={fmt(live.copy_live_user_pl_usd)}
-                sub={`${live.open_users} users · ${live.open_assign_rows} assigns`}
-                icon={TrendingUp}
-                accent="blue"
-                valueClass={plTextClass(live.copy_live_user_pl_usd)}
-              />
-              <StatCard
-                title="Admin share (open est.)"
-                value={fmt(live.copy_live_admin_estimate_usd)}
-                sub="Estimated if closed now at current MT5 profit"
-                icon={Percent}
-                accent="purple"
-              />
-              <StatCard
-                title="Fees on open trades"
-                value={fmt(live.copy_live_fees_on_open_usd)}
-                sub={`$${stats.fee_per_lot_usd}/lot booked on assigns`}
-                icon={Percent}
-                accent="emerald"
-              />
-              <StatCard
-                title="User wallets (all)"
-                value={fmt(live.funded_wallets_usd)}
-                sub={`${snap.funded_users} funded users · liability $${fmt(snap.net_user_liability_usd)}`}
-                icon={Wallet}
-                accent="gold"
-              />
-            </div>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <HeroCard
+              title="Pay users if all stop now"
+              value={fmt(stats.owe_users_now_usd)}
+              sub={
+                b
+                  ? `Wallets $${fmt(b.wallets_usd)} + pending withdrawals $${fmt(b.pending_withdrawals_usd)} + open P/L $${fmt(b.open_live_user_pl_usd)}`
+                  : undefined
+              }
+              icon={Wallet}
+              accent="red"
+            />
+            <HeroCard
+              title="Brokerage fees (all time)"
+              value={fmt(stats.brokerage_fees_usd)}
+              sub="Assign fee per lot debited at trade open"
+              icon={Percent}
+              accent="gold"
+            />
+            <HeroCard
+              title="Admin profit share (all time)"
+              value={fmt(stats.admin_profit_share_usd)}
+              sub="Your cut when copy trades closed"
+              icon={TrendingUp}
+              accent="purple"
+            />
+            <HeroCard
+              title="Package sales (all time)"
+              value={fmt(stats.package_revenue_usd)}
+              sub={`${stats.facts.package_sales_count} successful package payments`}
+              icon={Package}
+              accent="emerald"
+            />
+            <HeroCard
+              title="Referral payable now"
+              value={fmt(stats.referral_payable_usd)}
+              sub={`Total earned all time: $${fmt(stats.referral_earned_all_time_usd)} in affiliate wallets`}
+              icon={Users}
+              accent="blue"
+            />
+            <HeroCard
+              title="Your total earned"
+              value={fmt(stats.admin_total_earned_usd)}
+              sub="Fees + profit share + packages + withdraw fees"
+              icon={TrendingUp}
+              accent="gold"
+            />
           </section>
 
-          {mt5Live && (
-            <section className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4">
-              <h2 className="text-sm font-semibold text-indigo-900">MT5 EA webhook (last push)</h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+              <p className="font-semibold text-slate-700">Quick facts</p>
+              <ul className="mt-3 space-y-2 text-slate-600">
+                <li className="flex justify-between">
+                  <span>Funded copy users</span>
+                  <span className="font-medium tabular-nums">{stats.facts.funded_users}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Total recharged</span>
+                  <span className="font-medium tabular-nums">${fmt(stats.facts.total_recharged_usd)}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Total withdrawn</span>
+                  <span className="font-medium tabular-nums">${fmt(stats.facts.total_withdrawn_usd)}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Pending withdrawals</span>
+                  <span className="font-medium tabular-nums">${fmt(stats.facts.pending_withdrawals_usd)}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Open MT5 tickets</span>
+                  <span className="font-medium tabular-nums">{stats.live.mt5_open_tickets}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 text-sm shadow-sm md:col-span-2">
+              <p className="font-semibold text-indigo-900">MT5 live</p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-4">
                 <div>
-                  <p className="text-xs text-indigo-600">Balance</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">${fmt(mt5Live.balance)}</p>
+                  <p className="text-xs text-indigo-600">Master equity</p>
+                  <p className="text-lg font-bold tabular-nums text-indigo-950">
+                    {stats.live.mt5_equity_usd != null ? `$${fmt(stats.live.mt5_equity_usd)}` : "—"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-indigo-600">Equity</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">${fmt(mt5Live.equity)}</p>
+                  <p className="text-xs text-indigo-600">Master balance</p>
+                  <p className="text-lg font-bold tabular-nums text-indigo-950">
+                    {stats.live.mt5_balance_usd != null ? `$${fmt(stats.live.mt5_balance_usd)}` : "—"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-indigo-600">Margin</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">${fmt(mt5Live.margin)}</p>
+                  <p className="text-xs text-indigo-600">Open P/L (DB)</p>
+                  <p className="text-lg font-bold tabular-nums text-indigo-950">
+                    ${fmt(stats.live.mt5_open_profit_usd)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-indigo-600">Free margin</p>
-                  <p className="text-lg font-bold tabular-nums text-indigo-950">${fmt(mt5Live.free_margin)}</p>
+                  <p className="text-xs text-indigo-600">Copy user open P/L</p>
+                  <p className="text-lg font-bold tabular-nums text-indigo-950">
+                    ${fmt(stats.live.copy_live_user_pl_usd)}
+                  </p>
                 </div>
               </div>
-              {mt5Live.updated_at && (
+              {stats.live.mt5_updated_at && (
                 <p className="mt-2 text-xs text-indigo-500">
-                  Received: {new Date(mt5Live.updated_at).toLocaleString()}
+                  Last EA push: {new Date(stats.live.mt5_updated_at).toLocaleString()}
                 </p>
               )}
-            </section>
-          )}
-
-          {/* Admin earnings — period */}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-purple-700">
-              Admin earnings · {periodLabel}
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <StatCard
-                title="Total admin earning"
-                value={fmt(admin.total_usd)}
-                sub="Fees + profit share + packages + withdraw fees − affiliate"
-                icon={DollarSign}
-                accent="purple"
-              />
-              <StatCard
-                title="Assign / brokerage fees"
-                value={fmt(admin.assign_fees_usd)}
-                sub={`${d.fees.assign_fee_rows} ledger rows`}
-                icon={Percent}
-                accent="emerald"
-              />
-              <StatCard
-                title="Profit share (settled)"
-                value={fmt(admin.profit_share_usd)}
-                sub="Admin cut when copy trades closed"
-                icon={TrendingUp}
-                accent="purple"
-              />
-              <StatCard
-                title="Package sales"
-                value={fmt(admin.package_sales_usd)}
-                sub={`${d.packages.success_count} successful payments`}
-                icon={Package}
-                accent="gold"
-              />
-              <StatCard
-                title="Withdrawal fees"
-                value={fmt(admin.withdrawal_fees_usd)}
-                sub={`Affiliate paid: $${fmt(admin.affiliate_paid_usd)}`}
-                icon={ArrowDownToLine}
-              />
             </div>
           </section>
-
-          {/* P/L — period */}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Profit & loss · {periodLabel}
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              <StatCard
-                title="MT5 closed P/L"
-                value={fmt(pl.mt5_closed_profit_usd)}
-                sub={`${pl.mt5_closed_tickets} closed tickets in range`}
-                icon={TrendingUp}
-                valueClass={plTextClass(pl.mt5_closed_profit_usd)}
-              />
-              <StatCard
-                title="Settlement gross (raw)"
-                value={fmt(pl.settlement_raw_pl_usd)}
-                sub="Raw proportional P/L at close"
-                icon={TrendingUp}
-                valueClass={plTextClass(pl.settlement_raw_pl_usd)}
-              />
-              <StatCard
-                title="User wallet settlements"
-                value={fmt(pl.settlement_net_usd)}
-                sub={`Credits $${fmt(pl.settlement_credits_usd)} · Debits $${fmt(pl.settlement_debits_usd)}`}
-                icon={Wallet}
-                valueClass={plTextClass(pl.settlement_net_usd)}
-              />
-              <StatCard
-                title="Settled assign P/L"
-                value={fmt(pl.settled_assign_net_usd)}
-                sub={`Profit $${fmt(pl.settled_assign_profit_usd)} · Loss $${fmt(pl.settled_assign_loss_usd)} · ${pl.settled_assign_rows} rows`}
-                icon={TrendingDown}
-                valueClass={plTextClass(pl.settled_assign_net_usd)}
-              />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              All-time MT5 P/L: open ${fmt(snap.mt5_open_profit_all_time_usd)} + closed ${fmt(snap.mt5_closed_profit_all_time_usd)} = ${fmt(snap.mt5_total_profit_all_time_usd)}
-            </p>
-          </section>
-
-          {/* Cash flow — period */}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Cash flow · {periodLabel}
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard
-                title="User recharges"
-                value={fmt(d.recharges.success_usd)}
-                sub={`${d.recharges.success_count} success · $${fmt(d.recharges.pending_usd)} pending`}
-                icon={DollarSign}
-                accent="gold"
-              />
-              <StatCard
-                title="Withdrawals paid"
-                value={fmt(d.withdrawals.completed_usd)}
-                sub={`${d.withdrawals.completed_count} completed · $${fmt(d.withdrawals.pending_usd)} pending`}
-                icon={ArrowDownToLine}
-              />
-              <StatCard
-                title="User wallets (now)"
-                value={fmt(snap.user_wallets_total_usd)}
-                sub="Snapshot — not date filtered"
-                icon={Wallet}
-                accent="blue"
-              />
-              <StatCard
-                title="Owed to users"
-                value={fmt(snap.net_user_liability_usd)}
-                sub="Wallets + pending withdrawals"
-                icon={Wallet}
-              />
-            </div>
-          </section>
-
-          {/* Package breakdown */}
-          {d.packages.by_package.length > 0 && (
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-800">Package sales · {periodLabel}</h2>
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs uppercase text-slate-500">
-                      <th className="py-2 pr-4">Package</th>
-                      <th className="py-2 pr-4 text-right">Success</th>
-                      <th className="py-2 pr-4 text-right">Revenue</th>
-                      <th className="py-2 text-right">Pending</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {d.packages.by_package.map((p) => (
-                      <tr key={p.package_id} className="border-b border-slate-50">
-                        <td className="py-2.5 pr-4 font-medium text-slate-800">
-                          {PACKAGE_LABELS[p.package_id] ?? p.package_id}
-                        </td>
-                        <td className="py-2.5 pr-4 text-right tabular-nums">{p.success_count}</td>
-                        <td className="py-2.5 pr-4 text-right tabular-nums font-semibold text-emerald-700">
-                          ${fmt(p.success_usd)}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums text-slate-600">${fmt(p.pending_usd)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="font-semibold">
-                      <td className="py-2 pr-4">Total</td>
-                      <td className="py-2 pr-4 text-right">{d.packages.success_count}</td>
-                      <td className="py-2 pr-4 text-right text-emerald-700">${fmt(d.packages.total_success_usd)}</td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </section>
-          )}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-800">Ledger by type · {periodLabel}</h2>
-              <div className="mt-3 max-h-80 overflow-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs uppercase text-slate-500">
-                      <th className="py-2 pr-2">Type</th>
-                      <th className="py-2 pr-2 text-right">Rows</th>
-                      <th className="py-2 text-right">Net delta</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {d.ledger_by_type.map((row) => (
-                      <tr key={row.entry_type} className="border-b border-slate-50">
-                        <td className="py-2 pr-2 font-mono text-xs text-slate-700">{row.entry_type}</td>
-                        <td className="py-2 pr-2 text-right tabular-nums">{row.row_count}</td>
-                        <td className={`py-2 text-right tabular-nums font-medium ${plTextClass(row.total_delta)}`}>
-                          ${fmt(row.total_delta)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <h2 className="text-sm font-semibold text-slate-800">Revenue last 6 months</h2>
+              <p className="text-xs text-slate-500">User recharges vs package sales</p>
+              <div className="mt-4 h-64">
+                {monthly.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                      <Tooltip formatter={(v: number) => `$${fmt(v)}`} />
+                      <Legend />
+                      <Bar dataKey="recharges_usd" name="Recharges" fill="#E6B800" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="packages_usd" name="Packages" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="py-16 text-center text-sm text-slate-400">No payment data yet</p>
+                )}
               </div>
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-800">Top funded users (current)</h2>
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs uppercase text-slate-500">
-                      <th className="py-2 pr-2">User</th>
-                      <th className="py-2 pr-2 text-right">Wallet</th>
-                      <th className="py-2 text-right">Recharged</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.top_funded_users.map((u) => (
-                      <tr key={u.user_id} className="border-b border-slate-50">
-                        <td className="py-2 pr-2">
-                          <div className="font-medium text-slate-800">{u.name || `User ${u.user_id}`}</div>
-                          <div className="text-xs text-slate-500">ID {u.user_id}</div>
-                        </td>
-                        <td className="py-2 pr-2 text-right tabular-nums font-semibold">${fmt(u.wallet_usd)}</td>
-                        <td className="py-2 text-right tabular-nums text-slate-600">${fmt(u.recharge_total_usd)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <h2 className="text-sm font-semibold text-slate-800">Your income split</h2>
+              <p className="text-xs text-slate-500">All-time breakdown</p>
+              <div className="mt-4 h-64">
+                {incomeSplit.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={incomeSplit}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={88}
+                        label={({ name, percent }) =>
+                          `${name} ${(percent * 100).toFixed(0)}%`
+                        }
+                      >
+                        {incomeSplit.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => `$${fmt(v)}`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="py-16 text-center text-sm text-slate-400">No earnings recorded yet</p>
+                )}
               </div>
             </section>
           </div>
