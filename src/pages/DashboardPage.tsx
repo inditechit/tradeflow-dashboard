@@ -10,6 +10,7 @@ import {
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
+import { fetchAllUserTrades } from '@/utils/fetchAllUserTrades';
 import { plTextClass } from '@/utils/plColors';
 import { DashboardNotificationsBanner } from '@/components/notifications/DashboardNotificationsBanner';
 import { io } from 'socket.io-client';
@@ -196,8 +197,7 @@ const DashboardPage = () => {
         active;
       setAssignFunded(funded);
 
-      const tradesRes = await fetch(`${API_BASE}/user/trades/${uid}`);
-      const tradesData = await tradesRes.json();
+      const tradesData = await fetchAllUserTrades(uid);
 
       depositBaselineRef.current = Number(summaryData?.deposit_baseline ?? 0);
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};

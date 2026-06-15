@@ -13,6 +13,9 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
@@ -69,6 +72,8 @@ function fmtUsd(n: number, currency = "USD") {
   }
 }
 
+const PAGE_SIZE = 50;
+
 const ProfitLoss = () => {
   const { currentUser } = useApp();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -85,16 +90,14 @@ const ProfitLoss = () => {
     const uid = currentUser.userId;
     try {
       setLoading(true);
-      const [sRes, tRes] = await Promise.all([
+      const [sRes, tData] = await Promise.all([
         fetch(`${API_BASE}/user/summary/${uid}`),
-        fetch(`${API_BASE}/user/trades/${uid}?since_last_recharge=1`),
+        fetchAllUserTrades(uid),
       ]);
       const sData = await sRes.json();
-      const tData = await tRes.json();
       if (sData?.success) setSummary(sData as Summary);
       if (tData?.success && Array.isArray(tData.trades)) {
         if (tData.cycle) setCycle(tData.cycle as TradeCycle);
-        if (tData.totals) setApiTotals(tData.totals as TradeTotals);
         const list = tData.trades as UserTradeRow[];
         const tickets = new Set<string>();
         for (const t of list) {
@@ -172,8 +175,10 @@ const ProfitLoss = () => {
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id))),
-    [rows]
+    [rows],
   );
+
+  const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
 
   const tableTotals = useMemo(() => {
     let grossProfit = 0;
@@ -212,23 +217,11 @@ const ProfitLoss = () => {
   }, [sortedRows, liveRawByTicket, apiTotals]);
 
   const cycleNote = useMemo(() => {
-    if (!cycle?.since_last_recharge) return null;
-    const at = cycle.trade_filter_at ?? cycle.last_recharge_at;
-    if (!at) return "Showing all trades in your current account cycle.";
-    const d = new Date(at);
-    const label = Number.isNaN(d.getTime())
-      ? at
-      : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-    const dep =
-      cycle.cycle_deposit_usd != null && cycle.cycle_deposit_usd > 0
-        ? ` · funded ${fmtUsd(cycle.cycle_deposit_usd, summary?.currency || "USD")}`
-        : "";
-    const scope =
-      cycle.wallet_correction === true || cycle.pinned_baseline === true
-        ? "Trades from ticket 6286933 onward (wallet correction"
-        : "Trades in your current cycle (from ";
-    return `${scope} ${label})${dep}.`;
-  }, [cycle, summary?.currency]);
+    if (total > 0) {
+      return `All ${total} assigned trades loaded (open and closed).`;
+    }
+    return null;
+  }, [total]);
 
   const currency = summary?.currency || "USD";
 
@@ -293,7 +286,7 @@ const ProfitLoss = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Profit &amp; Loss</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your share of every trade since your last recharge — after fee and admin profit cut.
+            Your share of every assigned trade — after fee and admin profit cut.
           </p>
         </div>
 
@@ -374,7 +367,7 @@ const ProfitLoss = () => {
                   </td>
                 </tr>
               ) : (
-                sortedRows.map((r) => {
+                pageItems.map((r) => {
                   const ticket = String(r.ticket_id ?? "");
                   const open = isOpenTrade(r);
                   const grossPl = rowGrossPl(r, liveRawByTicket[ticket]);
@@ -508,6 +501,13 @@ const ProfitLoss = () => {
             )}
           </table>
         </div>
+        <TradesPaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

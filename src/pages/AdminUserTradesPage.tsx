@@ -3,7 +3,12 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
+import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
+
+const PAGE_SIZE = 50;
 import {
   fmtMt5Price,
   isOpenTrade,
@@ -46,24 +51,24 @@ const AdminUserTradesPage = () => {
   const [userName, setUserName] = useState("");
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [totalLoaded, setTotalLoaded] = useState(0);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const refresh = useCallback(async () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesRes] = await Promise.all([
+      const [profileRes, tradesData] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
-        fetch(`${API_BASE}/user/trades/${userId}?since_last_recharge=0&limit=5000`),
+        fetchAllUserTrades(userId),
       ]);
       const profileData = await profileRes.json();
-      const tradesData = await tradesRes.json();
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
       }
-      if (tradesData?.success && Array.isArray(tradesData.trades)) {
-        setRows(tradesData.trades as UserTradeRow[]);
-      }
+      setRows(tradesData.trades as UserTradeRow[]);
+      setTotalLoaded(tradesData.total);
     } catch (err) {
       console.error("AdminUserTradesPage fetch:", err);
     } finally {
@@ -83,6 +88,11 @@ const AdminUserTradesPage = () => {
 
   const openCount = useMemo(() => rows.filter((r) => isOpenTrade(r)).length, [rows]);
   const closedCount = rows.length - openCount;
+
+  const { page, setPage, pageItems, totalPages, total } = useClientPagination(
+    filteredRows,
+    PAGE_SIZE,
+  );
 
   if (!userId) {
     return <Navigate to="/admin/users" replace />;
@@ -107,7 +117,8 @@ const AdminUserTradesPage = () => {
               {userName || "User"} — assigned trades
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              User #{userId} · {openCount} open · {closedCount} closed · {rows.length} total
+              User #{userId} · {openCount} open · {closedCount} closed · {totalLoaded || rows.length}{" "}
+              total
             </p>
           </div>
         </div>
@@ -179,7 +190,7 @@ const AdminUserTradesPage = () => {
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((r) => {
+                pageItems.map((r) => {
                   const open = isOpenTrade(r);
                   const grossPl = rowGrossPl(r);
                   const finalPl = rowFinalWalletPl(r);
@@ -243,6 +254,13 @@ const AdminUserTradesPage = () => {
             </tbody>
           </table>
         </div>
+        <TradesPaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

@@ -6,7 +6,12 @@ import { normTradeStatus } from "@/utils/mt5TradeDates";
 import { rowUserFacingPl, type UserTradeRowLike } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
+import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
+
+const PAGE_SIZE = 50;
 
 type UserTradeRow = UserTradeRowLike & {
   ticket_id: string;
@@ -35,13 +40,8 @@ const TradeHistory = () => {
     if (!currentUser?.userId) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/user/trades/${currentUser.userId}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.trades)) {
-        setRows(data.trades);
-      } else {
-        setRows([]);
-      }
+      const data = await fetchAllUserTrades(currentUser.userId);
+      setRows(data.trades as UserTradeRow[]);
     } catch (err) {
       console.error("user/trades:", err);
       setRows([]);
@@ -65,6 +65,8 @@ const TradeHistory = () => {
     return [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id)));
   }, [rows]);
 
+  const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
+
   const sharePl = (r: UserTradeRow) => rowUserFacingPl(r);
   const walletPl = (r: UserTradeRow) => rowUserFacingPl(r);
 
@@ -85,9 +87,12 @@ const TradeHistory = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Wallet P/L is what hit your balance when the trade closed. Live rows are estimates only until cut.
-            Losses are 100% yours; profit below deposit is 100% yours; admin share only above deposit.
+            All assigned trades — open and closed. Wallet P/L is what hit your balance when the trade
+            closed. Live rows are estimates only until cut.
           </p>
+          {total > 0 && (
+            <p className="mt-1 text-xs font-medium text-slate-400">{total} trades loaded</p>
+          )}
         </div>
 
         <button
@@ -130,7 +135,7 @@ const TradeHistory = () => {
                   </td>
                 </tr>
               ) : (
-                sortedRows.map((r, index) => {
+                pageItems.map((r, index) => {
                   const pl = sharePl(r);
                   const wPl = walletPl(r);
                   const isProfit = pl >= 0;
@@ -191,6 +196,13 @@ const TradeHistory = () => {
             </tbody>
           </table>
         </div>
+        <TradesPaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

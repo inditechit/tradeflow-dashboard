@@ -9,8 +9,9 @@ import {
   rowUserFacingPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
-import { API_BASE, SOCKET_URL } from "@/config/api";
 import { plBadgeClass, plDotClass } from "@/utils/plColors";
+import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { API_BASE, SOCKET_URL } from "@/config/api";
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
@@ -66,15 +67,13 @@ const Mytrades = () => {
     const uid = currentUser.userId;
     try {
       setLoading(true);
-      const [assignRes, utRes] = await Promise.all([
+      const [assignRes, utData] = await Promise.all([
         fetch(`${API_BASE}/user/trade-assign/${uid}`),
-        fetch(`${API_BASE}/user/trades/${uid}`),
+        fetchAllUserTrades(uid),
       ]);
       const assignData = await assignRes.json();
-      const utData = await utRes.json();
 
-      const utRows: UserTradeRow[] =
-        utData.success && Array.isArray(utData.trades) ? utData.trades : [];
+      const utRows: UserTradeRow[] = utData.trades as UserTradeRow[];
       const ticketSet = new Set<string>();
       const ratioMap: Record<string, number> = {};
       const nextSlices = buildSliceMap(utRows);
