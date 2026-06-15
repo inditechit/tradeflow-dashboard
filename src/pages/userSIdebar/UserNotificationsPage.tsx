@@ -3,12 +3,15 @@ import { Bell, Loader2, CheckCheck } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import {
   handleNotificationClick,
   NotificationDetailDialog,
   type NotificationItem,
 } from "@/components/notifications/NotificationDetailDialog";
 import { useNavigate } from "react-router-dom";
+
+const PAGE_SIZE = 50;
 
 const UserNotificationsPage = () => {
   const { currentUser } = useApp();
@@ -17,21 +20,33 @@ const UserNotificationsPage = () => {
   const [rows, setRows] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<NotificationItem | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/user/notifications/${userId}?limit=100`);
-      const data = await res.json();
-      if (data.success) setRows(data.rows ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+  const load = useCallback(
+    async (pageNum = 1) => {
+      if (!userId) return;
+      setLoading(true);
+      try {
+        const offset = (pageNum - 1) * PAGE_SIZE;
+        const res = await fetch(
+          `${API_BASE}/user/notifications/${userId}?limit=${PAGE_SIZE}&offset=${offset}`,
+        );
+        const data = await res.json();
+        if (data.success) {
+          setRows(data.rows ?? []);
+          setTotal(Number(data.total ?? data.rows?.length ?? 0));
+          setPage(pageNum);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId],
+  );
 
   useEffect(() => {
-    load();
+    void load(1);
   }, [load]);
 
   const markRead = async (id: number) => {
@@ -53,6 +68,8 @@ const UserNotificationsPage = () => {
     handleNotificationClick(n, navigate, setPopup);
   };
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   if (!userId) {
     return <p className="p-8 text-red-600">Please log in.</p>;
   }
@@ -63,6 +80,9 @@ const UserNotificationsPage = () => {
         <div className="flex items-center gap-2">
           <Bell className="h-7 w-7 text-slate-800" />
           <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
+          {total > 0 && (
+            <span className="text-xs text-slate-400">({total.toLocaleString()} total)</span>
+          )}
         </div>
         <Button type="button" variant="outline" size="sm" onClick={markAllRead}>
           <CheckCheck className="mr-1 h-4 w-4" />
@@ -70,7 +90,7 @@ const UserNotificationsPage = () => {
         </Button>
       </div>
 
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
         </div>
@@ -79,35 +99,47 @@ const UserNotificationsPage = () => {
           No notifications yet.
         </div>
       ) : (
-        <ul className="space-y-3">
-          {rows.map((n) => (
-            <li key={n.id}>
-              <button
-                type="button"
-                onClick={() => onClickRow(n)}
-                className={`w-full rounded-xl border px-4 py-4 text-left shadow-sm transition hover:shadow-md ${
-                  n.read_at
-                    ? "border-slate-100 bg-white"
-                    : "border-sky-200 bg-sky-50/60"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-slate-900">{n.title}</p>
-                  {!n.read_at ? (
-                    <span className="shrink-0 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-                      New
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-600">{n.message}</p>
-                <p className="mt-2 text-xs text-slate-400">
-                  {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
-                  {n.link_url ? " · Has link" : ""}
-                </p>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-3">
+            {rows.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => onClickRow(n)}
+                  className={`w-full rounded-xl border px-4 py-4 text-left shadow-sm transition hover:shadow-md ${
+                    n.read_at
+                      ? "border-slate-100 bg-white"
+                      : "border-sky-200 bg-sky-50/60"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-slate-900">{n.title}</p>
+                    {!n.read_at ? (
+                      <span className="shrink-0 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                        New
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">{n.message}</p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
+                    {n.link_url ? " · Has link" : ""}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white">
+            <ListPaginationBar
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onPageChange={(p) => void load(p)}
+              itemLabel="notifications"
+            />
+          </div>
+        </>
       )}
 
       <NotificationDetailDialog

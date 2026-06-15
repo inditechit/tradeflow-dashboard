@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
-import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
 const PAGE_SIZE = 50;
@@ -254,7 +254,7 @@ const AdminUserTradesPage = () => {
             </tbody>
           </table>
         </div>
-        <TradesPaginationBar
+        <ListPaginationBar
           page={page}
           totalPages={totalPages}
           total={total}

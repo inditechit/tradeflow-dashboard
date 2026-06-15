@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { RefreshCw, Loader2, Users, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -350,29 +351,14 @@ const AdminRechargesPage = () => {
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
-        <span>
-          Page {page} · {payments.length} rows · {total} total
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading || page <= 1}
-          onClick={() => fetchPayments(activeFilter, page - 1)}
-        >
-          Previous
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading || page * pageSize >= total}
-          onClick={() => fetchPayments(activeFilter, page + 1)}
-        >
-          Next
-        </Button>
-      </div>
+      <ListPaginationBar
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / pageSize))}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(p) => void fetchPayments(activeFilter, p)}
+        itemLabel="recharges"
+      />
     </div>
   );
 };

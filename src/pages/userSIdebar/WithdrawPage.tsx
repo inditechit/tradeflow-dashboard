@@ -7,6 +7,7 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { useUserFinance } from "@/hooks/useUserFinance";
 import { getPackageFundWithdrawLock } from "@/utils/trialWithdrawLock";
 import { API_BASE } from "@/config/api";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 
 const MIN_WITHDRAW = 10;
+const WITHDRAW_PAGE_SIZE = 50;
 
 type WithdrawRow = {
   id: number;
@@ -61,18 +63,23 @@ const WithdrawPage = () => {
   const [addressDraft, setAddressDraft] = useState("");
   const [amount, setAmount] = useState("");
   const [rows, setRows] = useState<WithdrawRow[]>([]);
+  const [withdrawTotal, setWithdrawTotal] = useState(0);
+  const [withdrawPage, setWithdrawPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageNum = 1) => {
     if (!userId) return;
     setLoading(true);
     try {
+      const offset = (pageNum - 1) * WITHDRAW_PAGE_SIZE;
       const [pRes, rRes] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
-        fetch(`${API_BASE}/user/withdraw/${userId}`),
+        fetch(
+          `${API_BASE}/user/withdraw/${userId}?limit=${WITHDRAW_PAGE_SIZE}&offset=${offset}&page=${pageNum}`,
+        ),
       ]);
       await refreshFinance();
       const pData = await pRes.json();
@@ -86,8 +93,11 @@ const WithdrawPage = () => {
       const rData = await rRes.json();
       if (rData.success && Array.isArray(rData.requests)) {
         setRows(rData.requests);
+        setWithdrawTotal(Number(rData.total ?? rData.requests.length));
+        setWithdrawPage(pageNum);
       } else {
         setRows([]);
+        setWithdrawTotal(0);
       }
     } catch {
       toast({ title: "Could not load data", variant: "destructive" });
@@ -484,6 +494,14 @@ const WithdrawPage = () => {
                 ))}
               </tbody>
             </table>
+            <ListPaginationBar
+              page={withdrawPage}
+              totalPages={Math.max(1, Math.ceil(withdrawTotal / WITHDRAW_PAGE_SIZE))}
+              total={withdrawTotal}
+              pageSize={WITHDRAW_PAGE_SIZE}
+              onPageChange={(p) => void load(p)}
+              itemLabel="requests"
+            />
           </div>
         )}
       </div>

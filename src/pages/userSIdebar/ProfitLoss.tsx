@@ -15,7 +15,7 @@ import {
 import { API_BASE, SOCKET_URL } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
-import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
@@ -501,7 +501,7 @@ const ProfitLoss = () => {
             )}
           </table>
         </div>
-        <TradesPaginationBar
+        <ListPaginationBar
           page={page}
           totalPages={totalPages}
           total={total}

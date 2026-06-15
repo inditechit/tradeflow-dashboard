@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+
+const PAGE_SIZE = 100;
 import ReferrerTierBadge, { ReferrerTierLegend } from "@/components/admin/ReferrerTierBadge";
 import { tierRangeLabel, REFERRER_TIERS } from "@/utils/referrerTier";
 
@@ -39,14 +42,19 @@ const AdminReferralsPage = () => {
   const [top, setTop] = useState<TopRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [referrerFilter, setReferrerFilter] = useState<ReferrerFilter | null>(null);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = async (pageNum = page) => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ limit: "300", offset: "0" });
+      const offset = (pageNum - 1) * PAGE_SIZE;
+      const qs = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
       if (q.trim()) qs.set("q", q.trim());
       const [listRes, topRes] = await Promise.all([
         fetch(`${API_BASE}/admin/referrals?${qs}`),
@@ -57,6 +65,7 @@ const AdminReferralsPage = () => {
       if (listData.success) {
         setRows(listData.data ?? []);
         setTotal(Number(listData.total ?? 0));
+        setPage(pageNum);
       } else toast({ title: "Error", description: listData.error, variant: "destructive" });
       if (topData.success) setTop(topData.data ?? []);
     } catch {
@@ -73,7 +82,7 @@ const AdminReferralsPage = () => {
   const search = (e: React.FormEvent) => {
     e.preventDefault();
     setReferrerFilter(null);
-    load();
+    void load(1);
   };
 
   const filterByReferrer = (id: number, label: string) => {
@@ -233,10 +242,14 @@ const AdminReferralsPage = () => {
               </tbody>
             </table>
           </div>
-          <p className="border-t p-3 text-xs text-slate-400">
-            Showing {displayRows.length}
-            {referrerFilter ? "" : ` of ${total}`}
-          </p>
+          <ListPaginationBar
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={(p) => void load(p)}
+            itemLabel="users"
+          />
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

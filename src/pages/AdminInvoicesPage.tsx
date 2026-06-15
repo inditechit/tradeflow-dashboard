@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 type Invoice = {
   id: number;
@@ -213,31 +214,14 @@ const AdminInvoicesPage = () => {
         )}
       </div>
 
-      {totalPages > 1 ? (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || loading}
-            onClick={() => void fetchInvoices(page - 1)}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-slate-600">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || loading}
-            onClick={() => void fetchInvoices(page + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      ) : null}
+      <ListPaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(p) => void fetchInvoices(p)}
+        itemLabel="invoices"
+      />
 
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">

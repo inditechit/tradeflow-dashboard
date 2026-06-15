@@ -12,14 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -355,29 +348,14 @@ const confirmApprove = async () => {
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
-        <span>
-          Page {page} · {rows.length} rows · {total} total
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading || page <= 1}
-          onClick={() => load(page - 1)}
-        >
-          Previous
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading || page * pageSize >= total}
-          onClick={() => load(page + 1)}
-        >
-          Next
-        </Button>
-      </div>
+      <ListPaginationBar
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / pageSize))}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(p) => void load(p)}
+        itemLabel="withdrawals"
+      />
 
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">

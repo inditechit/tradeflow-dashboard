@@ -12,9 +12,21 @@ type Props = {
   total: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  itemLabel?: string;
 };
 
-export function TradesPaginationBar({ page, totalPages, total, pageSize, onPageChange }: Props) {
+export function TradesPaginationBar(props: Props) {
+  return <ListPaginationBar {...props} />;
+}
+
+export function ListPaginationBar({
+  page,
+  totalPages,
+  total,
+  pageSize,
+  onPageChange,
+  itemLabel = "trades",
+}: Props) {
   if (total <= pageSize) return null;
 
   const from = (page - 1) * pageSize + 1;
@@ -23,7 +35,7 @@ export function TradesPaginationBar({ page, totalPages, total, pageSize, onPageC
   return (
     <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
       <p className="text-xs text-slate-500">
-        Showing {from}–{to} of {total} trades
+        Showing {from}–{to} of {total} {itemLabel}
       </p>
       <Pagination className="mx-0 w-auto justify-end">
         <PaginationContent>

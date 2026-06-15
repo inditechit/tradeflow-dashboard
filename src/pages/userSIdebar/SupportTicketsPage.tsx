@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+
+const TICKET_PAGE_SIZE = 50;
 
 type TicketListItem = {
   id: number;
@@ -41,6 +44,8 @@ const SupportTicketsPage = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [tickets, setTickets] = useState<TicketListItem[]>([]);
+  const [ticketTotal, setTicketTotal] = useState(0);
+  const [ticketPage, setTicketPage] = useState(1);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -58,16 +63,22 @@ const SupportTicketsPage = () => {
   const ticketHasUnread = (t: TicketListItem) =>
     t.has_unread === true || t.has_unread === 1 || t.has_unread === "1";
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (pageNum = 1) => {
     if (!userId) return;
     setLoadingList(true);
     try {
-      const res = await fetch(`${API_BASE}/user/support/${userId}/tickets`);
+      const offset = (pageNum - 1) * TICKET_PAGE_SIZE;
+      const res = await fetch(
+        `${API_BASE}/user/support/${userId}/tickets?limit=${TICKET_PAGE_SIZE}&offset=${offset}&page=${pageNum}`,
+      );
       const data = await res.json();
       if (data.success && Array.isArray(data.tickets)) {
         setTickets(data.tickets);
+        setTicketTotal(Number(data.total ?? data.tickets.length));
+        setTicketPage(pageNum);
       } else {
         setTickets([]);
+        setTicketTotal(0);
         if (data.error) {
           toast({ title: "Support", description: data.error, variant: "destructive" });
         }
@@ -334,6 +345,14 @@ const SupportTicketsPage = () => {
               )}
             </div>
           </ScrollArea>
+          <ListPaginationBar
+            page={ticketPage}
+            totalPages={Math.max(1, Math.ceil(ticketTotal / TICKET_PAGE_SIZE))}
+            total={ticketTotal}
+            pageSize={TICKET_PAGE_SIZE}
+            onPageChange={(p) => void loadList(p)}
+            itemLabel="tickets"
+          />
         </div>
 
         {/* Thread / new form */}

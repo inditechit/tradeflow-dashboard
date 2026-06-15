@@ -5,8 +5,11 @@ import {
   tradeInDateRange,
 } from "@/utils/mt5TradeDates";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 const API_BASE = "https://api.copytradeengine.org/api";
+const PAGE_SIZE = 50;
 
 type Trade = {
   ticket?: number | string;
@@ -108,6 +111,15 @@ const OpenTrades = () => {
     dateTo,
   ]);
 
+  const { page, setPage, pageItems, totalPages, total: filteredTotal } = useClientPagination(
+    filteredTrades,
+    PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [symbolFilter, typeFilter, volumeFilter, statusFilter, profitFilter, dateFrom, dateTo, setPage]);
+
   const filtersActive =
     symbolFilter.trim() !== "" ||
     typeFilter !== "all" ||
@@ -140,7 +152,7 @@ const OpenTrades = () => {
             {filtersActive && (
               <span className="text-slate-600">
                 {" "}
-                · Showing {filteredTrades.length} filtered
+                · Showing {filteredTotal} filtered
               </span>
             )}
           </p>
@@ -320,7 +332,7 @@ const OpenTrades = () => {
                     Loading trades...
                   </td>
                 </tr>
-              ) : filteredTrades.length === 0 ? (
+              ) : pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
                     {trades.length === 0
@@ -329,7 +341,7 @@ const OpenTrades = () => {
                   </td>
                 </tr>
               ) : (
-                filteredTrades.map((trade, index) => {
+                pageItems.map((trade, index) => {
                   const isProfit = Number(trade.profit) >= 0;
 
                   return (
@@ -400,6 +412,14 @@ const OpenTrades = () => {
             </tbody>
           </table>
         </div>
+        <ListPaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={filteredTotal}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+          itemLabel="trades"
+        />
       </div>
     </div>
   );

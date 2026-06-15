@@ -41,10 +41,14 @@ import {
   userHasMapLink,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import {
   fetchAllUsedTags,
   parseUserLabels,
 } from "@/utils/adminUserLabels";
+
+const USER_PAGE_SIZE = 50;
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -366,6 +370,18 @@ const AdminPage = () => {
     });
   }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort]);
 
+  const {
+    page: userPage,
+    setPage: setUserPage,
+    pageItems: pagedLocations,
+    totalPages: userTotalPages,
+    total: filteredUserTotal,
+  } = useClientPagination(filteredLocations, USER_PAGE_SIZE);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort, setUserPage]);
+
   return (
     <div className="w-full min-w-0 font-sans">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -621,7 +637,7 @@ const AdminPage = () => {
             </thead>
 
             <tbody>
-              {filteredLocations.map((loc) => {
+              {pagedLocations.map((loc) => {
                 const fin = financeOverlay[Number(loc.id)];
                 const walletBal = Number(loc.wallet_balance ?? 0);
                 const livePl = fin?.live_pl ?? Number(loc.live_pl ?? 0);
@@ -886,6 +902,14 @@ const AdminPage = () => {
             </tbody>
           </table>
         </div>
+        <ListPaginationBar
+          page={userPage}
+          totalPages={userTotalPages}
+          total={filteredUserTotal}
+          pageSize={USER_PAGE_SIZE}
+          onPageChange={setUserPage}
+          itemLabel="users"
+        />
       </div>
 
       <UserDetailDialog

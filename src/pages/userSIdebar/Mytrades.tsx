@@ -11,7 +11,11 @@ import {
 } from "@/utils/userTradePl";
 import { plBadgeClass, plDotClass } from "@/utils/plColors";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { useClientPagination } from "@/hooks/useClientPagination";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+
+const PAGE_SIZE = 50;
 
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
@@ -147,6 +151,8 @@ const Mytrades = () => {
     [rows]
   );
 
+  const { page, setPage, pageItems, totalPages, total } = useClientPagination(openTrades, PAGE_SIZE);
+
   return (
     <div className="max-w-8xl mx-auto p-4">
       {assignFunded === false && (
@@ -219,7 +225,7 @@ const Mytrades = () => {
         </div>
       </div>
           ) : (
-            openTrades.map((trade, i) => {
+            pageItems.map((trade, i) => {
               const ticket = String(trade.ticket_id ?? "");
               const rawLiveSocket = liveRawByTicket[ticket];
               const slice = resolveEffectiveSlice(trade);
@@ -288,6 +294,14 @@ const Mytrades = () => {
             })
           )}
         </div>
+        <ListPaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+          itemLabel="trades"
+        />
       </div>
     </div>
   );

@@ -17,9 +17,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+import { cn } from "@/lib/utils";
+import { API_BASE } from "@/config/api";
 
 type TicketRow = {
   id: number;
@@ -47,6 +48,8 @@ function statusBadge(status: string) {
   return "border-slate-200 bg-slate-100 text-slate-700";
 }
 
+const TICKET_PAGE_SIZE = 50;
+
 const AdminSupportTicketsPage = () => {
   const { toast } = useToast();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -54,6 +57,8 @@ const AdminSupportTicketsPage = () => {
   const [rows, setRows] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"open" | "all">("open");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -64,16 +69,23 @@ const AdminSupportTicketsPage = () => {
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageNum = 1) => {
     setLoading(true);
     try {
-      const qs = filter === "open" ? "?status=open" : "";
-      const res = await fetch(`${API_BASE}/admin/support/tickets${qs}`);
+      const qs = new URLSearchParams();
+      if (filter === "open") qs.set("status", "open");
+      qs.set("limit", String(TICKET_PAGE_SIZE));
+      qs.set("offset", String((pageNum - 1) * TICKET_PAGE_SIZE));
+      qs.set("page", String(pageNum));
+      const res = await fetch(`${API_BASE}/admin/support/tickets?${qs.toString()}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.tickets)) {
         setRows(data.tickets);
+        setTotal(Number(data.total ?? data.tickets.length));
+        setPage(pageNum);
       } else {
         setRows([]);
+        setTotal(0);
         if (data.error) {
           toast({ title: "Support", description: data.error, variant: "destructive" });
         }
@@ -86,7 +98,7 @@ const AdminSupportTicketsPage = () => {
   }, [filter, toast]);
 
   useEffect(() => {
-    load();
+    void load(1);
   }, [load]);
 
   const openTicket = async (row: TicketRow) => {
@@ -143,7 +155,7 @@ const AdminSupportTicketsPage = () => {
         const r2 = await fetch(`${API_BASE}/admin/support/tickets/${activeId}`);
         const d2 = await r2.json();
         if (d2.success && Array.isArray(d2.messages)) setMessages(d2.messages);
-        await load();
+        await load(page);
       } else {
         toast({
           title: "Could not send",
@@ -171,7 +183,7 @@ const AdminSupportTicketsPage = () => {
       const data = await res.json();
       if (data.success) {
         setTicketMeta({ ...ticketMeta, status: next });
-        await load();
+        await load(page);
         toast({
           title: next === "closed" ? "Ticket closed" : "Ticket reopened",
         });
@@ -222,7 +234,7 @@ const AdminSupportTicketsPage = () => {
               All
             </button>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => load()} disabled={loading}>
+          <Button type="button" variant="outline" size="sm" onClick={() => void load(page)} disabled={loading}>
             <RefreshCw className={cn("mr-1 h-4 w-4", loading && "animate-spin")} />
             Refresh
           </Button>
@@ -304,6 +316,14 @@ const AdminSupportTicketsPage = () => {
             </tbody>
           </table>
         </div>
+        <ListPaginationBar
+          page={page}
+          totalPages={Math.max(1, Math.ceil(total / TICKET_PAGE_SIZE))}
+          total={total}
+          pageSize={TICKET_PAGE_SIZE}
+          onPageChange={(p) => void load(p)}
+          itemLabel="tickets"
+        />
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

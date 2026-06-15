@@ -9,7 +9,7 @@ import { plTextClass } from "@/utils/plColors";
 import { API_BASE } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
-import { TradesPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 const PAGE_SIZE = 50;
 
@@ -196,7 +196,7 @@ const TradeHistory = () => {
             </tbody>
           </table>
         </div>
-        <TradesPaginationBar
+        <ListPaginationBar
           page={page}
           totalPages={totalPages}
           total={total}

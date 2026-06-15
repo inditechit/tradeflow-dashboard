@@ -3,7 +3,10 @@ import { FileText, Loader2, RefreshCw, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { useApp } from "@/context/AppContext";
+
+const PAGE_SIZE = 50;
 
 type Invoice = {
   id: number;
@@ -30,28 +33,40 @@ const UserInvoicesPage = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Invoice | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/user/invoices/${userId}?limit=100`);
-      const data = await res.json();
-      if (data.success) {
-        setInvoices(data.invoices ?? []);
-      } else {
-        toast({ title: "Failed to load invoices", description: data.error, variant: "destructive" });
+  const load = useCallback(
+    async (pageNum = 1) => {
+      if (!userId) return;
+      setLoading(true);
+      try {
+        const offset = (pageNum - 1) * PAGE_SIZE;
+        const res = await fetch(
+          `${API_BASE}/user/invoices/${userId}?limit=${PAGE_SIZE}&offset=${offset}&page=${pageNum}`,
+        );
+        const data = await res.json();
+        if (data.success) {
+          setInvoices(data.invoices ?? []);
+          setTotal(Number(data.total ?? data.invoices?.length ?? 0));
+          setPage(pageNum);
+        } else {
+          toast({ title: "Failed to load invoices", description: data.error, variant: "destructive" });
+        }
+      } catch {
+        toast({ title: "Network error", variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast({ title: "Network error", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, toast]);
+    },
+    [userId, toast],
+  );
 
   useEffect(() => {
-    void load();
+    void load(1);
   }, [load]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
@@ -64,14 +79,17 @@ const UserInvoicesPage = () => {
           <p className="mt-1 text-sm text-slate-500">
             Receipts for successful wallet recharges and package purchases.
           </p>
+          {total > 0 && (
+            <p className="mt-1 text-xs text-slate-400">{total.toLocaleString()} invoices total</p>
+          )}
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void load(page)} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {loading ? (
+      {loading && invoices.length === 0 ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
@@ -113,6 +131,14 @@ const UserInvoicesPage = () => {
               </tbody>
             </table>
           </div>
+          <ListPaginationBar
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={(p) => void load(p)}
+            itemLabel="invoices"
+          />
         </div>
       )}
 

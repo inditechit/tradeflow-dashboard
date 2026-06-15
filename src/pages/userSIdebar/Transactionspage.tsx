@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/config/api";
+import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+const PAYMENTS_PAGE_SIZE = 50;
+const LEDGER_PAGE_SIZE = 50;
 
 const UserTransactions = () => {
   const { toast } = useToast();
 
   const [payments, setPayments] = useState([]);
+  const [paymentsTotal, setPaymentsTotal] = useState(0);
+  const [paymentsPage, setPaymentsPage] = useState(1);
   const [ledger, setLedger] = useState<
     { id: number; delta_usd: string | number; balance_after: string | number; entry_type: string; note: string | null; created_at: string }[]
   >([]);
+  const [ledgerTotal, setLedgerTotal] = useState(0);
+  const [ledgerPage, setLedgerPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [ledgerLoading, setLedgerLoading] = useState(true);
   const [error, setError] = useState("");
@@ -18,32 +25,42 @@ const UserTransactions = () => {
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
 
-  const fetchLedger = async () => {
+  const fetchLedger = useCallback(async (pageNum = 1) => {
     if (!userId) return;
     setLedgerLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/user/wallet/ledger/${userId}?limit=80`);
+      const offset = (pageNum - 1) * LEDGER_PAGE_SIZE;
+      const res = await fetch(
+        `${API_BASE}/user/wallet/ledger/${userId}?limit=${LEDGER_PAGE_SIZE}&offset=${offset}`,
+      );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setLedger(data.data);
+        setLedgerTotal(Number(data.total ?? data.data.length));
+        setLedgerPage(pageNum);
       } else {
         setLedger([]);
+        setLedgerTotal(0);
       }
     } catch {
       setLedger([]);
+      setLedgerTotal(0);
     } finally {
       setLedgerLoading(false);
     }
-  };
+  }, [userId]);
 
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async (pageNum = 1) => {
     if (!userId) return;
 
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/user/payments/${userId}`);
+      const offset = (pageNum - 1) * PAYMENTS_PAGE_SIZE;
+      const res = await fetch(
+        `${API_BASE}/user/payments/${userId}?limit=${PAYMENTS_PAGE_SIZE}&offset=${offset}&page=${pageNum}`,
+      );
 
       if (!res.ok) {
         throw new Error("API not reachable");
@@ -51,10 +68,10 @@ const UserTransactions = () => {
 
       const data = await res.json();
 
-      console.log("Payments API:", data); // debug
-
       if (data.success) {
-        setPayments(data.data); // ✅ FIXED
+        setPayments(data.data ?? []);
+        setPaymentsTotal(Number(data.total ?? data.data?.length ?? 0));
+        setPaymentsPage(pageNum);
       } else {
         setError("Failed to fetch payments");
       }
@@ -70,12 +87,12 @@ const UserTransactions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, toast]);
 
   useEffect(() => {
-    fetchPayments();
-    fetchLedger();
-  }, [userId]);
+    void fetchPayments(1);
+    void fetchLedger(1);
+  }, [userId, fetchPayments, fetchLedger]);
   const formatDate = (date) => {
     return new Date(date).toLocaleString();
   };
@@ -106,8 +123,8 @@ const UserTransactions = () => {
         <button
           type="button"
           onClick={() => {
-            fetchPayments();
-            fetchLedger();
+            void fetchPayments(paymentsPage);
+            void fetchLedger(ledgerPage);
           }}
           disabled={loading && ledgerLoading}
           className="flex items-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50"
@@ -125,7 +142,7 @@ const UserTransactions = () => {
       )}
 
       {/* Empty State */}
-      {!loading && payments.length === 0 && (
+      {!loading && payments.length === 0 && paymentsTotal === 0 && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12">
           <div className="text-center">
             <div className="text-slate-400 text-6xl mb-4">📄</div>
@@ -213,11 +230,24 @@ const UserTransactions = () => {
 
           </table>
         </div>
+        <ListPaginationBar
+          page={paymentsPage}
+          totalPages={Math.max(1, Math.ceil(paymentsTotal / PAYMENTS_PAGE_SIZE))}
+          total={paymentsTotal}
+          pageSize={PAYMENTS_PAGE_SIZE}
+          onPageChange={(p) => void fetchPayments(p)}
+          itemLabel="payments"
+        />
       </div>
       )}
 
       <div className="mt-12">
-        <h2 className="mb-4 text-lg font-bold text-slate-800">Wallet</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-slate-800">Wallet</h2>
+          {ledgerTotal > 0 && (
+            <span className="text-xs text-slate-400">{ledgerTotal.toLocaleString()} entries</span>
+          )}
+        </div>
         {ledgerLoading && ledger.length === 0 ? (
           <p className="py-8 text-center text-slate-400">Loading wallet log…</p>
         ) : ledger.length === 0 ? (
@@ -257,6 +287,14 @@ const UserTransactions = () => {
                 </tbody>
               </table>
             </div>
+            <ListPaginationBar
+              page={ledgerPage}
+              totalPages={Math.max(1, Math.ceil(ledgerTotal / LEDGER_PAGE_SIZE))}
+              total={ledgerTotal}
+              pageSize={LEDGER_PAGE_SIZE}
+              onPageChange={(p) => void fetchLedger(p)}
+              itemLabel="entries"
+            />
           </div>
         )}
       </div>
