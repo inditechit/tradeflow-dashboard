@@ -229,23 +229,30 @@ export function applyUserRules(rawPl: number, fee: number, pct: number): number 
   return net * (pct / 100);
 }
 
-/** Matches backend baseline waterfall — user $ credited if trade closed now. */
+/** Matches backend settlement — full proportional gross; fee only at assign. */
 export function estimateUserSharePl(
   rawPl: number,
   fee: number,
   pct: number,
   walletBefore: number,
   depositBaseline: number,
-  /** Wallet + other open gross P/L (excludes this trade). Defaults to wallet. */
+  /** @deprecated waterfall only when useWaterfall=true */
   equityBefore?: number,
   /** Fee already debited at trade assign — settlement uses P/L only. */
   feeAtAssign = true,
+  useWaterfall = false,
 ): number {
-  const baseline = round2(depositBaseline);
-  let wallet = round2(walletBefore);
-  const equity = round2(equityBefore != null ? equityBefore : walletBefore);
+  const wallet = round2(walletBefore);
   const gross = round2(rawPl);
   const feeUsd = feeAtAssign ? 0 : round2(Math.max(0, fee));
+
+  if (!useWaterfall) {
+    const delta = gross <= 0 ? gross - feeUsd : gross - feeUsd;
+    return round2(Math.max(-wallet, delta));
+  }
+
+  const baseline = round2(depositBaseline);
+  const equity = round2(equityBefore != null ? equityBefore : walletBefore);
 
   if (gross <= 0) return round2(Math.max(-wallet, gross - feeUsd));
 
@@ -253,18 +260,19 @@ export function estimateUserSharePl(
   if (net <= 0) return round2(Math.max(-wallet, net));
 
   const gap = round2(Math.max(0, baseline - equity));
+  let sim = wallet;
   if (gap > 0) {
     const recovery = round2(Math.min(net, gap));
-    wallet = round2(wallet + recovery);
+    sim = round2(sim + recovery);
     net = round2(net - recovery);
   }
 
   if (net > 0) {
     const p = Math.min(100, Math.max(0, Number(pct) || 0));
-    wallet = round2(wallet + (net * p) / 100);
+    sim = round2(sim + (net * p) / 100);
   }
 
-  return round2(wallet - walletBefore);
+  return round2(sim - wallet);
 }
 
 export type UserShareContext = {
@@ -318,7 +326,7 @@ export function buildSequentialUserFacingPlMap(
       const equityBefore = round2(simWallet + openRawSum - raw);
       const pl =
         baseline > 0
-          ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore)
+          ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore, true, false)
           : applyUserRules(raw, fee, pct);
       if (assignId) map.set(assignId, pl);
       continue;
@@ -327,7 +335,7 @@ export function buildSequentialUserFacingPlMap(
     const equityBefore = round2(simWallet + openRawSum);
     const pl =
       baseline > 0
-        ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore)
+        ? estimateUserSharePl(raw, fee, pct, simWallet, baseline, equityBefore, true, false)
         : applyUserRules(raw, fee, pct);
     if (assignId) map.set(assignId, pl);
     simWallet = round2(simWallet + pl);
