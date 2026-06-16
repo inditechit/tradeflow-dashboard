@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { ArrowRightLeft, Copy, Tag, Users, Wallet } from "lucide-react";
+import { ArrowRightLeft, Copy, Tag, UserPlus, Users, Wallet } from "lucide-react";
 import { plTextClass } from "@/utils/plColors";
 import { API_BASE } from "@/config/api";
 
@@ -14,6 +14,22 @@ type AffiliateCoupon = {
   duration_days: number | null;
   is_active: boolean;
 };
+
+type ReferralConnection = {
+  id: number;
+  name: string | null;
+  telegram: string | null;
+  joined_at: string | null;
+  first_package_at: string | null;
+  paid_package_count: number;
+  has_purchased: boolean;
+};
+
+function referralDisplayName(r: ReferralConnection) {
+  if (r.telegram?.trim()) return r.telegram.trim();
+  if (r.name?.trim()) return r.name.trim();
+  return `User #${r.id}`;
+}
 
 const AffiliateProgramPage = () => {
   const raw = typeof window !== "undefined" ? localStorage.getItem("mt5_user") : null;
@@ -31,6 +47,7 @@ const AffiliateProgramPage = () => {
     coupons?: AffiliateCoupon[];
   } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
+  const [referrals, setReferrals] = useState<ReferralConnection[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [copied, setCopied] = useState(false);
@@ -47,9 +64,10 @@ const AffiliateProgramPage = () => {
     if (!userId) return;
     setError("");
     try {
-      const [sRes, cRes] = await Promise.all([
+      const [sRes, cRes, rRes] = await Promise.all([
         axios.get(`${API_BASE}/user/affiliate/summary/${userId}`),
         axios.get(`${API_BASE}/user/affiliate/commissions/${userId}?limit=100`),
+        axios.get(`${API_BASE}/user/affiliate/referrals/${userId}?limit=100`),
       ]);
       if (sRes.data.success) {
         setSummary({
@@ -64,6 +82,7 @@ const AffiliateProgramPage = () => {
         });
       }
       if (cRes.data.success) setRows(cRes.data.data ?? []);
+      if (rRes.data.success) setReferrals(rRes.data.referrals ?? []);
     } catch (e: unknown) {
       const msg = axios.isAxiosError(e) ? e.response?.data?.error || e.message : "Failed to load";
       setError(String(msg));
@@ -245,6 +264,57 @@ const AffiliateProgramPage = () => {
           </div>
         </div>
       ) : null}
+
+      <div className="border rounded-xl overflow-hidden shadow-sm mb-10">
+        <div className="px-4 py-3 bg-slate-50 border-b font-semibold flex items-center gap-2">
+          <UserPlus size={18} />
+          People who joined with your link
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-white border-b text-left text-gray-600">
+                <th className="p-3 font-medium">User</th>
+                <th className="p-3 font-medium">Joined</th>
+                <th className="p-3 font-medium">Status</th>
+                <th className="p-3 font-medium">First package</th>
+              </tr>
+            </thead>
+            <tbody>
+              {referrals.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-gray-500">
+                    No one has signed up with your link yet. Share your referral link above.
+                  </td>
+                </tr>
+              ) : (
+                referrals.map((r) => (
+                  <tr key={r.id} className="border-b border-gray-100">
+                    <td className="p-3 font-medium text-slate-900">{referralDisplayName(r)}</td>
+                    <td className="p-3 whitespace-nowrap text-gray-600">
+                      {r.joined_at ? new Date(r.joined_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="p-3">
+                      {r.has_purchased ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                          Purchased package
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                          Joined
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 whitespace-nowrap text-gray-600">
+                      {r.first_package_at ? new Date(r.first_package_at).toLocaleString() : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <div className="border rounded-xl p-5 shadow-sm">
