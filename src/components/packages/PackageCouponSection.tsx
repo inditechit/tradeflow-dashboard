@@ -62,6 +62,9 @@ export function PackageCouponSection({ onCouponChange }: PackageCouponSectionPro
     try {
       const res = await fetch(`${API_BASE}/packages?coupon=${encodeURIComponent(trimmed)}`);
       const data = await res.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7686/ingest/07bb100e-de54-4d34-ba21-2c0b5b5c1017',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6613dd'},body:JSON.stringify({sessionId:'6613dd',hypothesisId:'D',location:'PackageCouponSection.tsx:applyCode',message:'packages coupon API response',data:{success:data.success,error:data.error,packageCount:(data.packages??[]).length,hasDiscountMatch:(data.packages??[]).some((p:{coupon_code?:string;has_discount?:boolean;is_trial?:boolean})=>!p.is_trial&&(p.coupon_code===trimmed||p.has_discount))},timestamp:Date.now(),runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       const matched = (data.packages ?? []).some(
         (p: { coupon_code?: string; has_discount?: boolean; is_trial?: boolean }) =>
           !p.is_trial && (p.coupon_code === trimmed || p.has_discount),
