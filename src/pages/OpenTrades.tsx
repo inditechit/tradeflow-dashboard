@@ -12,6 +12,8 @@ import { API_BASE, SOCKET_URL } from "@/config/api";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   fmtMt5Price,
+  isTradeClosed,
+  resolveEffectiveSlice,
   resolveMt5BuySellPrices,
   rowGrossPl,
   type UserTradeRowLike,
@@ -39,10 +41,13 @@ function isBuyType(type?: string) {
   return type === "DEAL_TYPE_BUY" || type === "ORDER_TYPE_BUY";
 }
 
+type CopyScopeFilter = "all" | "open" | "closed";
+
 type TicketGroup = {
   ticket: string;
   symbol: string;
   status: string;
+  isOpen: boolean;
   masterPl: number;
   openTime: string | null;
   closeTime: string | null;
@@ -51,7 +56,30 @@ type TicketGroup = {
   price?: number;
   assigns: AdminOpenAssignRow[];
   userPlSum: number;
+  userGrossSum: number;
+  totalSharePct: number;
 };
+
+function rowCopyPlForGroup(
+  r: AdminOpenAssignRow,
+  ticket: string,
+  live?: Record<string, number>,
+): number {
+  if (isTradeClosed(r)) {
+    const fin = Number(r.final_profit_loss ?? NaN);
+    if (Number.isFinite(fin)) return fin;
+  }
+  return rowGrossPl(r, live?.[ticket]);
+}
+
+function totalSharePct(rows: AdminOpenAssignRow[]): number {
+  let sum = 0;
+  for (const r of rows) {
+    const { effectiveShare } = resolveEffectiveSlice(r);
+    sum += effectiveShare;
+  }
+  return Math.round(sum * 10000) / 100;
+}
 
 function fmtUsd(n: number) {
   return n.toLocaleString("en-US", {
@@ -77,6 +105,8 @@ const OpenTrades = () => {
   const [dialogTicket, setDialogTicket] = useState<string | null>(null);
 
   const [symbolFilter, setSymbolFilter] = useState("");
+  const [ticketFilter, setTicketFilter] = useState("");
+  const [copyScopeFilter, setCopyScopeFilter] = useState<CopyScopeFilter>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "buy" | "sell">("all");
   const [volumeFilter, setVolumeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -100,16 +130,16 @@ const OpenTrades = () => {
     }
   };
 
-  const fetchOpenAssignments = useCallback(async () => {
+  const fetchAssignments = useCallback(async () => {
     try {
       setAssignLoading(true);
-      const res = await fetch(`${API_BASE}/admin/open-assignments`);
+      const res = await fetch(`${API_BASE}/admin/open-assignments?all=1`);
       const data = await res.json();
       if (data.success && Array.isArray(data.assignments)) {
         setAssignments(data.assignments as AdminOpenAssignRow[]);
       }
     } catch (error) {
-      console.error("Error fetching open assignments:", error);
+      console.error("Error fetching assignments:", error);
     } finally {
       setAssignLoading(false);
     }
@@ -117,8 +147,8 @@ const OpenTrades = () => {
 
   useEffect(() => {
     void fetchTrades();
-    void fetchOpenAssignments();
-  }, [fetchOpenAssignments]);
+    void fetchAssignments();
+  }, [fetchAssignments]);
 
   useEffect(() => {
     const applyLive = (payload: { ticket?: unknown; profit?: unknown }) => {
@@ -158,23 +188,27 @@ const OpenTrades = () => {
     return map;
   }, [assignments]);
 
-  const openPlGroups = useMemo((): TicketGroup[] => {
+  const copyPlGroups = useMemo((): TicketGroup[] => {
     const groups: TicketGroup[] = [];
     for (const [ticket, rows] of assignsByTicket) {
       const sample = rows[0];
-      const liveMaster = liveProfitByTicket[ticket];
+      const closed = isTradeClosed(sample);
+      const liveMaster = !closed ? liveProfitByTicket[ticket] : undefined;
       const masterPl =
         liveMaster != null && Number.isFinite(liveMaster)
           ? liveMaster
           : Number(sample.mt5_total_profit ?? 0);
       let userPlSum = 0;
+      let userGrossSum = 0;
       for (const r of rows) {
-        userPlSum += rowGrossPl(r, liveProfitByTicket);
+        userGrossSum += rowGrossPl(r, closed ? undefined : liveProfitByTicket);
+        userPlSum += rowCopyPlForGroup(r, ticket, closed ? undefined : liveProfitByTicket);
       }
       groups.push({
         ticket,
         symbol: String(sample.symbol ?? "—"),
-        status: String(sample.mt5_status ?? "OPEN"),
+        status: closed ? "CLOSED" : String(sample.mt5_status ?? "OPEN"),
+        isOpen: !closed,
         masterPl,
         openTime: sample.open_time != null ? String(sample.open_time) : null,
         closeTime: sample.close_time != null ? String(sample.close_time) : null,
@@ -183,19 +217,25 @@ const OpenTrades = () => {
         price: sample.price != null ? Number(sample.price) : undefined,
         assigns: rows,
         userPlSum: Math.round(userPlSum * 100) / 100,
+        userGrossSum: Math.round(userGrossSum * 100) / 100,
+        totalSharePct: totalSharePct(rows),
       });
     }
     groups.sort((a, b) => {
-      const ta = Date.parse(String(a.openTime ?? "").replace(" ", "T"));
-      const tb = Date.parse(String(b.openTime ?? "").replace(" ", "T"));
+      const ta = Date.parse(String((a.isOpen ? a.openTime : a.closeTime) ?? "").replace(" ", "T"));
+      const tb = Date.parse(String((b.isOpen ? b.openTime : b.closeTime) ?? "").replace(" ", "T"));
       return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
     });
     return groups;
   }, [assignsByTicket, liveProfitByTicket]);
 
-  const filteredOpenPl = useMemo(() => {
+  const filteredCopyPl = useMemo(() => {
     const sym = symbolFilter.trim().toLowerCase();
-    return openPlGroups.filter((g) => {
+    const ticketQ = ticketFilter.trim();
+    return copyPlGroups.filter((g) => {
+      if (ticketQ && !g.ticket.includes(ticketQ)) return false;
+      if (copyScopeFilter === "open" && !g.isOpen) return false;
+      if (copyScopeFilter === "closed" && g.isOpen) return false;
       if (sym && !g.symbol.toLowerCase().includes(sym)) return false;
       if (typeFilter === "buy" && !isBuyType(g.type)) return false;
       if (typeFilter === "sell" && isBuyType(g.type)) return false;
@@ -208,24 +248,42 @@ const OpenTrades = () => {
       }
       return true;
     });
-  }, [openPlGroups, symbolFilter, typeFilter, statusFilter, profitFilter, dateFrom, dateTo]);
+  }, [
+    copyPlGroups,
+    ticketFilter,
+    copyScopeFilter,
+    symbolFilter,
+    typeFilter,
+    statusFilter,
+    profitFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const statusOptions = useMemo(() => {
     const set = new Set<string>();
     trades.forEach((t) => {
       if (t.status) set.add(String(t.status));
     });
-    openPlGroups.forEach((g) => {
+    copyPlGroups.forEach((g) => {
       if (g.status) set.add(g.status);
     });
     return Array.from(set).sort();
-  }, [trades, openPlGroups]);
+  }, [trades, copyPlGroups]);
+
+  const openCopyCount = useMemo(
+    () => copyPlGroups.filter((g) => g.isOpen).length,
+    [copyPlGroups],
+  );
+  const closedCopyCount = copyPlGroups.length - openCopyCount;
 
   const filteredTrades = useMemo(() => {
     const sym = symbolFilter.trim().toLowerCase();
+    const ticketQ = ticketFilter.trim();
     const volNum = volumeFilter.trim() === "" ? null : Number(volumeFilter);
 
     return trades.filter((trade) => {
+      if (ticketQ && !String(trade.ticket ?? "").includes(ticketQ)) return false;
       if (!tradeInDateRange(trade, dateFrom, dateTo)) return false;
       if (sym && !String(trade.symbol ?? "").toLowerCase().includes(sym)) return false;
       if (typeFilter === "buy" && !isBuyType(trade.type)) return false;
@@ -237,9 +295,9 @@ const OpenTrades = () => {
       if (profitFilter === "loss" && !(p < 0)) return false;
       return true;
     });
-  }, [trades, symbolFilter, typeFilter, volumeFilter, statusFilter, profitFilter, dateFrom, dateTo]);
+  }, [trades, symbolFilter, ticketFilter, typeFilter, volumeFilter, statusFilter, profitFilter, dateFrom, dateTo]);
 
-  const listForPagination = tab === "open-pl" ? filteredOpenPl : filteredTrades;
+  const listForPagination = tab === "open-pl" ? filteredCopyPl : filteredTrades;
   const { page, setPage, pageItems, totalPages, total: filteredTotal } = useClientPagination(
     listForPagination,
     PAGE_SIZE,
@@ -247,10 +305,12 @@ const OpenTrades = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [symbolFilter, typeFilter, volumeFilter, statusFilter, profitFilter, dateFrom, dateTo, tab, setPage]);
+  }, [symbolFilter, ticketFilter, copyScopeFilter, typeFilter, volumeFilter, statusFilter, profitFilter, dateFrom, dateTo, tab, setPage]);
 
   const filtersActive =
     symbolFilter.trim() !== "" ||
+    ticketFilter.trim() !== "" ||
+    copyScopeFilter !== "all" ||
     typeFilter !== "all" ||
     volumeFilter.trim() !== "" ||
     statusFilter !== "all" ||
@@ -259,6 +319,8 @@ const OpenTrades = () => {
 
   const clearFilters = () => {
     setSymbolFilter("");
+    setTicketFilter("");
+    setCopyScopeFilter("all");
     setTypeFilter("all");
     setVolumeFilter("");
     setStatusFilter("all");
@@ -269,7 +331,7 @@ const OpenTrades = () => {
 
   const refreshAll = () => {
     void fetchTrades();
-    void fetchOpenAssignments();
+    void fetchAssignments();
   };
 
   const dialogRows = dialogTicket ? assignsByTicket.get(dialogTicket) ?? [] : [];
@@ -287,7 +349,7 @@ const OpenTrades = () => {
           <h1 className="text-2xl font-bold text-slate-800">Open / Close Trades</h1>
           <p className="text-slate-500 text-sm">
             {tab === "open-pl"
-              ? `${openPlGroups.length} open copy ticket${openPlGroups.length === 1 ? "" : "s"} · ${assignments.length} user slices`
+              ? `${copyPlGroups.length} copy ticket${copyPlGroups.length === 1 ? "" : "s"} (${openCopyCount} open · ${closedCopyCount} closed) · ${assignments.length} user slices`
               : `Total MT5 rows: ${count}`}
             {filtersActive && (
               <span className="text-slate-600"> · Showing {filteredTotal} filtered</span>
@@ -314,7 +376,7 @@ const OpenTrades = () => {
       <Tabs value={tab} onValueChange={(v) => setTab(v as "master" | "open-pl")} className="mb-6">
         <TabsList className="grid h-11 w-full max-w-md grid-cols-2 rounded-xl bg-slate-100 p-1">
           <TabsTrigger value="open-pl" className="rounded-lg text-sm font-semibold">
-            Open copy P/L
+            Copy P/L
           </TabsTrigger>
           <TabsTrigger value="master" className="rounded-lg text-sm font-semibold">
             Master MT5
@@ -324,6 +386,17 @@ const OpenTrades = () => {
 
       {/* FILTERS */}
       <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="flex min-w-[120px] flex-col gap-1">
+          <label className="text-xs font-semibold uppercase text-slate-500">Ticket</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="e.g. 12345"
+            value={ticketFilter}
+            onChange={(e) => setTicketFilter(e.target.value)}
+            className={inputCls}
+          />
+        </div>
         <div className="flex min-w-[140px] flex-1 flex-col gap-1">
           <label className="text-xs font-semibold uppercase text-slate-500">Symbol</label>
           <input
@@ -346,6 +419,20 @@ const OpenTrades = () => {
             <option value="sell">Sell</option>
           </select>
         </div>
+        {tab === "open-pl" && (
+          <div className="flex min-w-[120px] flex-col gap-1">
+            <label className="text-xs font-semibold uppercase text-slate-500">Scope</label>
+            <select
+              value={copyScopeFilter}
+              onChange={(e) => setCopyScopeFilter(e.target.value as CopyScopeFilter)}
+              className={inputCls}
+            >
+              <option value="all">All</option>
+              <option value="open">Open only</option>
+              <option value="closed">Closed only</option>
+            </select>
+          </div>
+        )}
         {tab === "master" && (
           <div className="flex w-[110px] flex-col gap-1">
             <label className="text-xs font-semibold uppercase text-slate-500">Volume</label>
@@ -420,26 +507,31 @@ const OpenTrades = () => {
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Ticket</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Symbol</th>
+                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Users</th>
+                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Share %</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Open price</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Close / live</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Master P/L</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Copy open P/L</th>
+                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Copy P/L</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Opened</th>
+                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Closed</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {assignLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                       <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
-                      Loading open assignments…
+                      Loading copy assignments…
                     </td>
                   </tr>
                 ) : pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                      No open copy positions
+                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
+                      {copyPlGroups.length === 0
+                        ? "No copy assignments"
+                        : "No tickets match your filters"}
                     </td>
                   </tr>
                 ) : (
@@ -466,7 +558,21 @@ const OpenTrades = () => {
                           {g.ticket}
                         </td>
                         <td className="px-4 py-3 text-sm font-semibold text-neutral-900">{g.symbol}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              g.isOpen
+                                ? "bg-[#FFF9E6] text-neutral-900"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {g.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-slate-600">{g.assigns.length}</td>
+                        <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
+                          {g.totalSharePct > 0 ? `${g.totalSharePct.toFixed(2)}%` : "—"}
+                        </td>
                         <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
                           {buyPrice != null ? fmtMt5Price(buyPrice, g.symbol) : "—"}
                         </td>
@@ -484,10 +590,13 @@ const OpenTrades = () => {
                           {fmtUsd(g.masterPl)}
                         </td>
                         <td className={`px-4 py-3 text-sm font-bold tabular-nums ${plTextClass(g.userPlSum)}`}>
-                          {fmtUsd(g.userPlSum)}
+                          {g.isOpen ? `~${fmtUsd(g.userPlSum)}` : fmtUsd(g.userPlSum)}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
                           {formatIsoDateTime(g.openTime)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
+                          {g.isOpen ? "—" : formatIsoDateTime(g.closeTime)}
                         </td>
                       </tr>
                     );

@@ -7,6 +7,7 @@ import {
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 import {
   fmtMt5Price,
+  isTradeClosed,
   resolveEffectiveSlice,
   resolveMt5BuySellPrices,
   rowGrossPl,
@@ -38,6 +39,20 @@ function investedUsd(r: AdminOpenAssignRow): number {
   if (inv > 0) return inv;
   const bal = Number(String(r.user_bal ?? "").trim());
   return Number.isFinite(bal) && bal > 0 ? bal : 0;
+}
+
+function sharePct(r: AdminOpenAssignRow): number | null {
+  const { effectiveShare } = resolveEffectiveSlice(r);
+  if (!(effectiveShare > 0)) return null;
+  return Math.round(effectiveShare * 10000) / 100;
+}
+
+function rowCopyPl(r: AdminOpenAssignRow, ticket: string, live?: Record<string, number>): number {
+  if (isTradeClosed(r)) {
+    const fin = Number(r.final_profit_loss ?? NaN);
+    if (Number.isFinite(fin)) return fin;
+  }
+  return rowGrossPl(r, live?.[ticket]);
 }
 
 export function TicketAssignDialog({
@@ -89,10 +104,12 @@ export function TicketAssignDialog({
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
                 <th className="px-3 py-2.5 font-bold">User</th>
+                <th className="px-3 py-2.5 font-bold">Share %</th>
                 <th className="px-3 py-2.5 font-bold">Invested</th>
                 <th className="px-3 py-2.5 font-bold">Volume</th>
                 <th className="px-3 py-2.5 font-bold">Assigned</th>
-                <th className="px-3 py-2.5 font-bold">Open P/L</th>
+                <th className="px-3 py-2.5 font-bold">Gross P/L</th>
+                <th className="px-3 py-2.5 font-bold">Wallet P/L</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -100,12 +117,18 @@ export function TicketAssignDialog({
                 const uid = Number(r.user_id);
                 const name = String((r as AdminOpenAssignRow & { user_name?: string }).user_name ?? `#${uid}`);
                 const { v_i } = resolveEffectiveSlice(r);
+                const pct = sharePct(r);
+                const closed = isTradeClosed(r);
                 const gross = rowGrossPl(r, liveProfitByTicket?.[ticket]);
+                const walletPl = rowCopyPl(r, ticket, liveProfitByTicket);
                 return (
                   <tr key={String(r.assignment_id ?? `${uid}-${ticket}`)} className="hover:bg-slate-50/80">
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-slate-900">{name}</div>
                       <div className="text-xs text-slate-500">#{uid}</div>
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-slate-700">
+                      {pct != null ? `${pct.toFixed(2)}%` : "—"}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-slate-800">
                       {fmtUsd(investedUsd(r))}
@@ -121,7 +144,12 @@ export function TicketAssignDialog({
                     <td
                       className={`px-3 py-2.5 font-semibold tabular-nums ${plTextClass(gross)}`}
                     >
-                      {fmtUsd(gross)}
+                      {closed ? fmtUsd(gross) : `~${fmtUsd(gross)}`}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 font-semibold tabular-nums ${plTextClass(walletPl)}`}
+                    >
+                      {closed ? fmtUsd(walletPl) : "—"}
                     </td>
                   </tr>
                 );
