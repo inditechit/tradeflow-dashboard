@@ -52,7 +52,13 @@ export function buildFinanceOverlay(
   return { live_pl, equity, withdrawable_equity };
 }
 
-export type AdminOpenAssignRow = UserTradeRowLike & { user_id?: unknown };
+export type AdminOpenAssignRow = UserTradeRowLike & {
+  user_id?: unknown;
+  user_name?: unknown;
+  assignment_id?: unknown;
+  assignment_created_at?: unknown;
+  price?: unknown;
+};
 
 export function groupOpenRowsByUser(
   assignments: AdminOpenAssignRow[],
