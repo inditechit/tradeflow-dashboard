@@ -11,6 +11,7 @@ import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 import { API_BASE } from "@/config/api";
 import { getStoredReferralKey, getStoredCouponCode } from "@/hooks/usePackages";
+import { Wallet } from "lucide-react";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -38,6 +39,9 @@ const PaymentPage = () => {
     discount_amount: number;
     final_amount: number;
   } | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [payingWithWallet, setPayingWithWallet] = useState(false);
 
   const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
   const listPrice = Number(selectedPackage?.listPrice ?? couponPreview?.list_price_usd ?? selectedPackage?.price ?? 0);
@@ -78,9 +82,80 @@ const PaymentPage = () => {
     })();
   }, [selectedPackage, isTrial]);
 
+  useEffect(() => {
+    if (!currentUser?.userId || isTrial) return;
+    setWalletLoading(true);
+    void fetch(`${API_BASE}/user/wallet/${currentUser.userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.wallet) {
+          setWalletBalance(Math.max(0, Number(data.wallet.balance ?? 0)));
+        } else {
+          setWalletBalance(0);
+        }
+      })
+      .catch(() => setWalletBalance(0))
+      .finally(() => setWalletLoading(false));
+  }, [currentUser?.userId, isTrial]);
+
   const formatAmount = () => {
     if (!paymentData?.amount) return 0;
     return Number(paymentData.amount).toFixed(0);
+  };
+
+  const buildPaymentBody = (): Record<string, unknown> => {
+    const body: Record<string, unknown> = {
+      userId: currentUser!.userId,
+      packageId: selectedPackage!.id,
+    };
+    if (couponPreview?.code && couponPreview.code !== "REFERRAL") {
+      body.coupon_code = couponPreview.code;
+    } else {
+      const referralKey = getStoredReferralKey();
+      const storedCoupon = selectedPackage!.couponCode || getStoredCouponCode();
+      if (referralKey) body.ref_key = referralKey;
+      else if (storedCoupon) body.coupon_code = storedCoupon;
+      else if (couponPreview?.code) body.coupon_code = couponPreview.code;
+    }
+    return body;
+  };
+
+  const completePurchaseSuccess = (paymentId: string | number) => {
+    addPackage({
+      ...selectedPackage!,
+      purchasedAt: new Date().toISOString(),
+      transactionId: String(paymentId),
+    });
+    notifySubscriptionRefresh();
+    notifyProfileComplianceRefresh();
+    setStep("success");
+    setTimeout(() => navigate("/user/dashboard"), 3000);
+  };
+
+  const handlePayWithWallet = async () => {
+    if (!currentUser?.userId || !selectedPackage) return;
+    try {
+      setPayingWithWallet(true);
+      setErrorMessage("");
+      const res = await fetch(`${API_BASE}/purchase-package-with-wallet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPaymentBody()),
+      });
+      const data = await res.json();
+      if (data.success && data.activated) {
+        if (data.walletBalanceAfter != null) {
+          setWalletBalance(Number(data.walletBalanceAfter));
+        }
+        completePurchaseSuccess(data.paymentId ?? "");
+      } else {
+        setErrorMessage(data.error ?? "Could not complete wallet purchase");
+      }
+    } catch {
+      setErrorMessage("Failed to pay from wallet");
+    } finally {
+      setPayingWithWallet(false);
+    }
   };
 
   const handleCreatePayment = async () => {
@@ -89,20 +164,7 @@ const PaymentPage = () => {
     try {
       setIsSubmitting(true);
       setErrorMessage("");
-      const body: Record<string, unknown> = {
-        userId: currentUser.userId,
-        packageId: selectedPackage.id,
-        payment_method: "USDT",
-      };
-      if (couponPreview?.code && couponPreview.code !== "REFERRAL") {
-        body.coupon_code = couponPreview.code;
-      } else {
-        const referralKey = getStoredReferralKey();
-        const storedCoupon = selectedPackage.couponCode || getStoredCouponCode();
-        if (referralKey) body.ref_key = referralKey;
-        else if (storedCoupon) body.coupon_code = storedCoupon;
-        else if (couponPreview?.code) body.coupon_code = couponPreview.code;
-      }
+      const body = { ...buildPaymentBody(), payment_method: "USDT" };
       const res = await fetch(`${API_BASE}/create-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,15 +175,7 @@ const PaymentPage = () => {
 
       if (data.success) {
         if (data.activated || (isTrial && Number(data.amount) === 0)) {
-          addPackage({
-            ...selectedPackage,
-            purchasedAt: new Date().toISOString(),
-            transactionId: String(data.paymentId ?? ""),
-          });
-          notifySubscriptionRefresh();
-          notifyProfileComplianceRefresh();
-          setStep("success");
-          setTimeout(() => navigate("/user/dashboard"), 3000);
+          completePurchaseSuccess(data.paymentId ?? "");
           return;
         }
         setPaymentData(data);
@@ -197,6 +251,12 @@ const PaymentPage = () => {
     setCopiedWallet(true);
     setTimeout(() => setCopiedWallet(false), 2000);
   };
+
+  const canPayWithWallet =
+    !isTrial &&
+    displayPrice > 0 &&
+    walletBalance != null &&
+    walletBalance + 0.001 >= displayPrice;
 
   if (!selectedPackage) {
     return (
@@ -349,24 +409,70 @@ const PaymentPage = () => {
                 </div>
               </div>
 
-              <button
-                onClick={handleCreatePayment}
-                disabled={isSubmitting || (isTrial && !trialTermsAccepted)}
-                className={`w-full py-4 rounded-xl text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0 ${
-                  isTrial
-                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                    : "bg-[#FFD700] text-black hover:bg-[#E6C200] hover:-translate-y-0.5 shadow-black/20"
-                }`}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin" size={24} />
-                ) : isTrial ? (
-                  "Activate free trial"
-                ) : (
-                  "Proceed to Checkout"
+              {!isTrial && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <Wallet className="mt-0.5 h-5 w-5 shrink-0 text-neutral-800" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Trading wallet</p>
+                        <p className="text-xs text-slate-500">
+                          {walletLoading
+                            ? "Checking balance…"
+                            : `Available: $${(walletBalance ?? 0).toFixed(2)}`}
+                        </p>
+                      </div>
+                    </div>
+                    {canPayWithWallet ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                        Enough to pay with wallet
+                      </span>
+                    ) : !walletLoading && displayPrice > 0 ? (
+                      <span className="text-xs text-slate-500">
+                        Need ${displayPrice.toFixed(0)} — recharge or pay with USDT
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {canPayWithWallet && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePayWithWallet()}
+                    disabled={payingWithWallet || isSubmitting}
+                    className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl border-2 border-neutral-900 bg-white py-4 text-lg font-bold text-neutral-900 shadow-sm transition hover:bg-slate-50 disabled:opacity-70"
+                  >
+                    {payingWithWallet ? (
+                      <Loader2 className="animate-spin" size={24} />
+                    ) : (
+                      <Wallet size={22} />
+                    )}
+                    Pay ${displayPrice.toFixed(0)} from wallet
+                  </button>
                 )}
-                {!isSubmitting && <ArrowRight size={20} />}
-              </button>
+                <button
+                  onClick={handleCreatePayment}
+                  disabled={isSubmitting || payingWithWallet || (isTrial && !trialTermsAccepted)}
+                  className={`flex w-full flex-1 items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold shadow-lg transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0 ${
+                    isTrial
+                      ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                      : "bg-[#FFD700] text-black hover:bg-[#E6C200] hover:-translate-y-0.5 shadow-black/20"
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="animate-spin" size={24} />
+                  ) : isTrial ? (
+                    "Activate free trial"
+                  ) : canPayWithWallet ? (
+                    "Pay with USDT instead"
+                  ) : (
+                    "Proceed to Checkout"
+                  )}
+                  {!isSubmitting && <ArrowRight size={20} />}
+                </button>
+              </div>
             </div>
           )}
 

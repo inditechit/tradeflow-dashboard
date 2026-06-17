@@ -12,9 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
 
 type WithdrawalRow = {
   id: number;
@@ -220,7 +227,7 @@ const confirmApprove = async () => {
         <Button
           type="button"
           variant="secondary"
-          onClick={load}
+          onClick={() => void load(page)}
           disabled={loading}
           className="gap-2 shrink-0 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
         >
