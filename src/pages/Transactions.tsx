@@ -17,7 +17,7 @@ const PACKAGE_OPTIONS = [
   { id: "meet-guru", label: "Meet guru" },
 ];
 
-const METHOD_OPTIONS = ["USDT", "INR", "TRIAL"];
+const METHOD_OPTIONS = ["USDT", "INR", "WALLET", "TRIAL"];
 
 type Payment = {
   id: number;

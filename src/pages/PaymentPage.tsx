@@ -41,6 +41,7 @@ const PaymentPage = () => {
   } | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [walletTxFee, setWalletTxFee] = useState(5);
   const [payingWithWallet, setPayingWithWallet] = useState(false);
 
   const isTrial = selectedPackage ? Boolean(selectedPackage.isTrial) : false;
@@ -85,13 +86,18 @@ const PaymentPage = () => {
   useEffect(() => {
     if (!currentUser?.userId || isTrial) return;
     setWalletLoading(true);
-    void fetch(`${API_BASE}/user/wallet/${currentUser.userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.wallet) {
-          setWalletBalance(Math.max(0, Number(data.wallet.balance ?? 0)));
+    void Promise.all([
+      fetch(`${API_BASE}/user/wallet/${currentUser.userId}`).then((r) => r.json()),
+      fetch(`${API_BASE}/purchase-package-with-wallet/fee`).then((r) => r.json()),
+    ])
+      .then(([wData, feeData]) => {
+        if (wData.success && wData.wallet) {
+          setWalletBalance(Math.max(0, Number(wData.wallet.balance ?? 0)));
         } else {
           setWalletBalance(0);
+        }
+        if (feeData.success && feeData.transactionFeeUsd != null) {
+          setWalletTxFee(Number(feeData.transactionFeeUsd));
         }
       })
       .catch(() => setWalletBalance(0))
@@ -252,11 +258,14 @@ const PaymentPage = () => {
     setTimeout(() => setCopiedWallet(false), 2000);
   };
 
+  const walletTotalDue =
+    Math.round((displayPrice + walletTxFee) * 100) / 100;
+
   const canPayWithWallet =
     !isTrial &&
     displayPrice > 0 &&
     walletBalance != null &&
-    walletBalance + 0.001 >= displayPrice;
+    walletBalance + 0.001 >= walletTotalDue;
 
   if (!selectedPackage) {
     return (
@@ -421,6 +430,11 @@ const PaymentPage = () => {
                             ? "Checking balance…"
                             : `Available: $${(walletBalance ?? 0).toFixed(2)}`}
                         </p>
+                        {!walletLoading && displayPrice > 0 && walletTxFee > 0 ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Package ${displayPrice.toFixed(2)} + ${walletTxFee.toFixed(2)} transaction fee = ${walletTotalDue.toFixed(2)} total
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                     {canPayWithWallet ? (
@@ -429,7 +443,7 @@ const PaymentPage = () => {
                       </span>
                     ) : !walletLoading && displayPrice > 0 ? (
                       <span className="text-xs text-slate-500">
-                        Need ${displayPrice.toFixed(0)} — recharge or pay with USDT
+                        Need ${walletTotalDue.toFixed(2)} (incl. ${walletTxFee.toFixed(2)} fee) — recharge or pay with USDT
                       </span>
                     ) : null}
                   </div>
@@ -449,7 +463,7 @@ const PaymentPage = () => {
                     ) : (
                       <Wallet size={22} />
                     )}
-                    Pay ${displayPrice.toFixed(0)} from wallet
+                    Pay ${walletTotalDue.toFixed(2)} from wallet
                   </button>
                 )}
                 <button
