@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { useApp } from "@/context/AppContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
 import { proofImageSrc } from "@/components/profile/ProfilePanel";
@@ -119,7 +120,9 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
 
         {variant === "user" ? (
           <NotificationBell userId={currentUser.userId} />
-        ) : null}
+        ) : (
+          <AdminAlertBell />
+        )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

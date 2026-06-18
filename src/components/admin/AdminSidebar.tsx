@@ -20,6 +20,7 @@ import {
   Bell,
   PieChart,
   FileText,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
     { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
     { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
+    { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
   ] as Array<{ name: string; icon: any; path: string; showLive?: boolean }>;
 
   return (

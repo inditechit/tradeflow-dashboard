@@ -48,11 +48,7 @@ function round2(n: number): number {
 function parseChronTime(
   r: UserTradeRowLike & { open_time?: unknown; assignment_created_at?: unknown },
 ): number {
-  const candidates = [
-    r.close_time,
-    r.open_time,
-    r.assignment_created_at,
-  ];
+  const candidates = [r.assignment_created_at, r.open_time, r.close_time];
   for (const c of candidates) {
     if (c == null || String(c).trim() === "" || String(c) === "0000-00-00 00:00:00") {
       continue;
@@ -63,7 +59,7 @@ function parseChronTime(
   return 0;
 }
 
-/** Same order as backend ASSIGNMENTS_FOR_EQUITY_SQL. */
+/** Assign-time order (matches backend ORDER_ASSIGN_ASC). */
 export function sortTradesChronological<T extends UserTradeRowLike>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
     const ka = parseChronTime(a);
