@@ -32,6 +32,8 @@ type TradeRow = {
   assign_fee_usd: number;
   settlement_usd: number;
   total_wallet_impact_usd: number;
+  settled_at: string | null;
+  wallet_balance_after_usd: number | null;
   admin_absorbed: boolean;
   fee_exceeds_display: boolean;
 };
@@ -113,6 +115,19 @@ function money(n: number | undefined | null, colored = true) {
 
 function toIsoDateInput(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+function fmtDateTime(v: string | null | undefined) {
+  if (!v || String(v).trim() === "" || String(v) === "0000-00-00 00:00:00") return "—";
+  const d = new Date(String(v).replace(" ", "T"));
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function UserHeader({ r }: { r: UserReport }) {
@@ -438,7 +453,9 @@ function SideBySideCompare({
                     <th className="p-2">Ticket</th>
                     <th className="p-2">P/L</th>
                     <th className="p-2">Fee</th>
-                    <th className="p-2">Wallet</th>
+                    <th className="p-2">Impact</th>
+                    <th className="p-2 whitespace-nowrap">Settled</th>
+                    <th className="p-2 whitespace-nowrap">Bal after</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,6 +469,10 @@ function SideBySideCompare({
                       <td className="p-2 font-mono">${fmt(t.assign_fee_usd)}</td>
                       <td className={`p-2 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
                         ${fmt(t.total_wallet_impact_usd)}
+                      </td>
+                      <td className="p-2 whitespace-nowrap text-[10px] text-slate-600">{fmtDateTime(t.settled_at)}</td>
+                      <td className="p-2 font-mono font-semibold text-slate-800">
+                        {t.wallet_balance_after_usd != null ? `$${fmt(t.wallet_balance_after_usd)}` : "—"}
                       </td>
                     </tr>
                   ))}
@@ -604,7 +625,9 @@ function SingleUserReport({ report }: { report: UserReport }) {
               <th className="p-3">Display P/L</th>
               <th className="p-3">Fee</th>
               <th className="p-3">Settlement</th>
-              <th className="p-3">Wallet impact</th>
+              <th className="p-3">Impact</th>
+              <th className="p-3">Settled</th>
+              <th className="p-3">Bal after</th>
             </tr>
           </thead>
           <tbody>
@@ -616,6 +639,10 @@ function SingleUserReport({ report }: { report: UserReport }) {
                 <td className={`p-3 font-mono ${plTextClass(t.settlement_usd)}`}>${fmt(t.settlement_usd)}</td>
                 <td className={`p-3 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
                   ${fmt(t.total_wallet_impact_usd)}
+                </td>
+                <td className="p-3 text-xs text-slate-600 whitespace-nowrap">{fmtDateTime(t.settled_at)}</td>
+                <td className="p-3 font-mono font-semibold text-slate-800">
+                  {t.wallet_balance_after_usd != null ? `$${fmt(t.wallet_balance_after_usd)}` : "—"}
                 </td>
               </tr>
             ))}
