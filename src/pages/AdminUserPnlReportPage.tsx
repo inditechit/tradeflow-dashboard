@@ -26,6 +26,7 @@ type TradeRow = {
   assignment_id: number;
   ticket_id: string;
   status: string;
+  assign_created_at?: string | null;
   display_pl_usd: number;
   volume_share_pct: number;
   user_kept_pct: number;
@@ -36,6 +37,12 @@ type TradeRow = {
   wallet_balance_after_usd: number | null;
   admin_absorbed: boolean;
   fee_exceeds_display: boolean;
+};
+
+type TradeAbsence = {
+  ticket_id: string;
+  mt5_open_time: string | null;
+  reason: string;
 };
 
 type UserReport = {
@@ -88,6 +95,7 @@ type UserReport = {
   };
   trades: TradeRow[];
   trade_total: number;
+  trade_absences?: TradeAbsence[];
   narrative: string[];
 };
 
@@ -98,6 +106,11 @@ const REASON_LABELS: Record<string, string> = {
   assigned_after_stop_without_absorb_marker: "After stop — no absorb marker (review)",
   open_before_stop_not_absorbed: "Open before stop — not absorbed (review)",
   open_on_mt5: "Open on MT5",
+};
+
+const ABSENCE_LABELS: Record<string, string> = {
+  not_funded_at_open: "Not funded yet when trade opened",
+  wallet_exhausted_at_open: "Wallet too low at trade open",
 };
 
 function fmt(n: number | undefined | null) {
@@ -454,12 +467,15 @@ function SideBySideCompare({
                     <th className="p-2">P/L</th>
                     <th className="p-2">Fee</th>
                     <th className="p-2">Impact</th>
+                    <th className="p-2 whitespace-nowrap">Assigned</th>
                     <th className="p-2 whitespace-nowrap">Settled</th>
-                    <th className="p-2 whitespace-nowrap">Bal after</th>
+                    <th className="p-2 whitespace-nowrap" title="Cumulative wallet after this trade closed">
+                      Bal after
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {r.trades.map((t) => (
+                  {[...r.trades].reverse().map((t) => (
                     <tr key={t.assignment_id} className={`border-t ${t.fee_exceeds_display ? "bg-amber-50/50" : ""}`}>
                       <td className="p-2 font-mono">
                         {t.ticket_id}
@@ -469,6 +485,9 @@ function SideBySideCompare({
                       <td className="p-2 font-mono">${fmt(t.assign_fee_usd)}</td>
                       <td className={`p-2 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
                         ${fmt(t.total_wallet_impact_usd)}
+                      </td>
+                      <td className="p-2 whitespace-nowrap text-[10px] text-slate-500">
+                        {fmtDateTime(t.assign_created_at)}
                       </td>
                       <td className="p-2 whitespace-nowrap text-[10px] text-slate-600">{fmtDateTime(t.settled_at)}</td>
                       <td className="p-2 font-mono font-semibold text-slate-800">
@@ -617,6 +636,9 @@ function SingleUserReport({ report }: { report: UserReport }) {
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b px-4 py-3 font-semibold">
           Trades ({report.trades.length}/{report.trade_total})
+          <span className="ml-2 text-xs font-normal text-slate-500">
+            Assign order · Bal after = cumulative wallet after close
+          </span>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -626,12 +648,13 @@ function SingleUserReport({ report }: { report: UserReport }) {
               <th className="p-3">Fee</th>
               <th className="p-3">Settlement</th>
               <th className="p-3">Impact</th>
+              <th className="p-3">Assigned</th>
               <th className="p-3">Settled</th>
               <th className="p-3">Bal after</th>
             </tr>
           </thead>
           <tbody>
-            {report.trades.map((t) => (
+            {[...report.trades].reverse().map((t) => (
               <tr key={t.assignment_id} className="border-t">
                 <td className="p-3 font-mono text-xs">{t.ticket_id}</td>
                 <td className={`p-3 font-mono ${plTextClass(t.display_pl_usd)}`}>${fmt(t.display_pl_usd)}</td>
@@ -640,6 +663,7 @@ function SingleUserReport({ report }: { report: UserReport }) {
                 <td className={`p-3 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
                   ${fmt(t.total_wallet_impact_usd)}
                 </td>
+                <td className="p-3 text-xs text-slate-500 whitespace-nowrap">{fmtDateTime(t.assign_created_at)}</td>
                 <td className="p-3 text-xs text-slate-600 whitespace-nowrap">{fmtDateTime(t.settled_at)}</td>
                 <td className="p-3 font-mono font-semibold text-slate-800">
                   {t.wallet_balance_after_usd != null ? `$${fmt(t.wallet_balance_after_usd)}` : "—"}
@@ -649,6 +673,32 @@ function SingleUserReport({ report }: { report: UserReport }) {
           </tbody>
         </table>
       </div>
+
+      {(report.trade_absences?.length ?? 0) > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
+          <div className="border-b px-4 py-3 font-semibold text-slate-800">
+            Absent from trades ({report.trade_absences!.length})
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-100 text-left text-slate-600">
+                <th className="p-3">Ticket</th>
+                <th className="p-3">Trade opened</th>
+                <th className="p-3">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...report.trade_absences!].reverse().map((a) => (
+                <tr key={`${a.ticket_id}-${a.mt5_open_time}`} className="border-t">
+                  <td className="p-3 font-mono text-xs">{a.ticket_id}</td>
+                  <td className="p-3 text-xs text-slate-600">{fmtDateTime(a.mt5_open_time)}</td>
+                  <td className="p-3 text-xs">{ABSENCE_LABELS[a.reason] ?? a.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
