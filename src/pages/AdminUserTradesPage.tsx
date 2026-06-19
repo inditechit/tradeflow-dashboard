@@ -3,7 +3,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
-import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { fetchAllUserTrades, type TradeAbsenceRow } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
@@ -25,9 +25,34 @@ type UserTradeRow = UserTradeRowLike & {
   open_time?: string | null;
   close_time?: string | null;
   assignment_created_at?: string | null;
+  user_absent?: boolean;
+  absence_reason?: string | null;
 };
 
-type StatusFilter = "all" | "open" | "closed";
+type StatusFilter = "all" | "open" | "closed" | "absent";
+
+const ABSENCE_LABELS: Record<string, string> = {
+  not_funded_at_open: "Not funded when trade opened",
+  wallet_exhausted_at_open: "Wallet too low at trade open",
+};
+
+function absenceToRow(a: TradeAbsenceRow): UserTradeRow {
+  return {
+    ticket_id: a.ticket_id,
+    open_time: a.mt5_open_time,
+    assignment_created_at: null,
+    user_absent: true,
+    absence_reason: a.reason,
+    mt5_status: "Absent",
+  };
+}
+
+function rowSortTime(r: UserTradeRow): number {
+  const raw = r.open_time ?? r.assignment_created_at;
+  if (!raw) return 0;
+  const t = new Date(String(raw).replace(" ", "T")).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
 
 function fmtUsd(n: number) {
   return new Intl.NumberFormat("en-US", {
@@ -52,6 +77,7 @@ const AdminUserTradesPage = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [rows, setRows] = useState<UserTradeRow[]>([]);
+  const [absences, setAbsences] = useState<TradeAbsenceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -79,7 +105,13 @@ const AdminUserTradesPage = () => {
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
       }
-      setRows(tradesData.trades as UserTradeRow[]);
+      setRows(
+        (tradesData.trades as UserTradeRow[]).map((r) => ({
+          ...r,
+          user_absent: r.user_absent === true,
+        })),
+      );
+      setAbsences(tradesData.trade_absences ?? []);
       setTotalLoaded(tradesData.total);
     } catch (err) {
       console.error("AdminUserTradesPage fetch:", err);
@@ -92,14 +124,31 @@ const AdminUserTradesPage = () => {
     refresh();
   }, [refresh]);
 
-  const filteredRows = useMemo(() => {
-    if (statusFilter === "all") return rows;
-    if (statusFilter === "open") return rows.filter((r) => isOpenTrade(r));
-    return rows.filter((r) => !isOpenTrade(r));
-  }, [rows, statusFilter]);
+  const mergedRows = useMemo(() => {
+    const assigned = rows.map((r) => ({ ...r, user_absent: r.user_absent === true }));
+    const absent = absences.map(absenceToRow);
+    return [...assigned, ...absent].sort((a, b) => rowSortTime(b) - rowSortTime(a));
+  }, [rows, absences]);
 
-  const openCount = useMemo(() => rows.filter((r) => isOpenTrade(r)).length, [rows]);
-  const closedCount = rows.length - openCount;
+  const filteredRows = useMemo(() => {
+    if (statusFilter === "all") return mergedRows;
+    if (statusFilter === "absent") return mergedRows.filter((r) => r.user_absent === true);
+    if (statusFilter === "open") return mergedRows.filter((r) => !r.user_absent && isOpenTrade(r));
+    return mergedRows.filter((r) => !r.user_absent && !isOpenTrade(r));
+  }, [mergedRows, statusFilter]);
+
+  const openCount = useMemo(
+    () => mergedRows.filter((r) => !r.user_absent && isOpenTrade(r)).length,
+    [mergedRows],
+  );
+  const absentCount = useMemo(
+    () => mergedRows.filter((r) => r.user_absent === true).length,
+    [mergedRows],
+  );
+  const closedCount = useMemo(
+    () => mergedRows.filter((r) => !r.user_absent && !isOpenTrade(r)).length,
+    [mergedRows],
+  );
 
   const { page, setPage, pageItems, totalPages, total } = useClientPagination(
     filteredRows,
@@ -134,8 +183,9 @@ const AdminUserTradesPage = () => {
               {userName || "User"} — assigned trades
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              User #{userId} · {openCount} open · {closedCount} closed · {totalLoaded || rows.length}{" "}
-              assigned trades (full history)
+              User #{userId} · {openCount} open · {closedCount} closed
+              {absentCount > 0 ? ` · ${absentCount} absent` : ""} · {rows.length} assigned
+              {totalLoaded > rows.length ? ` (${totalLoaded} total loaded)` : ""}
             </p>
           </div>
         </div>
@@ -155,9 +205,10 @@ const AdminUserTradesPage = () => {
       <div className="mb-4 flex flex-wrap gap-2">
         {(
           [
-            ["all", `All (${rows.length})`],
+            ["all", `All (${mergedRows.length})`],
             ["open", `Open (${openCount})`],
             ["closed", `Closed (${closedCount})`],
+            ...(absentCount > 0 ? [["absent", `Absent (${absentCount})`] as const] : []),
           ] as const
         ).map(([key, label]) => (
           <button
@@ -208,60 +259,95 @@ const AdminUserTradesPage = () => {
                 </tr>
               ) : (
                 pageItems.map((r) => {
-                  const open = !isTradeClosed(r);
-                  const grossPl = rowGrossPl(r);
-                  const finalPl = rowFinalWalletPl(r, undefined, undefined, facingMap);
+                  const isAbsent = r.user_absent === true;
+                  const open = !isAbsent && !isTradeClosed(r);
+                  const grossPl = isAbsent ? null : rowGrossPl(r);
+                  const finalPl = isAbsent
+                    ? null
+                    : rowFinalWalletPl(r, undefined, undefined, facingMap);
                   const vol = Number(r.allocated_volume ?? 0);
                   const fee = Number(r.proportional_fee ?? 0);
                   const buyPrice = Number(r.price);
+                  const rowKey = isAbsent
+                    ? `absent-${r.ticket_id}-${r.open_time ?? ""}`
+                    : String(r.assignment_id ?? r.ticket_id);
 
                   return (
-                    <tr key={String(r.assignment_id ?? r.ticket_id)} className="hover:bg-yellow-50/40">
-                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{r.ticket_id}</td>
+                    <tr
+                      key={rowKey}
+                      className={isAbsent ? "bg-slate-50/80" : "hover:bg-yellow-50/40"}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                        {r.ticket_id}
+                        {isAbsent && (
+                          <span className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                            Absent
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm font-semibold text-slate-900">{r.symbol ?? "—"}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
                         {tradeOpenedAt(r)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
-                        {tradeClosedAt(r)}
+                        {isAbsent ? "—" : tradeClosedAt(r)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
-                        {formatIsoDateTime(r.assignment_created_at ?? null)}
+                        {isAbsent ? "—" : formatIsoDateTime(r.assignment_created_at ?? null)}
                       </td>
                       <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
-                        {vol > 0 ? vol.toFixed(4) : "—"}
+                        {isAbsent || vol <= 0 ? "—" : vol.toFixed(4)}
                       </td>
                       <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
-                        {fee > 0 ? fmtUsd(fee) : "—"}
+                        {isAbsent || fee <= 0 ? "—" : fmtUsd(fee)}
                       </td>
                       <td
                         className={`px-4 py-3 text-sm font-bold tabular-nums ${
-                          grossPl >= 0 ? plTextClass(1) : plTextClass(-1)
+                          grossPl == null
+                            ? "text-slate-400"
+                            : grossPl >= 0
+                              ? plTextClass(1)
+                              : plTextClass(-1)
                         }`}
                       >
-                        {fmtUsd(grossPl)}
+                        {grossPl == null ? "—" : fmtUsd(grossPl)}
                       </td>
                       <td
                         className={`px-4 py-3 text-sm font-bold tabular-nums ${
-                          finalPl >= 0 ? plTextClass(1) : plTextClass(-1)
+                          finalPl == null
+                            ? "text-slate-400"
+                            : finalPl >= 0
+                              ? plTextClass(1)
+                              : plTextClass(-1)
                         }`}
                       >
-                        {fmtUsd(finalPl)}
+                        {finalPl == null ? "—" : fmtUsd(finalPl)}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            open
-                              ? "bg-sky-50 text-sky-700"
-                              : "border border-slate-200 bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {open ? String(r.mt5_status ?? "Open") : "Closed"}
-                        </span>
-                        {buyPrice > 0 && (
-                          <div className="mt-1 text-[11px] text-slate-400 tabular-nums">
-                            @ {fmtMt5Price(buyPrice, r.symbol)}
-                          </div>
+                        {isAbsent ? (
+                          <span
+                            className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"
+                            title={r.absence_reason ?? undefined}
+                          >
+                            {ABSENCE_LABELS[r.absence_reason ?? ""] ?? "Absent"}
+                          </span>
+                        ) : (
+                          <>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                open
+                                  ? "bg-sky-50 text-sky-700"
+                                  : "border border-slate-200 bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {open ? String(r.mt5_status ?? "Open") : "Closed"}
+                            </span>
+                            {buyPrice > 0 && (
+                              <div className="mt-1 text-[11px] text-slate-400 tabular-nums">
+                                @ {fmtMt5Price(buyPrice, r.symbol)}
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
                     </tr>

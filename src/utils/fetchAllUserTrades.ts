@@ -10,12 +10,21 @@ export type UserTradesCycle = {
   wallet_correction?: boolean;
 };
 
+export type TradeAbsenceRow = {
+  ticket_id: string;
+  mt5_open_time: string | null;
+  reason: string;
+  created_at?: string | null;
+};
+
 export type FetchAllUserTradesResult = {
   success: true;
   trades: UserTradeRowLike[];
   total: number;
   cycle?: UserTradesCycle;
   fee_per_lot_usd?: number;
+  trade_absences?: TradeAbsenceRow[];
+  absence_count?: number;
 };
 
 type FetchOpts = {
@@ -44,6 +53,8 @@ export async function fetchAllUserTrades(
   let page = 1;
   let cycle: UserTradesCycle | undefined;
   let feePerLot: number | undefined;
+  let tradeAbsences: TradeAbsenceRow[] | undefined;
+  let absenceCount: number | undefined;
 
   while (true) {
     const qs = new URLSearchParams({
@@ -63,6 +74,10 @@ export async function fetchAllUserTrades(
     total = Number(data.total ?? allTrades.length);
     if (data.cycle) cycle = data.cycle as UserTradesCycle;
     if (data.fee_per_lot_usd != null) feePerLot = Number(data.fee_per_lot_usd);
+    if (page === 1 && Array.isArray(data.trade_absences)) {
+      tradeAbsences = data.trade_absences as TradeAbsenceRow[];
+      absenceCount = Number(data.absence_count ?? tradeAbsences.length);
+    }
 
     if (batch.length < pageSize || allTrades.length >= total) break;
     page += 1;
@@ -74,5 +89,7 @@ export async function fetchAllUserTrades(
     total,
     cycle,
     fee_per_lot_usd: feePerLot,
+    trade_absences: tradeAbsences,
+    absence_count: absenceCount,
   };
 }

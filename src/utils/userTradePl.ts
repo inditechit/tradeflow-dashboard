@@ -37,6 +37,9 @@ export type UserTradeRowLike = {
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
+  /** Admin: user had no assign row on this ticket */
+  user_absent?: boolean;
+  absence_reason?: string | null;
 };
 
 const FEE_PER_LOT_USD = 30;
