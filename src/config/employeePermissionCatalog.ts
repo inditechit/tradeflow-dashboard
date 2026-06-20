@@ -64,7 +64,7 @@ export const ADMIN_MENU_PATHS = [
   "/admin/user-pnl-report",
 ];
 
-export function firstAllowedStaffPath(
+export function firstAllowedEmployeePath(
   permissions: string[],
   isAdmin: boolean,
 ): string {
@@ -75,3 +75,6 @@ export function firstAllowedStaffPath(
   }
   return "/admin/dashboard";
 }
+
+/** @deprecated use firstAllowedEmployeePath */
+export const firstAllowedStaffPath = firstAllowedEmployeePath;

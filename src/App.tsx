@@ -57,6 +57,8 @@ import AdminCouponsPage from "./pages/AdminCouponsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import AdminUserPnlReportPage from "./pages/AdminUserPnlReportPage";
 import AdminEmployeesPage from "./pages/AdminEmployeesPage";
+import EmployeeChooseExperiencePage from "./pages/EmployeeChooseExperiencePage";
+import { EmployeeChooseRoute } from "./components/auth/EmployeeChooseRoute";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
@@ -82,6 +84,15 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/signup" element={<SignupPage />} />
+
+            <Route
+              path="/choose-experience"
+              element={
+                <EmployeeChooseRoute>
+                  <EmployeeChooseExperiencePage />
+                </EmployeeChooseRoute>
+              }
+            />
 
             {/* Public/User pages */}
             <Route path="/profile" element={<ProfilePage />} />

@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/select";
 import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
+import { proofImageSrc } from "@/utils/userImageUrl";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+export { proofImageSrc } from "@/utils/userImageUrl";
 
 /** Light fields — global theme uses dark `background`; profile cards are light paper. */
 const fieldInputClass =
@@ -25,12 +26,7 @@ const fieldInputClass =
 
 const fieldLabelClass = "text-sm font-medium text-slate-700";
 
-export function proofImageSrc(raw: string | null | undefined): string | null {
-  if (!raw || raw === "permissions_granted") return null;
-  if (raw.length < 40) return null;
-  if (raw.startsWith("data:")) return raw;
-  return `data:image/jpeg;base64,${raw}`;
-}
+const API_BASE = "https://api.copytradeengine.org/api";
 
 export type ProfilePanelProps = {
   targetUserId: string;

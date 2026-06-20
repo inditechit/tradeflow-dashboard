@@ -127,7 +127,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
 
           <div className="mb-8 pr-10 md:pr-0">
             <h1 className="font-sans text-lg font-bold text-neutral-900 sm:text-xl">
-              {isAdmin ? "Admin Panel" : "Staff Panel"}
+              {isAdmin ? "Admin Panel" : "Employee Panel"}
             </h1>
           </div>
 

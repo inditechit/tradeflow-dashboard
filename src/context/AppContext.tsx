@@ -12,6 +12,7 @@ import {
   clearAuthStorage,
   verifySession,
 } from "@/utils/authSession";
+import { clearEmployeeExploreMode } from "@/utils/employeeExploreMode";
 
 export interface UserData {
   name?: string;
@@ -99,10 +100,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [mockLocations] = useState<MockLocation[]>(defaultLocations);
 
   const logout = useCallback(() => {
+    clearEmployeeExploreMode(currentUser?.userId);
     setCurrentUser(null);
     clearAuthStorage();
     setPurchasedPackages([]);
-  }, []);
+  }, [currentUser?.userId]);
 
   useEffect(() => {
     let cancelled = false;

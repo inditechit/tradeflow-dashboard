@@ -217,7 +217,7 @@ const AdminEmployeesPage = () => {
           Employees
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Create new staff accounts or convert an existing user. Grant tab-by-tab access to filters, columns, and actions.
+          Create new employee accounts or convert an existing user. Grant tab-by-tab access to filters, columns, and actions.
         </p>
       </div>
 
@@ -226,7 +226,7 @@ const AdminEmployeesPage = () => {
           <UserRoundPlus className="h-5 w-5" /> Convert existing user
         </h2>
         <p className="mb-4 text-sm text-slate-500">
-          Pick a regular user account — they keep their login and become staff with limited admin access.
+          Pick a regular user account — they keep their login and become an employee with limited admin access.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1">

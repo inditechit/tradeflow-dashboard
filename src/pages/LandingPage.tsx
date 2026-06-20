@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
+import { useApp } from "@/context/AppContext";
 import { captureReferralKeyFromUrl, usePackages } from "@/hooks/usePackages";
 import { Reveal } from "@/components/landing/Reveal";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resolveEmployeeLandingPath } from "@/utils/employeeExploreMode";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -155,6 +157,7 @@ const FAQ = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isReady, role } = useVerifiedSession();
+  const { currentUser } = useApp();
   const { packages: subscriptionPlans, loading: plansLoading, referralApplied, couponApplied } =
     usePackages();
 
@@ -168,8 +171,16 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (!isReady || !role) return;
-    navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
-  }, [isReady, role, navigate]);
+    if (role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    } else if (role === "employee" && currentUser?.userId) {
+      navigate(resolveEmployeeLandingPath(currentUser.userId, currentUser.employeePermissions ?? []), {
+        replace: true,
+      });
+    } else {
+      navigate("/user/dashboard", { replace: true });
+    }
+  }, [isReady, role, navigate, currentUser?.userId, currentUser?.employeePermissions]);
 
   useEffect(() => {
     captureReferralKeyFromUrl();

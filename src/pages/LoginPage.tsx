@@ -5,7 +5,8 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useApp } from "@/context/AppContext";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
-import { firstAllowedStaffPath } from "@/config/employeePermissionCatalog";
+import { firstAllowedEmployeePath } from "@/config/employeePermissionCatalog";
+import { resolveEmployeeLandingPath } from "@/utils/employeeExploreMode";
 import { captureReferralKeyFromUrl, getStoredReferralKey } from "@/hooks/usePackages";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
@@ -119,11 +120,12 @@ const LoginPage = () => {
       navigate("/admin/dashboard", { replace: true });
     } else if (role === "employee") {
       const perms = currentUser?.employeePermissions ?? [];
-      navigate(firstAllowedStaffPath(perms, false), { replace: true });
+      const uid = currentUser?.userId;
+      if (uid) navigate(resolveEmployeeLandingPath(uid, perms), { replace: true });
     } else {
       navigate("/user/dashboard", { replace: true });
     }
-  }, [isReady, role, navigate, currentUser?.employeePermissions]);
+  }, [isReady, role, navigate, currentUser?.employeePermissions, currentUser?.userId]);
 
   useEffect(() => {
     captureReferralKeyFromUrl();
@@ -195,7 +197,7 @@ const LoginPage = () => {
           navigate("/admin/dashboard");
         } else if (role === "employee") {
           const perms = Array.isArray(data.employeePermissions) ? data.employeePermissions : [];
-          navigate(firstAllowedStaffPath(perms, false));
+          navigate(resolveEmployeeLandingPath(String(data.userId), perms));
         } else {
           navigate("/user/dashboard");
         }

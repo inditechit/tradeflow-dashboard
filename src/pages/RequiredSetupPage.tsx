@@ -23,6 +23,7 @@ import {
   isProfileComplianceComplete,
   type ProfileRecord,
 } from "@/utils/profileCompliance";
+import { hasUserImageData } from "@/utils/userImageUrl";
 
 function filled(val: unknown): boolean {
   if (val == null) return false;
@@ -31,13 +32,7 @@ function filled(val: unknown): boolean {
 }
 
 function hasLivePhoto(profile: ProfileRecord): boolean {
-  const raw = profile.livePhotoData;
-  if (raw == null) return false;
-  const s = String(raw);
-  if (s === "permissions_granted") return false;
-  if (s.length < 40) return false;
-  if (s.startsWith("data:image")) return true;
-  return s.length >= 500;
+  return hasUserImageData(profile.livePhotoData);
 }
 
 function hasLocation(profile: ProfileRecord): boolean {

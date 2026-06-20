@@ -1,3 +1,5 @@
+import { hasUserImageData } from "@/utils/userImageUrl";
+
 /** Profile shape from GET /api/user/profile/:id */
 export type ProfileForCompletion = Record<string, unknown> | null;
 
@@ -8,10 +10,7 @@ function filled(val: unknown): boolean {
 }
 
 function hasDocPhoto(raw: unknown): boolean {
-  if (!filled(raw)) return false;
-  const s = String(raw);
-  if (s === "permissions_granted") return false;
-  return s.length >= 500;
+  return hasUserImageData(raw);
 }
 
 /**

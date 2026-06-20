@@ -5,7 +5,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { useApp } from "@/context/AppContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
-import { proofImageSrc } from "@/components/profile/ProfilePanel";
+import { proofImageSrc } from "@/utils/userImageUrl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EmployeeExploreSwitch } from "@/components/layout/EmployeeExploreSwitch";
+import { useEmployeeExploreMode } from "@/hooks/useEmployeeExploreMode";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -36,6 +38,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const { currentUser, logout } = useApp();
+  const { isEmployee } = useEmployeeExploreMode();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const finance = useUserFinance(variant === "user" ? currentUser?.userId : undefined);
@@ -99,7 +102,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
         ) : null}
         <div className="font-sans min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
-            {variant === "admin" ? "Admin" : "User"}
+            {variant === "admin" ? (isEmployee ? "Employee" : "Admin") : "User"}
           </p>
           <p className="truncate text-xs font-semibold text-slate-800 sm:text-sm">
             Copy Trade Engine
@@ -108,6 +111,10 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
       </div>
 
       <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+        {isEmployee ? (
+          <EmployeeExploreSwitch activeVariant={variant} className="hidden sm:flex" />
+        ) : null}
+
         {variant === "user" && walletLabel ? (
           <button
             type="button"
@@ -152,7 +159,16 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
               <p className="truncate text-xs text-neutral-800">@{currentUser.telegram}</p>
             ) : null}
           </div>
-          <DropdownMenuSeparator className="bg-slate-200" />
+          {isEmployee ? (
+            <>
+              <div className="px-2 pb-2 sm:hidden">
+                <EmployeeExploreSwitch activeVariant={variant} className="w-full" />
+              </div>
+              <DropdownMenuSeparator className="bg-slate-200" />
+            </>
+          ) : (
+            <DropdownMenuSeparator className="bg-slate-200" />
+          )}
           <DropdownMenuItem
             className="cursor-pointer text-black focus:bg-slate-100 focus:text-slate-900"
             onClick={() => navigate(profilePath)}
