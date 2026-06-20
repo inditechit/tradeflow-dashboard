@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CalendarPlus, History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2 } from "lucide-react";
+import { CalendarPlus, History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2, UserCog } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,10 @@ import {
   type UserLabelEntry,
 } from "@/utils/adminUserLabels";
 import UserLabelsDisplay from "./UserLabelsDisplay";
+import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
+import { useApp } from "@/context/AppContext";
+import { API_BASE } from "@/config/api";
+import { EmployeeAccessModal } from "@/components/admin/EmployeeAccessModal";
 
 type UserDetailDialogProps = {
   user: Record<string, unknown> | null;
@@ -41,6 +45,7 @@ type UserDetailDialogProps = {
   onOpenMap: (user: Record<string, unknown>) => void;
   onLabelsUpdated?: () => void;
   onExtendPackage?: (user: Record<string, unknown>) => void;
+  onConvertedToEmployee?: () => void;
 };
 
 const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
@@ -57,8 +62,18 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   onOpenMap,
   onLabelsUpdated,
   onExtendPackage,
+  onConvertedToEmployee,
 }) => {
   const { toast } = useToast();
+  const { can, isAdmin } = useEmployeeAccess();
+  const { currentUser } = useApp();
+  const adminId = Number(currentUser?.userId);
+  const [converting, setConverting] = useState(false);
+  const [employeeAccessOpen, setEmployeeAccessOpen] = useState(false);
+  const [employeePerms, setEmployeePerms] = useState<string[]>([]);
+  const [employeeAccessName, setEmployeeAccessName] = useState("");
+  const [convertUserId, setConvertUserId] = useState<number | null>(null);
+  const [savingEmployeeAccess, setSavingEmployeeAccess] = useState(false);
   const [labels, setLabels] = useState<UserLabelEntry>({ label: "", tags: [] });
   const [newTag, setNewTag] = useState("");
   const [savingLabels, setSavingLabels] = useState(false);
@@ -70,12 +85,77 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
     setNewTag("");
   }, [user, open]);
 
-  if (!user) return null;
+  if (!user && !employeeAccessOpen) return null;
 
-  const userId = Number(user.id);
-  const isOnline = Number(user.is_online) === 1;
+  const userId = user ? Number(user.id) : convertUserId ?? 0;
+  const isOnline = user ? Number(user.is_online) === 1 : false;
   const showVoice =
     isVoiceAdmin && Number.isFinite(adminListenerId) && userId !== adminListenerId;
+
+  const handleConvertToEmployee = async () => {
+    if (!adminId || !userId || !user) return;
+    const label = String(user.name || user.email || `User #${userId}`);
+    if (
+      !window.confirm(
+        `Convert "${label}" to an employee?\n\nThey will keep their login and get limited admin panel access.`,
+      )
+    ) {
+      return;
+    }
+    setConverting(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/employees/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          createdByUserId: adminId,
+          permissions: [],
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Convert failed");
+      toast({ title: "Converted to employee", description: "Set their panel access." });
+      setEmployeePerms([]);
+      setEmployeeAccessName(label);
+      setConvertUserId(userId);
+      setEmployeeAccessOpen(true);
+      onConvertedToEmployee?.();
+    } catch (err) {
+      toast({
+        title: "Could not convert",
+        description: err instanceof Error ? err.message : "Convert failed",
+        variant: "destructive",
+      });
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const saveEmployeeAccess = async (permissions: string[]) => {
+    if (!adminId || !userId) return;
+    setSavingEmployeeAccess(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/employees/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissions, updatedByUserId: adminId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Save failed");
+      toast({ title: "Employee access saved" });
+      setEmployeeAccessOpen(false);
+      onClose();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Save failed",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingEmployeeAccess(false);
+    }
+  };
 
   const persistLabels = async (next: UserLabelEntry) => {
     setLabels(next);
@@ -116,6 +196,8 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   };
 
   return (
+    <>
+    {user && (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -251,6 +333,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 <User className="h-4 w-4" />
                 Profile
               </Button>
+              {can("action:users:wallet") && (
               <Button
                 type="button"
                 variant="outline"
@@ -264,6 +347,8 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 <Wallet className="h-4 w-4" />
                 Wallet
               </Button>
+              )}
+              {can("action:users:edit") && (
               <Button
                 type="button"
                 variant="outline"
@@ -277,7 +362,8 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 <Pencil className="h-4 w-4" />
                 Edit
               </Button>
-              {showVoice && (
+              )}
+              {showVoice && can("action:users:voice") && (
                 <Button
                   type="button"
                   variant="outline"
@@ -320,6 +406,23 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 >
                   <CalendarPlus className="h-4 w-4" />
                   Extend package
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={converting}
+                  className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                  onClick={() => void handleConvertToEmployee()}
+                >
+                  {converting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserCog className="h-4 w-4" />
+                  )}
+                  Convert to employee
                 </Button>
               )}
             </div>
@@ -431,6 +534,20 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
         </div>
       </DialogContent>
     </Dialog>
+    )}
+
+    <EmployeeAccessModal
+      open={employeeAccessOpen}
+      onClose={() => {
+        setEmployeeAccessOpen(false);
+        setConvertUserId(null);
+      }}
+      employeeName={employeeAccessName || (user ? String(user.name || user.email || `User #${userId}`) : "Employee")}
+      initialPermissions={employeePerms}
+      onSave={saveEmployeeAccess}
+      saving={savingEmployeeAccess}
+    />
+    </>
   );
 };
 

@@ -5,6 +5,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useApp } from "@/context/AppContext";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
+import { firstAllowedStaffPath } from "@/config/employeePermissionCatalog";
 import { captureReferralKeyFromUrl, getStoredReferralKey } from "@/hooks/usePackages";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
@@ -109,13 +110,20 @@ const PasswordField = ({ placeholder, value, onChange }: { placeholder: string; 
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { setCurrentUser } = useApp();
+  const { setCurrentUser, currentUser } = useApp();
   const { isReady, role } = useVerifiedSession();
 
   useEffect(() => {
     if (!isReady || !role) return;
-    navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard", { replace: true });
-  }, [isReady, role, navigate]);
+    if (role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    } else if (role === "employee") {
+      const perms = currentUser?.employeePermissions ?? [];
+      navigate(firstAllowedStaffPath(perms, false), { replace: true });
+    } else {
+      navigate("/user/dashboard", { replace: true });
+    }
+  }, [isReady, role, navigate, currentUser?.employeePermissions]);
 
   useEffect(() => {
     captureReferralKeyFromUrl();
@@ -160,14 +168,24 @@ const LoginPage = () => {
 
       const data = await response.json();
 
+      if (response.status === 403) {
+        setErrorMessage(data.error || "Access denied");
+        return;
+      }
+
       if (data.success) {
-        const role = data.role === "admin" ? "admin" : "user";
+        const role =
+          data.role === "admin" ? "admin" : data.role === "employee" ? "employee" : "user";
         setCurrentUser({
           userId: String(data.userId),
           telegram: data.telegram ?? undefined,
           name: data.name ?? undefined,
           email: data.email ?? form.email,
           role,
+          employeePermissions:
+            role === "employee" && Array.isArray(data.employeePermissions)
+              ? data.employeePermissions
+              : undefined,
           ...(data.created_at || data.createdAt
             ? { createdAt: String(data.created_at ?? data.createdAt) }
             : {}),
@@ -175,6 +193,9 @@ const LoginPage = () => {
 
         if (role === "admin") {
           navigate("/admin/dashboard");
+        } else if (role === "employee") {
+          const perms = Array.isArray(data.employeePermissions) ? data.employeePermissions : [];
+          navigate(firstAllowedStaffPath(perms, false));
         } else {
           navigate("/user/dashboard");
         }

@@ -38,6 +38,7 @@ import AffiliateRulesAdminPage from "./pages/AffiliateRulesAdminPage";
 import AdminReferralsPage from "./pages/AdminReferralsPage";
 import AdminWalletLedgerPage from "./pages/AdminWalletLedgerPage";
 import AdminRoute from "./components/auth/AdminRoute";
+import { AdminHomeRedirect } from "./components/auth/AdminHomeRedirect";
 import UserRoute from "./components/auth/UserRoute";
 import My_Profile from "./pages/userSIdebar/My_Profile";
 import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
@@ -55,6 +56,7 @@ import AdminPackagesPage from "./pages/AdminPackagesPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import AdminUserPnlReportPage from "./pages/AdminUserPnlReportPage";
+import AdminEmployeesPage from "./pages/AdminEmployeesPage";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
@@ -123,8 +125,7 @@ const App = () => (
               </AdminRoute>
               }>
 
-              {/* Default → /admin/dashboard */}
-              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route index element={<AdminHomeRedirect />} />
 
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="profile" element={<AdminProfilePage />} />
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
               <Route path="financial-stats" element={<AdminFinancialStatsPage />} />
               <Route path="user-pnl-report" element={<AdminUserPnlReportPage />} />
+              <Route path="employees" element={<AdminEmployeesPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />

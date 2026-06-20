@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -42,7 +43,9 @@ const AdminLayout = () => {
         <AppHeader variant="admin" onMenuClick={() => setMobileNavOpen(true)} />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
           <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
-            <Outlet />
+            <EmployeeTabGuard>
+              <Outlet />
+            </EmployeeTabGuard>
           </div>
         </main>
       </div>

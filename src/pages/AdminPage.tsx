@@ -44,10 +44,9 @@ import {
 } from "@/utils/adminUserDisplay";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-import {
-  fetchAllUsedTags,
-  parseUserLabels,
-} from "@/utils/adminUserLabels";
+import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
+import { EmployeeGate } from "@/components/auth/EmployeeGate";
+import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
 
 const USER_PAGE_SIZE = 50;
 
@@ -78,7 +77,8 @@ const AdminPage = () => {
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
 
   const { currentUser } = useApp();
-  const isVoiceAdmin = currentUser?.role === "admin";
+  const { can } = useEmployeeAccess();
+  const isVoiceAdmin = can("action:users:voice");
   const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
 
@@ -402,6 +402,31 @@ const AdminPage = () => {
     setUserPage(1);
   }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPnl, filterTag, walletSort, setUserPage]);
 
+  const visibleUserCols = useMemo(
+    () =>
+      [
+        "col:users:name",
+        "col:users:labels",
+        "col:users:status",
+        "col:users:wallet",
+        "col:users:equity",
+        "col:users:live_pl",
+        "col:users:withdrawable",
+        "col:users:recharges",
+        "col:users:created",
+        "col:users:kyc",
+        "col:users:profit_pct",
+        "col:users:dollar_cut",
+        "col:users:risk",
+        "col:users:actions",
+        "col:users:email",
+        "col:users:mobile",
+        "col:users:telegram",
+        "col:users:location",
+      ].filter((k) => can(k)).length,
+    [can],
+  );
+
   return (
     <div className="w-full min-w-0 font-sans">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -410,25 +435,27 @@ const AdminPage = () => {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Users
             </h1>
-            <button
-              type="button"
-              onClick={() =>
-                setFilterOnline((prev) => (prev === "live" ? "all" : "live"))
-              }
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
-                filterOnline === "live"
-                  ? "border-emerald-400 bg-emerald-100 text-emerald-900 ring-2 ring-emerald-200"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-              }`}
-              title="Click to show live users only (online within last 90s)"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              {liveCount} live
-              {filterOnline === "live" ? " · filtered" : ""}
-            </button>
+            <EmployeeGate perm="filter:users:online">
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterOnline((prev) => (prev === "live" ? "all" : "live"))
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                  filterOnline === "live"
+                    ? "border-emerald-400 bg-emerald-100 text-emerald-900 ring-2 ring-emerald-200"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                }`}
+                title="Click to show live users only (online within last 90s)"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                {liveCount} live
+                {filterOnline === "live" ? " · filtered" : ""}
+              </button>
+            </EmployeeGate>
           </div>
           <p className="mt-1 text-sm text-slate-600">
             Manage accounts, wallets, addresses &amp; KYC · sorted by wallet balance
@@ -436,14 +463,16 @@ const AdminPage = () => {
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
-          <Button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="gap-2 rounded-xl bg-slate-800 text-white hover:bg-slate-900"
-          >
-            <UserPlus size={18} />
-            Add User
-          </Button>
+          <EmployeeGate perm="action:users:add">
+            <Button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="gap-2 rounded-xl bg-slate-800 text-white hover:bg-slate-900"
+            >
+              <UserPlus size={18} />
+              Add User
+            </Button>
+          </EmployeeGate>
 
           <Button
             type="button"
@@ -459,6 +488,7 @@ const AdminPage = () => {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-8">
+        <EmployeeGate perm="filter:users:name">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Name
@@ -471,6 +501,8 @@ const AdminPage = () => {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:email">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Email
@@ -483,6 +515,8 @@ const AdminPage = () => {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:kyc">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             KYC Status
@@ -499,6 +533,8 @@ const AdminPage = () => {
             <option value="rejected">Rejected</option>
           </select>
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:online">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Platform status
@@ -512,6 +548,8 @@ const AdminPage = () => {
             <option value="live">Live on platform</option>
           </select>
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:wallet">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Wallet balance
@@ -526,6 +564,8 @@ const AdminPage = () => {
             <option value="empty">No balance ($0)</option>
           </select>
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:pnl">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             P/L vs deposit
@@ -540,6 +580,8 @@ const AdminPage = () => {
             <option value="loss">In loss</option>
           </select>
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:tag">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Tag
@@ -555,6 +597,8 @@ const AdminPage = () => {
             ))}
           </select>
         </div>
+        </EmployeeGate>
+        <EmployeeGate perm="filter:users:wallet_sort">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Wallet sort
@@ -568,6 +612,7 @@ const AdminPage = () => {
             <option value="low">Lowest balance first</option>
           </select>
         </div>
+        </EmployeeGate>
         <div className="flex items-end sm:col-span-2 lg:col-span-8">
           <Button
             type="button"
@@ -629,60 +674,96 @@ const AdminPage = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
+                {can("col:users:name") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   User
                 </th>
+                )}
+                {can("col:users:labels") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Label &amp; Tags
                 </th>
+                )}
+                {can("col:users:status") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Status
                 </th>
+                )}
+                {can("col:users:wallet") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Wallet
                 </th>
+                )}
+                {can("col:users:equity") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Equity
                 </th>
+                )}
+                {can("col:users:live_pl") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Live P/L
                 </th>
+                )}
+                {can("col:users:withdrawable") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Withdrawable
                 </th>
+                )}
+                {can("col:users:recharges") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Recharges
                 </th>
+                )}
+                {can("col:users:created") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
                 </th>
+                )}
+                {can("col:users:kyc") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   KYC
                 </th>
+                )}
+                {can("col:users:profit_pct") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Profit %
                 </th>
+                )}
+                {can("col:users:dollar_cut") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Dollar cut
                 </th>
+                )}
+                {can("col:users:risk") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Risk profile
                 </th>
+                )}
+                {can("col:users:actions") && (
                 <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Action
                 </th>
+                )}
+                {can("col:users:email") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Email
                 </th>
+                )}
+                {can("col:users:mobile") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Mobile
                 </th>
+                )}
+                {can("col:users:telegram") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Telegram
                 </th>
+                )}
+                {can("col:users:location") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Location
                 </th>
+                )}
               </tr>
             </thead>
 
@@ -698,8 +779,9 @@ const AdminPage = () => {
 
                 return (
                 <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
-                  {/* User name */}
+                  {can("col:users:name") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    {can("action:users:view_trades") ? (
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
@@ -707,10 +789,14 @@ const AdminPage = () => {
                     >
                       {loc.name}
                     </button>
+                    ) : (
+                    <span className="font-semibold text-slate-900">{loc.name}</span>
+                    )}
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
                   </td>
+                  )}
 
-                  {/* Label & tags */}
+                  {can("col:users:labels") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <UserLabelsDisplay
                       user={loc}
@@ -718,8 +804,9 @@ const AdminPage = () => {
                       onClick={() => openDetail(loc)}
                     />
                   </td>
+                  )}
 
-                  {/* Status */}
+                  {can("col:users:status") && (
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
                     <div className="flex items-center gap-2">
                       <span
@@ -741,8 +828,9 @@ const AdminPage = () => {
                       </span>
                     </div>
                   </td>
+                  )}
 
-                  {/* Wallet */}
+                  {can("col:users:wallet") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
                       {loc.wallet_currency ?? "USD"}{" "}
@@ -755,7 +843,9 @@ const AdminPage = () => {
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}
                   </td>
+                  )}
 
+                  {can("col:users:equity") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
                       USD{" "}
@@ -771,7 +861,9 @@ const AdminPage = () => {
                       <span className="text-[11px] font-medium text-amber-800">Soft bust</span>
                     )}
                   </td>
+                  )}
 
+                  {can("col:users:live_pl") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`font-semibold tabular-nums ${
@@ -786,7 +878,9 @@ const AdminPage = () => {
                         : "—"}
                     </span>
                   </td>
+                  )}
 
+                  {can("col:users:withdrawable") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span className="font-semibold tabular-nums text-slate-900">
                       USD{" "}
@@ -796,8 +890,9 @@ const AdminPage = () => {
                       })}
                     </span>
                   </td>
+                  )}
 
-                  {/* Recharges */}
+                  {can("col:users:recharges") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="space-y-1.5">
                       <div className="font-semibold tabular-nums text-slate-900">
@@ -830,13 +925,15 @@ const AdminPage = () => {
                       </Button>
                     </div>
                   </td>
+                  )}
 
-                  {/* Created */}
+                  {can("col:users:created") && (
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
                     {formatAdminDate(loc.created_at)}
                   </td>
+                  )}
 
-                  {/* KYC */}
+                  {can("col:users:kyc") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
@@ -848,25 +945,29 @@ const AdminPage = () => {
                       {loc.kyc_status ?? "pending"}
                     </span>
                   </td>
+                  )}
 
-                  {/* Profit % */}
+                  {can("col:users:profit_pct") && (
                   <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
                     {loc.profit_percentage != null && loc.profit_percentage !== ""
                       ? `${loc.profit_percentage}%`
                       : "—"}
                   </td>
+                  )}
 
-                  {/* Dollar cut */}
+                  {can("col:users:dollar_cut") && (
                   <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
                     {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
                   </td>
+                  )}
 
-                  {/* Risk */}
+                  {can("col:users:risk") && (
                   <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
                     {renderRiskBadges(loc.risk)}
                   </td>
+                  )}
 
-                  {/* Action */}
+                  {can("col:users:actions") && (
                   <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
                     <Button
                       type="button"
@@ -879,24 +980,27 @@ const AdminPage = () => {
                       Manage
                     </Button>
                   </td>
+                  )}
 
-                  {/* Email — end columns */}
+                  {can("col:users:email") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="flex max-w-[200px] items-start gap-2">
                       <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                       <span className="break-all text-xs text-slate-600">{loc.email || "—"}</span>
                     </div>
                   </td>
+                  )}
 
-                  {/* Mobile */}
+                  {can("col:users:mobile") && (
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
                     <div className="flex items-center gap-2">
                       <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       <span className="text-slate-800">{loc.mobile || "—"}</span>
                     </div>
                   </td>
+                  )}
 
-                  {/* Telegram */}
+                  {can("col:users:telegram") && (
                   <td className="align-top px-4 py-3 text-sm sm:px-6 sm:py-4">
                     {loc.telegram ? (
                       <span className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900">
@@ -906,8 +1010,9 @@ const AdminPage = () => {
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
+                  )}
 
-                  {/* Location */}
+                  {can("col:users:location") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     {userHasMapLink(loc) ? (
                       <button
@@ -939,12 +1044,13 @@ const AdminPage = () => {
                       <span className="text-xs text-slate-400">No location</span>
                     )}
                   </td>
+                  )}
                 </tr>
               );
               })}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={18} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={Math.max(visibleUserCols, 1)} className="px-6 py-8 text-center text-slate-500">
                     No users match your filters.
                   </td>
                 </tr>

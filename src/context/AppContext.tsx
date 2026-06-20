@@ -30,7 +30,8 @@ export interface UserData {
   userId?: string;
   createdAt?: string;
   depositMethod?: string;
-  role?: "admin" | "user";
+  role?: "admin" | "user" | "employee";
+  employeePermissions?: string[];
   kycStatus?: string;
 }
 

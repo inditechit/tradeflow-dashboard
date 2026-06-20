@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -21,18 +21,50 @@ import {
   PieChart,
   FileText,
   FileBarChart,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
+import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
+import { tabKeyForPath } from "@/config/employeePermissionCatalog";
 
 type AdminSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
 };
 
+const ALL_MENU = [
+  { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { name: "Profile", icon: User, path: "/admin/profile" },
+  { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
+  { name: "Users", icon: Users, path: "/admin/users", showLive: true },
+  { name: "User map", icon: MapIcon, path: "/admin/user-map" },
+  { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
+  { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
+  { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
+  { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
+  { name: "Notifications", icon: Bell, path: "/admin/notifications" },
+  { name: "Packages", icon: Package, path: "/admin/packages" },
+  { name: "Coupons", icon: Tag, path: "/admin/coupons" },
+  { name: "Invoices", icon: FileText, path: "/admin/invoices" },
+  { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
+  { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
+  { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
+  { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
+  { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
+  { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
+  { name: "Employees", icon: UserCog, path: "/admin/employees", adminOnly: true },
+] as Array<{
+  name: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  path: string;
+  showLive?: boolean;
+  adminOnly?: boolean;
+}>;
+
 const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
   const [liveCount, setLiveCount] = useState<number | null>(null);
+  const { isAdmin, can } = useEmployeeAccess();
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +76,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
           setLiveCount(Number(data.live_count ?? 0));
         }
       } catch {
-        // best-effort; leave previous value in place
+        // best-effort
       }
     };
     load();
@@ -55,27 +87,14 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     };
   }, []);
 
-  const menu = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Profile", icon: User, path: "/admin/profile" },
-    { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
-    { name: "Users", icon: Users, path: "/admin/users", showLive: true },
-    { name: "User map", icon: MapIcon, path: "/admin/user-map" },
-    { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
-    { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
-    { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
-    { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
-    { name: "Notifications", icon: Bell, path: "/admin/notifications" },
-    { name: "Packages", icon: Package, path: "/admin/packages" },
-    { name: "Coupons", icon: Tag, path: "/admin/coupons" },
-    { name: "Invoices", icon: FileText, path: "/admin/invoices" },
-    { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
-    { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
-    { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
-    { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
-    { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
-    { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
-  ] as Array<{ name: string; icon: any; path: string; showLive?: boolean }>;
+  const menu = useMemo(() => {
+    return ALL_MENU.filter((item) => {
+      if (item.adminOnly && !isAdmin) return false;
+      if (isAdmin) return true;
+      const tabKey = tabKeyForPath(item.path);
+      return tabKey ? can(tabKey) : false;
+    });
+  }, [isAdmin, can]);
 
   return (
     <>
@@ -107,15 +126,17 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
           </button>
 
           <div className="mb-8 pr-10 md:pr-0">
-            <h1 className="font-sans text-lg font-bold text-neutral-900 sm:text-xl">Admin Panel</h1>
+            <h1 className="font-sans text-lg font-bold text-neutral-900 sm:text-xl">
+              {isAdmin ? "Admin Panel" : "Staff Panel"}
+            </h1>
           </div>
 
           <nav className="flex flex-col gap-1 sm:gap-2" aria-label="Admin navigation">
-            {menu.map((item, i) => {
+            {menu.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
-                  key={i}
+                  key={item.path}
                   to={item.path}
                   onClick={() => onClose()}
                   className={({ isActive }) =>

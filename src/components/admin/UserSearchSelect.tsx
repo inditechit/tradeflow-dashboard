@@ -26,6 +26,11 @@ type UserSearchSelectProps = {
   disabled?: boolean;
   /** Pre-loaded label when editing an existing row */
   selectedLabel?: string | null;
+  /** Override fetch URL (must return `{ success, users: [...] }`) */
+  fetchUrl?: string;
+  /** Show "clear" row at top of list */
+  showClearOption?: boolean;
+  clearOptionLabel?: string;
 };
 
 export function UserSearchSelect({
@@ -34,6 +39,9 @@ export function UserSearchSelect({
   placeholder = "Search user by name, email, or ID…",
   disabled,
   selectedLabel,
+  fetchUrl,
+  showClearOption = true,
+  clearOptionLabel = "No owner (global coupon)",
 }: UserSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<AdminUserOption[]>([]);
@@ -44,7 +52,8 @@ export function UserSearchSelect({
     if (loaded) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/users?limit=2000`);
+      const url = fetchUrl ?? `${API_BASE}/admin/users?limit=2000`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success && Array.isArray(data.users)) {
         setUsers(
@@ -61,7 +70,7 @@ export function UserSearchSelect({
     } finally {
       setLoading(false);
     }
-  }, [loaded]);
+  }, [loaded, fetchUrl]);
 
   useEffect(() => {
     if (open) void loadUsers();
@@ -108,6 +117,7 @@ export function UserSearchSelect({
               <>
                 <CommandEmpty>No user found.</CommandEmpty>
                 <CommandGroup>
+                  {showClearOption && (
                   <CommandItem
                     value="none clear unassigned"
                     onSelect={() => {
@@ -116,8 +126,9 @@ export function UserSearchSelect({
                     }}
                   >
                     <Check className={cn("mr-2 h-4 w-4", value == null ? "opacity-100" : "opacity-0")} />
-                    No owner (global coupon)
+                    {clearOptionLabel}
                   </CommandItem>
+                  )}
                   {users.map((user) => {
                     const searchValue = `${user.id} ${user.name} ${user.email}`;
                     return (

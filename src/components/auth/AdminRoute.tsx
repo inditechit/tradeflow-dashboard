@@ -4,7 +4,7 @@ import AuthGateLoading from "@/components/auth/AuthGateLoading";
 
 type Props = { children: React.ReactNode };
 
-/** Admins only — regular users cannot open /admin URLs. */
+/** Admins and employees — regular users cannot open /admin URLs. */
 const AdminRoute = ({ children }: Props) => {
   const { userId, role, isLoading, isReady } = useVerifiedSession();
 
@@ -16,7 +16,7 @@ const AdminRoute = ({ children }: Props) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "employee") {
     return <Navigate to="/user/dashboard" replace />;
   }
 

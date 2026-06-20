@@ -1,6 +1,6 @@
 import type { UserData } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
-export type AppRole = "admin" | "user";
+export type AppRole = "admin" | "user" | "employee";
 
 export const SESSION_STORAGE_KEY = "mt5_user";
 
@@ -32,21 +32,33 @@ export function clearAuthStorage(): void {
 }
 
 function toAppRole(role: unknown): AppRole {
-  return String(role || "user").toLowerCase() === "admin" ? "admin" : "user";
+  const r = String(role || "user").toLowerCase();
+  if (r === "admin") return "admin";
+  if (r === "employee") return "employee";
+  return "user";
 }
 
 function mergeServerUser(cached: UserData | null, data: Record<string, unknown>): UserData {
-  const role = toAppRole(data.role);
+  const userObj = (data.user as Record<string, unknown> | undefined) ?? data;
+  const role = toAppRole(userObj.role ?? data.role);
+  const perms = Array.isArray(userObj.employeePermissions)
+    ? (userObj.employeePermissions as string[])
+    : Array.isArray(data.employeePermissions)
+      ? (data.employeePermissions as string[])
+      : cached?.employeePermissions;
   return {
     ...cached,
-    userId: String(data.userId ?? cached?.userId ?? ""),
+    userId: String(userObj.userId ?? data.userId ?? cached?.userId ?? ""),
     role,
-    name: (data.name as string | undefined) ?? cached?.name,
-    email: (data.email as string | undefined) ?? cached?.email,
-    telegram: (data.telegram as string | undefined) ?? cached?.telegram,
-    createdAt: data.created_at
-      ? String(data.created_at)
-      : cached?.createdAt,
+    employeePermissions: role === "employee" ? perms ?? [] : undefined,
+    name: (userObj.name as string | undefined) ?? (data.name as string | undefined) ?? cached?.name,
+    email: (userObj.email as string | undefined) ?? (data.email as string | undefined) ?? cached?.email,
+    telegram: (userObj.telegram as string | undefined) ?? (data.telegram as string | undefined) ?? cached?.telegram,
+    createdAt: userObj.created_at
+      ? String(userObj.created_at)
+      : data.created_at
+        ? String(data.created_at)
+        : cached?.createdAt,
   };
 }
 
@@ -62,7 +74,7 @@ export async function verifySession(
 ): Promise<SessionVerifyResult> {
   try {
     const res = await fetch(`${API_BASE}/auth/session/${userId}`);
-    if (res.status === 404) {
+    if (res.status === 404 || res.status === 403) {
       return { status: "invalid" };
     }
 

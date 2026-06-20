@@ -1,6 +1,6 @@
 import { useApp } from "@/context/AppContext";
 
-export type AppRole = "admin" | "user";
+export type AppRole = "admin" | "user" | "employee";
 
 /** Session is restored in AppProvider; routes read the verified user from context. */
 export function useVerifiedSession() {
@@ -9,11 +9,13 @@ export function useVerifiedSession() {
   const role: AppRole | null =
     currentUser?.role === "admin"
       ? "admin"
-      : currentUser?.role === "user"
-        ? "user"
-        : userId
+      : currentUser?.role === "employee"
+        ? "employee"
+        : currentUser?.role === "user"
           ? "user"
-          : null;
+          : userId
+            ? "user"
+            : null;
 
   const isLoading = !authReady;
   const isReady = authReady && Boolean(userId) && Boolean(role);

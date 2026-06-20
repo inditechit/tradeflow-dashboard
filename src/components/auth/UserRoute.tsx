@@ -16,7 +16,7 @@ const UserRoute = ({ children }: Props) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (role === "admin") {
+  if (role === "admin" || role === "employee") {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
