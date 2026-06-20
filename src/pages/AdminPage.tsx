@@ -68,6 +68,7 @@ const AdminPage = () => {
   const [filterEmail, setFilterEmail] = useState('');
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
+  const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -366,14 +367,20 @@ const AdminPage = () => {
         matchTag = userTags.includes(filterTag);
       }
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag;
+      const bal = walletBalanceOf(loc);
+      const matchWallet =
+        filterWallet === "all" ||
+        (filterWallet === "with_balance" && bal > 0.02) ||
+        (filterWallet === "empty" && bal <= 0.02);
+
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet;
     });
 
     return filtered.sort((a, b) => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return walletSort === "high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort]);
 
   const {
     page: userPage,
@@ -385,7 +392,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterTag, walletSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort, setUserPage]);
 
   return (
     <div className="w-full min-w-0 font-sans">
@@ -443,7 +450,7 @@ const AdminPage = () => {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-7">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Name
@@ -499,6 +506,20 @@ const AdminPage = () => {
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Wallet balance
+          </label>
+          <select
+            value={filterWallet}
+            onChange={(e) => setFilterWallet(e.target.value as "all" | "with_balance" | "empty")}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All users</option>
+            <option value="with_balance">Has balance ({'>'} $0)</option>
+            <option value="empty">No balance ($0)</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Tag
           </label>
           <select
@@ -525,7 +546,7 @@ const AdminPage = () => {
             <option value="low">Lowest balance first</option>
           </select>
         </div>
-        <div className="flex items-end sm:col-span-2 lg:col-span-6">
+        <div className="flex items-end sm:col-span-2 lg:col-span-7">
           <Button
             type="button"
             variant="outline"
@@ -534,6 +555,7 @@ const AdminPage = () => {
               setFilterEmail('');
               setFilterKyc('all');
               setFilterOnline('all');
+              setFilterWallet('all');
               setFilterTag('all');
               setWalletSort('high');
             }}
