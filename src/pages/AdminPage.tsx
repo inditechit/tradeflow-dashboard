@@ -40,6 +40,7 @@ import {
   renderRiskBadges,
   userHasMapLink,
   walletBalanceOf,
+  userPlVsDeposit,
 } from "@/utils/adminUserDisplay";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
@@ -69,6 +70,7 @@ const AdminPage = () => {
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
+  const [filterPnl, setFilterPnl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -373,14 +375,20 @@ const AdminPage = () => {
         (filterWallet === "with_balance" && bal > 0.02) ||
         (filterWallet === "empty" && bal <= 0.02);
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet;
+      const plVsDep = userPlVsDeposit(loc);
+      const matchPnl =
+        filterPnl === "all" ||
+        (filterPnl === "profit" && plVsDep > 0.02) ||
+        (filterPnl === "loss" && plVsDep < -0.02);
+
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPnl;
     });
 
     return filtered.sort((a, b) => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return walletSort === "high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPnl, filterTag, walletSort]);
 
   const {
     page: userPage,
@@ -392,7 +400,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPnl, filterTag, walletSort, setUserPage]);
 
   return (
     <div className="w-full min-w-0 font-sans">
@@ -450,7 +458,7 @@ const AdminPage = () => {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-7">
+      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-8">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Search Name
@@ -520,6 +528,20 @@ const AdminPage = () => {
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            P/L vs deposit
+          </label>
+          <select
+            value={filterPnl}
+            onChange={(e) => setFilterPnl(e.target.value as "all" | "profit" | "loss")}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All users</option>
+            <option value="profit">In profit</option>
+            <option value="loss">In loss</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Tag
           </label>
           <select
@@ -546,7 +568,7 @@ const AdminPage = () => {
             <option value="low">Lowest balance first</option>
           </select>
         </div>
-        <div className="flex items-end sm:col-span-2 lg:col-span-7">
+        <div className="flex items-end sm:col-span-2 lg:col-span-8">
           <Button
             type="button"
             variant="outline"
@@ -556,6 +578,7 @@ const AdminPage = () => {
               setFilterKyc('all');
               setFilterOnline('all');
               setFilterWallet('all');
+              setFilterPnl('all');
               setFilterTag('all');
               setWalletSort('high');
             }}

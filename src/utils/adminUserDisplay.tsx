@@ -86,3 +86,20 @@ export function renderRiskBadges(riskData: unknown) {
 export function walletBalanceOf(user: { wallet_balance?: unknown }): number {
   return Number(user.wallet_balance ?? 0);
 }
+
+/** Equity (wallet + open P/L) minus deposit baseline — same basis as P/L report. */
+export function userPlVsDeposit(user: {
+  wallet_balance?: unknown;
+  equity?: unknown;
+  deposit_baseline?: unknown;
+  equity_pl?: unknown;
+}): number {
+  const fromApi = Number(user.equity_pl);
+  if (Number.isFinite(fromApi) && user.equity_pl != null && user.equity_pl !== "") {
+    return fromApi;
+  }
+  const baseline = Number(user.deposit_baseline ?? 0);
+  const wallet = walletBalanceOf(user);
+  const equity = Number(user.equity ?? wallet);
+  return Math.round((equity - baseline) * 100) / 100;
+}
