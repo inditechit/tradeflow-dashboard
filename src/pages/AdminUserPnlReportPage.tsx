@@ -143,6 +143,53 @@ function fmtDateTime(v: string | null | undefined) {
   });
 }
 
+function TradingControlPanel({ r }: { r: UserReport }) {
+  const tc = r.trading_control;
+  const events = tc.events ?? [];
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-slate-800">Copy trading — #{r.user.id}</span>
+        {tc.trading_active_now ? (
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
+            <PlayCircle className="h-3 w-3" /> Active
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
+            <PauseCircle className="h-3 w-3" /> Stopped
+          </span>
+        )}
+        {tc.never_restarted_since_last_stop && (
+          <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-700">Not restarted since last stop</span>
+        )}
+      </div>
+      <div className="mt-2 grid gap-1 text-slate-600 sm:grid-cols-2">
+        <p>
+          <span className="text-slate-500">Last stopped:</span>{" "}
+          {tc.last_stopped_at ? fmtDateTime(tc.last_stopped_at) : "—"}
+        </p>
+        <p>
+          <span className="text-slate-500">Last restarted:</span>{" "}
+          {tc.last_restarted_at ? fmtDateTime(tc.last_restarted_at) : "—"}
+        </p>
+      </div>
+      {events.length > 0 && (
+        <ul className="mt-2 max-h-24 overflow-y-auto space-y-0.5 border-t border-slate-100 pt-2 text-[10px] text-slate-600">
+          {[...events].reverse().slice(0, 8).map((ev, i) => (
+            <li key={i}>
+              <span className={ev.type === "stopped" ? "text-amber-800 font-medium" : "text-emerald-800 font-medium"}>
+                {ev.type === "stopped" ? "Stop" : "Restart"}
+              </span>{" "}
+              {fmtDateTime(ev.at)}
+              {ev.note ? <span className="text-slate-400"> · {ev.note}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function UserHeader({ r }: { r: UserReport }) {
   return (
     <div className="min-w-0">
@@ -451,12 +498,17 @@ function SideBySideCompare({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <TradingControlPanel r={left} />
+        <TradingControlPanel r={right} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         {[left, right].map((r) => (
           <div key={r.user.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <h2 className="font-semibold text-slate-800">Trades — #{r.user.id}</h2>
               <span className="text-xs text-slate-500">
-                {r.trades.length} / {r.trade_total}
+                {r.trades.length} / {r.trade_total} · by settlement (newest first)
               </span>
             </div>
             <div className="max-h-[28rem] overflow-auto">
@@ -475,7 +527,7 @@ function SideBySideCompare({
                   </tr>
                 </thead>
                 <tbody>
-                  {[...r.trades].reverse().map((t) => (
+                  {r.trades.map((t) => (
                     <tr key={t.assignment_id} className={`border-t ${t.fee_exceeds_display ? "bg-amber-50/50" : ""}`}>
                       <td className="p-2 font-mono">
                         {t.ticket_id}
@@ -552,6 +604,8 @@ function SingleUserReport({ report }: { report: UserReport }) {
           deposit {money(report.wallet_composition.pl_vs_deposit_usd)}
         </p>
       </div>
+
+      <TradingControlPanel r={report} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -637,7 +691,7 @@ function SingleUserReport({ report }: { report: UserReport }) {
         <div className="border-b px-4 py-3 font-semibold">
           Trades ({report.trades.length}/{report.trade_total})
           <span className="ml-2 text-xs font-normal text-slate-500">
-            Assign order · Bal after = cumulative wallet after close
+            Sorted by settlement (newest first) · Bal after = wallet after that close
           </span>
         </div>
         <table className="w-full text-sm">
@@ -654,7 +708,7 @@ function SingleUserReport({ report }: { report: UserReport }) {
             </tr>
           </thead>
           <tbody>
-            {[...report.trades].reverse().map((t) => (
+            {report.trades.map((t) => (
               <tr key={t.assignment_id} className="border-t">
                 <td className="p-3 font-mono text-xs">{t.ticket_id}</td>
                 <td className={`p-3 font-mono ${plTextClass(t.display_pl_usd)}`}>${fmt(t.display_pl_usd)}</td>
