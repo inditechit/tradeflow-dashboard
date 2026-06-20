@@ -40,7 +40,6 @@ import {
   renderRiskBadges,
   userHasMapLink,
   walletBalanceOf,
-  userPlVsDeposit,
 } from "@/utils/adminUserDisplay";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
@@ -69,7 +68,6 @@ const AdminPage = () => {
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
-  const [filterPnl, setFilterPnl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -375,20 +373,27 @@ const AdminPage = () => {
         (filterWallet === "with_balance" && bal > 0.02) ||
         (filterWallet === "empty" && bal <= 0.02);
 
-      const plVsDep = userPlVsDeposit(loc);
-      const matchPnl =
-        filterPnl === "all" ||
-        (filterPnl === "profit" && plVsDep > 0.02) ||
-        (filterPnl === "loss" && plVsDep < -0.02);
-
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPnl;
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet;
     });
 
     return filtered.sort((a, b) => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return walletSort === "high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPnl, filterTag, walletSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort]);
+
+  const totalUserCount = locations.length;
+  const filteredUserCount = filteredLocations.length;
+  const hasActiveFilters = useMemo(
+    () =>
+      Boolean(filterName.trim()) ||
+      Boolean(filterEmail.trim()) ||
+      filterKyc !== "all" ||
+      filterOnline !== "all" ||
+      filterWallet !== "all" ||
+      filterTag !== "all",
+    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag],
+  );
 
   const {
     page: userPage,
@@ -400,7 +405,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPnl, filterTag, walletSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort, setUserPage]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -456,9 +461,20 @@ const AdminPage = () => {
                 {filterOnline === "live" ? " · filtered" : ""}
               </button>
             </EmployeeGate>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+              {hasActiveFilters
+                ? `${filteredUserCount.toLocaleString()} of ${totalUserCount.toLocaleString()} users`
+                : `${totalUserCount.toLocaleString()} users`}
+            </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
             Manage accounts, wallets, addresses &amp; KYC · sorted by wallet balance
+            {hasActiveFilters ? (
+              <span className="font-medium text-slate-800">
+                {" "}
+                · {filteredUserCount.toLocaleString()} match current filters
+              </span>
+            ) : null}
           </p>
         </div>
 
@@ -565,22 +581,6 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <EmployeeGate perm="filter:users:pnl">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            P/L vs deposit
-          </label>
-          <select
-            value={filterPnl}
-            onChange={(e) => setFilterPnl(e.target.value as "all" | "profit" | "loss")}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          >
-            <option value="all">All users</option>
-            <option value="profit">In profit</option>
-            <option value="loss">In loss</option>
-          </select>
-        </div>
-        </EmployeeGate>
         <EmployeeGate perm="filter:users:tag">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -623,7 +623,6 @@ const AdminPage = () => {
               setFilterKyc('all');
               setFilterOnline('all');
               setFilterWallet('all');
-              setFilterPnl('all');
               setFilterTag('all');
               setWalletSort('high');
             }}
@@ -670,6 +669,27 @@ const AdminPage = () => {
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/90 px-4 py-3 sm:px-6">
+          <p className="text-sm font-semibold text-slate-800">
+            {hasActiveFilters ? (
+              <>
+                Showing{" "}
+                <span className="tabular-nums text-emerald-800">{filteredUserCount.toLocaleString()}</span>
+                {" of "}
+                <span className="tabular-nums">{totalUserCount.toLocaleString()}</span> users
+              </>
+            ) : (
+              <>
+                <span className="tabular-nums">{totalUserCount.toLocaleString()}</span> users total
+              </>
+            )}
+          </p>
+          {hasActiveFilters ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+              Filters active
+            </span>
+          ) : null}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
