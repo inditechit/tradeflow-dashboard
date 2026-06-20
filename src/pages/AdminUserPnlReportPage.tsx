@@ -39,6 +39,25 @@ type TradeRow = {
   fee_exceeds_display: boolean;
 };
 
+type WalletActivityRow = {
+  event_type: "recharge" | "trade";
+  event_at: string | null;
+  assignment_id?: number | null;
+  ticket_id?: string | null;
+  recharge_seq?: number;
+  recharge_amount_usd?: number;
+  status?: string | null;
+  display_pl_usd?: number;
+  assign_fee_usd?: number;
+  settlement_usd?: number;
+  total_wallet_impact_usd?: number;
+  assign_created_at?: string | null;
+  settled_at?: string | null;
+  wallet_balance_after_usd: number | null;
+  admin_absorbed?: boolean;
+  fee_exceeds_display?: boolean;
+};
+
 type TradeAbsence = {
   ticket_id: string;
   mt5_open_time: string | null;
@@ -94,6 +113,7 @@ type UserReport = {
     absorbed_assign_count: number;
   };
   trades: TradeRow[];
+  wallet_activity?: WalletActivityRow[];
   trade_total: number;
   trade_absences?: TradeAbsence[];
   narrative: string[];
@@ -213,6 +233,151 @@ function UserHeader({ r }: { r: UserReport }) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function activityRows(r: UserReport): WalletActivityRow[] {
+  if (r.wallet_activity?.length) return r.wallet_activity;
+  return r.trades.map((t) => ({
+    event_type: "trade" as const,
+    event_at: t.settled_at || t.assign_created_at || null,
+    assignment_id: t.assignment_id,
+    ticket_id: t.ticket_id,
+    status: t.status,
+    display_pl_usd: t.display_pl_usd,
+    assign_fee_usd: t.assign_fee_usd,
+    settlement_usd: t.settlement_usd,
+    total_wallet_impact_usd: t.total_wallet_impact_usd,
+    assign_created_at: t.assign_created_at,
+    settled_at: t.settled_at,
+    wallet_balance_after_usd: t.wallet_balance_after_usd,
+    admin_absorbed: t.admin_absorbed,
+    fee_exceeds_display: t.fee_exceeds_display,
+  }));
+}
+
+function activityRowKey(row: WalletActivityRow) {
+  if (row.event_type === "recharge") {
+    return `recharge-${row.recharge_seq ?? row.event_at}-${row.recharge_amount_usd}`;
+  }
+  return `trade-${row.assignment_id}`;
+}
+
+function EventTypeBadge({ type }: { type: WalletActivityRow["event_type"] }) {
+  if (type === "recharge") {
+    return (
+      <span className="inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-800">
+        Recharge
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700">
+      Trade
+    </span>
+  );
+}
+
+function WalletActivityTable({
+  rows,
+  compact = false,
+  title,
+  subtitle,
+}: {
+  rows: WalletActivityRow[];
+  compact?: boolean;
+  title: string;
+  subtitle?: string;
+}) {
+  const cell = compact ? "p-2" : "p-3";
+  const text = compact ? "text-xs" : "text-sm";
+  const rechargeCount = rows.filter((r) => r.event_type === "recharge").length;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className={`flex items-center justify-between border-b ${compact ? "px-4 py-3" : "px-4 py-3"}`}>
+        <h2 className="font-semibold text-slate-800">{title}</h2>
+        {subtitle && <span className="text-xs text-slate-500">{subtitle}</span>}
+      </div>
+      <div className="max-h-[28rem] overflow-auto">
+        <table className={`w-full ${text}`}>
+          <thead className="sticky top-0 bg-slate-50">
+            <tr className="text-left text-slate-600">
+              <th className={cell}>Type</th>
+              <th className={cell}>{compact ? "Ticket" : "Ticket / label"}</th>
+              <th className={cell}>P/L</th>
+              <th className={cell}>Fee</th>
+              {!compact && <th className={cell}>Settlement</th>}
+              <th className={cell}>Impact</th>
+              <th className={`${cell} whitespace-nowrap`}>Assigned</th>
+              <th className={`${cell} whitespace-nowrap`}>Settled</th>
+              <th className={`${cell} whitespace-nowrap`} title="Wallet after this event">
+                Bal after
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isRecharge = row.event_type === "recharge";
+              const impact = Number(row.total_wallet_impact_usd ?? row.recharge_amount_usd ?? 0);
+              const pl = Number(row.display_pl_usd ?? 0);
+              const fee = Number(row.assign_fee_usd ?? 0);
+              return (
+                <tr
+                  key={activityRowKey(row)}
+                  className={`border-t ${
+                    isRecharge ? "bg-emerald-50/40" : row.fee_exceeds_display ? "bg-amber-50/50" : ""
+                  }`}
+                >
+                  <td className={cell}>
+                    <EventTypeBadge type={row.event_type} />
+                  </td>
+                  <td className={`${cell} font-mono`}>
+                    {isRecharge ? (
+                      <span className="text-emerald-800">Deposit #{row.recharge_seq ?? "—"}</span>
+                    ) : (
+                      <>
+                        {row.ticket_id}
+                        {row.admin_absorbed && <span className="ml-0.5 text-[9px] text-purple-600">abs</span>}
+                        {row.status === "open" && <span className="ml-0.5 text-[9px] text-amber-600">open</span>}
+                      </>
+                    )}
+                  </td>
+                  <td className={`${cell} font-mono ${isRecharge ? "text-slate-400" : plTextClass(pl)}`}>
+                    {isRecharge ? "—" : `$${fmt(pl)}`}
+                  </td>
+                  <td className={`${cell} font-mono ${isRecharge ? "text-slate-400" : ""}`}>
+                    {isRecharge ? "—" : `$${fmt(fee)}`}
+                  </td>
+                  {!compact && (
+                    <td className={`${cell} font-mono ${isRecharge ? "text-slate-400" : plTextClass(row.settlement_usd ?? 0)}`}>
+                      {isRecharge ? "—" : `$${fmt(row.settlement_usd ?? 0)}`}
+                    </td>
+                  )}
+                  <td className={`${cell} font-mono font-semibold ${plTextClass(impact)}`}>
+                    ${fmt(impact)}
+                  </td>
+                  <td className={`${cell} whitespace-nowrap text-[10px] text-slate-500`}>
+                    {fmtDateTime(row.assign_created_at)}
+                  </td>
+                  <td className={`${cell} whitespace-nowrap text-[10px] text-slate-600`}>
+                    {fmtDateTime(isRecharge ? row.event_at : row.settled_at)}
+                  </td>
+                  <td className={`${cell} font-mono font-semibold text-slate-800`}>
+                    {row.wallet_balance_after_usd != null ? `$${fmt(row.wallet_balance_after_usd)}` : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rechargeCount > 0 && (
+        <p className="border-t px-4 py-2 text-[10px] text-slate-500">
+          {rechargeCount} recharge row(s) mixed with trades — bal after jumps when a deposit lands.
+        </p>
+      )}
     </div>
   );
 }
@@ -504,53 +669,13 @@ function SideBySideCompare({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {[left, right].map((r) => (
-          <div key={r.user.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="font-semibold text-slate-800">Trades — #{r.user.id}</h2>
-              <span className="text-xs text-slate-500">
-                {r.trades.length} / {r.trade_total} · by settlement (newest first)
-              </span>
-            </div>
-            <div className="max-h-[28rem] overflow-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50">
-                  <tr className="text-left text-slate-600">
-                    <th className="p-2">Ticket</th>
-                    <th className="p-2">P/L</th>
-                    <th className="p-2">Fee</th>
-                    <th className="p-2">Impact</th>
-                    <th className="p-2 whitespace-nowrap">Assigned</th>
-                    <th className="p-2 whitespace-nowrap">Settled</th>
-                    <th className="p-2 whitespace-nowrap" title="Cumulative wallet after this trade closed">
-                      Bal after
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {r.trades.map((t) => (
-                    <tr key={t.assignment_id} className={`border-t ${t.fee_exceeds_display ? "bg-amber-50/50" : ""}`}>
-                      <td className="p-2 font-mono">
-                        {t.ticket_id}
-                        {t.admin_absorbed && <span className="ml-0.5 text-[9px] text-purple-600">abs</span>}
-                      </td>
-                      <td className={`p-2 font-mono ${plTextClass(t.display_pl_usd)}`}>${fmt(t.display_pl_usd)}</td>
-                      <td className="p-2 font-mono">${fmt(t.assign_fee_usd)}</td>
-                      <td className={`p-2 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
-                        ${fmt(t.total_wallet_impact_usd)}
-                      </td>
-                      <td className="p-2 whitespace-nowrap text-[10px] text-slate-500">
-                        {fmtDateTime(t.assign_created_at)}
-                      </td>
-                      <td className="p-2 whitespace-nowrap text-[10px] text-slate-600">{fmtDateTime(t.settled_at)}</td>
-                      <td className="p-2 font-mono font-semibold text-slate-800">
-                        {t.wallet_balance_after_usd != null ? `$${fmt(t.wallet_balance_after_usd)}` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <WalletActivityTable
+            key={r.user.id}
+            compact
+            rows={activityRows(r)}
+            title={`Wallet activity — #${r.user.id}`}
+            subtitle={`${activityRows(r).length} events · newest first`}
+          />
         ))}
       </div>
 
@@ -687,46 +812,11 @@ function SingleUserReport({ report }: { report: UserReport }) {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b px-4 py-3 font-semibold">
-          Trades ({report.trades.length}/{report.trade_total})
-          <span className="ml-2 text-xs font-normal text-slate-500">
-            Sorted by settlement (newest first) · Bal after = wallet after that close
-          </span>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-50 text-left text-slate-600">
-              <th className="p-3">Ticket</th>
-              <th className="p-3">Display P/L</th>
-              <th className="p-3">Fee</th>
-              <th className="p-3">Settlement</th>
-              <th className="p-3">Impact</th>
-              <th className="p-3">Assigned</th>
-              <th className="p-3">Settled</th>
-              <th className="p-3">Bal after</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.trades.map((t) => (
-              <tr key={t.assignment_id} className="border-t">
-                <td className="p-3 font-mono text-xs">{t.ticket_id}</td>
-                <td className={`p-3 font-mono ${plTextClass(t.display_pl_usd)}`}>${fmt(t.display_pl_usd)}</td>
-                <td className="p-3 font-mono">${fmt(t.assign_fee_usd)}</td>
-                <td className={`p-3 font-mono ${plTextClass(t.settlement_usd)}`}>${fmt(t.settlement_usd)}</td>
-                <td className={`p-3 font-mono font-semibold ${plTextClass(t.total_wallet_impact_usd)}`}>
-                  ${fmt(t.total_wallet_impact_usd)}
-                </td>
-                <td className="p-3 text-xs text-slate-500 whitespace-nowrap">{fmtDateTime(t.assign_created_at)}</td>
-                <td className="p-3 text-xs text-slate-600 whitespace-nowrap">{fmtDateTime(t.settled_at)}</td>
-                <td className="p-3 font-mono font-semibold text-slate-800">
-                  {t.wallet_balance_after_usd != null ? `$${fmt(t.wallet_balance_after_usd)}` : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <WalletActivityTable
+        rows={activityRows(report)}
+        title={`Wallet activity (${report.trades.length}/${report.trade_total} trades)`}
+        subtitle="Recharges + trades by event time (newest first)"
+      />
 
       {(report.trade_absences?.length ?? 0) > 0 && (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
