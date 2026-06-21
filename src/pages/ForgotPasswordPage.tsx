@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, Lock, Mail, Shield, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, Shield, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -172,31 +173,25 @@ const ForgotPasswordPage = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fp-new">New password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="fp-new"
-                      type="password"
-                      autoComplete="new-password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="h-11 border-slate-200 pl-10"
-                    />
-                  </div>
+                  <PasswordInput
+                    id="fp-new"
+                    showLockIcon
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="h-11 border-slate-200"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fp-confirm">Confirm new password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="fp-confirm"
-                      type="password"
-                      autoComplete="new-password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-11 border-slate-200 pl-10"
-                    />
-                  </div>
+                  <PasswordInput
+                    id="fp-confirm"
+                    showLockIcon
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-11 border-slate-200"
+                  />
                 </div>
 
                 <Button

@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
 import { EmployeeAccessModal } from "@/components/admin/EmployeeAccessModal";
 import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
@@ -282,9 +283,8 @@ const AdminEmployeesPage = () => {
           onChange={(e) => setEmail(e.target.value)}
           className="rounded-lg border px-3 py-2 text-sm"
         />
-        <input
+        <PasswordInput
           required
-          type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

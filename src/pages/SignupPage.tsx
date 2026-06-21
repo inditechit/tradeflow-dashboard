@@ -4,12 +4,13 @@ import { useApp, UserData } from '@/context/AppContext';
 import { GoogleLogin } from "@react-oauth/google";
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
-  User, Phone, Send, Lock, AtSign, Mic, MapPin, ArrowRight, ArrowLeft,
+  User, Phone, Send, AtSign, Mic, MapPin, ArrowRight, ArrowLeft,
   FileText, Home, X as XIcon,
 } from 'lucide-react';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
+import { AuthPasswordField } from "@/components/ui/password-input";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
@@ -602,7 +603,7 @@ const SignupPage = () => {
                 </div>
                 <InputField icon={Send} placeholder="Telegram Username" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
                 {/* <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} /> */}
-                 <InputField icon={Lock} type="password" placeholder="Secure Password" value={form.password} onChange={(e: any) => update('password', e.target.value)} />
+                 <AuthPasswordField placeholder="Secure Password" value={form.password} onChange={(e) => update('password', e.target.value)} autoComplete="new-password" />
               </div>
 
               <div className="pt-6 flex flex-col gap-4">

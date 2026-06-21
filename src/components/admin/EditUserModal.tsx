@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { PasswordInput } from "@/components/ui/password-input";
 
 interface User {
   id?: number;
@@ -139,7 +140,7 @@ const EditUserModal: React.FC<Props> = ({
           {/* Password */}
           <div className="col-span-2">
             <label className="label">Password</label>
-            <input name="password" value={formData.password ?? ""} onChange={handleChange} className="input" />
+            <PasswordInput name="password" value={formData.password ?? ""} onChange={handleChange} className="input" />
           </div>
 
           {/* Profit Percentage */}

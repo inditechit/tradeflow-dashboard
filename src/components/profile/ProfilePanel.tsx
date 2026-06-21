@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Save, User, MapPin, Shield, Camera, Wallet, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/context/AppContext";
@@ -500,9 +501,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
                   <Label htmlFor="pf-pwd-new" className={fieldLabelClass}>
                     New password
                   </Label>
-                  <Input
+                  <PasswordInput
                     id="pf-pwd-new"
-                    type="password"
                     autoComplete="new-password"
                     value={pwdNew}
                     onChange={(e) => setPwdNew(e.target.value)}
@@ -514,9 +514,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
                   <Label htmlFor="pf-pwd-confirm" className={fieldLabelClass}>
                     Confirm new password
                   </Label>
-                  <Input
+                  <PasswordInput
                     id="pf-pwd-confirm"
-                    type="password"
                     autoComplete="new-password"
                     value={pwdConfirm}
                     onChange={(e) => setPwdConfirm(e.target.value)}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Mail, Loader2, Shield, Eye, EyeOff } from "lucide-react"; // Changed AtSign to Mail
+import { Mail, Loader2, Shield } from "lucide-react"; // Changed AtSign to Mail
+import { AuthPasswordField } from "@/components/ui/password-input";
 import { GoogleLogin } from "@react-oauth/google";
 import { useApp } from "@/context/AppContext";
 import { useVerifiedSession } from "@/hooks/useVerifiedSession";
@@ -77,37 +78,6 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
     />
   </div>
 );
-
-const PasswordField = ({ placeholder, value, onChange }: { placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="relative group w-full">
-      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-800 transition-colors">
-        <Lock size={18} />
-      </div>
-
-      <input
-        type={visible ? "text" : "password"}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        autoComplete="current-password"
-        className="w-full pl-10 pr-11 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
-      />
-
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors"
-        aria-label={visible ? "Hide password" : "Show password"}
-        tabIndex={-1}
-      >
-        {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
-  );
-};
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -331,7 +301,7 @@ const LoginPage = () => {
               onChange={(e: any) => update("email", e.target.value)}
             />
 
-            <PasswordField
+            <AuthPasswordField
               placeholder="Password"
               value={form.password}
               onChange={(e) => update("password", e.target.value)}

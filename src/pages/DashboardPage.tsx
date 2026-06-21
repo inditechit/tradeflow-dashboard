@@ -689,7 +689,7 @@ const DashboardPage = () => {
                     ) : (
                       <Pause className="h-3.5 w-3.5" />
                     )}
-                    Stop trading
+                    Exit trading
                   </button>
                 ) : (
                   <button
