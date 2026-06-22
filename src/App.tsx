@@ -51,6 +51,7 @@ import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
 import AdminMaintenancePage from "./pages/AdminMaintenancePage";
 import AdminNotificationsPage from "./pages/AdminNotificationsPage";
+import AdminAlertsPage from "./pages/AdminAlertsPage";
 import AdminInvoicesPage from "./pages/AdminInvoicesPage";
 import AdminPackagesPage from "./pages/AdminPackagesPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
@@ -157,6 +158,7 @@ const App = () => (
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route path="alerts" element={<AdminAlertsPage />} />
               <Route path="invoices" element={<AdminInvoicesPage />} />
               <Route path="packages" element={<AdminPackagesPage />} />
               <Route path="coupons" element={<AdminCouponsPage />} />

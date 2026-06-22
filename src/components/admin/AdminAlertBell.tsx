@@ -62,10 +62,14 @@ export function AdminAlertBell() {
 
   const onItemClick = async (a: AdminAlert) => {
     if (!a.read_at) await markRead(a.id);
-    if (a.link_url) {
+    if (a.link_url?.includes("/admin/alerts")) {
+      navigate(a.link_url);
+    } else if (a.user_id && (a.alert_type === "user_stop_trading" || a.alert_type === "user_restart_trading")) {
+      navigate(`/admin/alerts?alert=${a.id}`);
+    } else if (a.link_url) {
       navigate(a.link_url);
     } else if (a.user_id) {
-      navigate(`/admin/user-pnl-report?user=${a.user_id}`);
+      navigate(`/admin/alerts?alert=${a.id}`);
     }
   };
 
@@ -106,9 +110,9 @@ export function AdminAlertBell() {
         <DropdownMenuSeparator className="bg-slate-200" />
         <DropdownMenuItem
           className="cursor-pointer justify-center text-xs font-semibold text-[#B8860B]"
-          onClick={() => navigate("/admin/user-pnl-report")}
+          onClick={() => navigate("/admin/alerts")}
         >
-          Open P/L report
+          View all alerts
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
