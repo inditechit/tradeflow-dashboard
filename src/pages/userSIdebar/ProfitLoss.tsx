@@ -134,47 +134,28 @@ const ProfitLoss = () => {
   useEffect(() => {
     if (!currentUser?.userId) return;
 
-    const applyLive = (payload: {
-      ticket?: unknown;
-      profit?: unknown;
-      price?: unknown;
-    }) => {
-      const ticket = String(payload.ticket ?? "");
-      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
-
-      const raw = Number(payload.profit);
-      if (Number.isFinite(raw)) {
-        setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
-      }
-
-      const livePx = parseMt5Price(payload.price);
-
-      setRows((prev) =>
-        prev.map((t) => {
-          if (String(t.ticket_id ?? "") !== ticket) return t;
-          const next = { ...t };
-          if (Number.isFinite(raw)) next.mt5_total_profit = raw;
-          if (livePx != null) next.price = livePx;
-          return next;
-        })
-      );
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void refresh();
+      }, 600);
     };
 
-    const onLive = (payload: { ticket?: unknown; profit?: unknown; price?: unknown }) => {
+    const onLive = (payload: { ticket?: unknown }) => {
       const ticket = String(payload.ticket ?? "");
-      if (!ticket) return;
-      const raw = Number(payload.profit);
-      if (!Number.isFinite(raw) && parseMt5Price(payload.price) == null) return;
-      applyLive(payload);
+      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
+      scheduleRefresh();
     };
 
     socket.on("mt5live", onLive);
     socket.on("mt5data", onLive);
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       socket.off("mt5live", onLive);
       socket.off("mt5data", onLive);
     };
-  }, [currentUser?.userId]);
+  }, [currentUser?.userId, refresh]);
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id))),

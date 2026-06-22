@@ -49,15 +49,34 @@ import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
 
 const USER_PAGE_SIZE = 50;
 
+const fmtUsd = (n: number) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+type AdminUsersTotals = {
+  sum_wallet_balances_usd: number;
+  sum_successful_payments_usd: number;
+  sum_successful_recharges_usd: number;
+  sum_equity_usd?: number;
+  sum_live_pl_usd?: number;
+  sum_withdrawable_usd?: number;
+  total_open_positions?: number;
+};
+
+type Mt5MasterMetrics = {
+  balance?: number;
+  equity?: number;
+  margin?: number;
+  free_margin?: number;
+  margin_level?: number;
+  updated_at?: string;
+};
+
 const AdminPage = () => {
   const navigate = useNavigate();
 
   const [locations, setLocations] = useState<any[]>([]);
-  const [totals, setTotals] = useState<{
-    sum_wallet_balances_usd: number;
-    sum_successful_payments_usd: number;
-    sum_successful_recharges_usd: number;
-  } | null>(null);
+  const [totals, setTotals] = useState<AdminUsersTotals | null>(null);
+  const [mt5Master, setMt5Master] = useState<Mt5MasterMetrics | null>(null);
   const [liveCount, setLiveCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -109,7 +128,19 @@ const AdminPage = () => {
     }
   }, []);
 
-  const fetchLocations = async (opts?: { silent?: boolean }) => {
+  const fetchMt5Metrics = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/mt5-metrics`);
+      const data = await response.json();
+      if (data.success && data.metrics) {
+        setMt5Master(data.metrics as Mt5MasterMetrics);
+      }
+    } catch {
+      // optional — master panel card hidden until data arrives
+    }
+  }, []);
+
+  const fetchLocations = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
     if (!silent) setIsLoading(true);
     setError('');
@@ -125,6 +156,10 @@ const AdminPage = () => {
             sum_wallet_balances_usd: Number(data.totals.sum_wallet_balances_usd ?? 0),
             sum_successful_payments_usd: Number(data.totals.sum_successful_payments_usd ?? 0),
             sum_successful_recharges_usd: Number(data.totals.sum_successful_recharges_usd ?? 0),
+            sum_equity_usd: Number(data.totals.sum_equity_usd ?? 0),
+            sum_live_pl_usd: Number(data.totals.sum_live_pl_usd ?? 0),
+            sum_withdrawable_usd: Number(data.totals.sum_withdrawable_usd ?? 0),
+            total_open_positions: Number(data.totals.total_open_positions ?? 0),
           });
         } else {
           setTotals(null);
@@ -137,18 +172,21 @@ const AdminPage = () => {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchLocations();
+    void fetchLocations();
     void fetchOpenAssignments();
+    void fetchMt5Metrics();
     const usersPoll = window.setInterval(() => fetchLocations({ silent: true }), 10_000);
     const openPoll = window.setInterval(() => void fetchOpenAssignments(), 60_000);
+    const metricsPoll = window.setInterval(() => void fetchMt5Metrics(), 15_000);
     return () => {
       window.clearInterval(usersPoll);
       window.clearInterval(openPoll);
+      window.clearInterval(metricsPoll);
     };
-  }, [fetchOpenAssignments]);
+  }, [fetchLocations, fetchOpenAssignments, fetchMt5Metrics]);
 
   useEffect(() => {
     const overlay: Record<number, AdminFinanceOverlay> = {};
@@ -163,44 +201,30 @@ const AdminPage = () => {
         baseline,
         rows,
         Number(loc.live_pl ?? 0),
+        Number(loc.equity ?? 0),
       );
     }
     setFinanceOverlay(overlay);
   }, [locations, openRowsByUser]);
 
   useEffect(() => {
-    const applyLive = (payload: { ticket?: unknown; profit?: unknown }) => {
-      const ticket = String(payload.ticket ?? "");
-      const raw = Number(payload.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-
-      setOpenRowsByUser((prev) => {
-        let any = false;
-        const next: Record<number, UserTradeRowLike[]> = { ...prev };
-        for (const [uidKey, rows] of Object.entries(prev)) {
-          let userTouched = false;
-          const updated = rows.map((r) => {
-            if (String(r.ticket_id ?? "") !== ticket) return r;
-            userTouched = true;
-            return { ...r, mt5_total_profit: raw };
-          });
-          if (userTouched) {
-            any = true;
-            next[Number(uidKey)] = updated;
-          }
-        }
-        return any ? next : prev;
-      });
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void fetchLocations({ silent: true });
+        void fetchMt5Metrics();
+      }, 600);
     };
 
-    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => applyLive(payload);
-    adminSocket.on("mt5live", onLive);
-    adminSocket.on("mt5data", onLive);
+    adminSocket.on("mt5live", scheduleRefresh);
+    adminSocket.on("mt5data", scheduleRefresh);
     return () => {
-      adminSocket.off("mt5live", onLive);
-      adminSocket.off("mt5data", onLive);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      adminSocket.off("mt5live", scheduleRefresh);
+      adminSocket.off("mt5data", scheduleRefresh);
     };
-  }, []);
+  }, [fetchLocations, fetchMt5Metrics]);
 
   const refreshTags = async () => {
     const tags = await fetchAllUsedTags();
@@ -406,6 +430,27 @@ const AdminPage = () => {
   useEffect(() => {
     setUserPage(1);
   }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort, setUserPage]);
+
+  const filteredFinanceTotals = useMemo(() => {
+    let wallet = 0;
+    let equity = 0;
+    let livePl = 0;
+    let openPos = 0;
+    for (const loc of filteredLocations) {
+      const uid = Number(loc.id);
+      const fin = financeOverlay[uid];
+      wallet += Number(loc.wallet_balance ?? 0);
+      livePl += fin?.live_pl ?? Number(loc.live_pl ?? 0);
+      equity += fin?.equity ?? Number(loc.equity ?? loc.wallet_balance ?? 0);
+      openPos += Number(loc.open_positions ?? 0);
+    }
+    return {
+      wallet: Math.round(wallet * 100) / 100,
+      equity: Math.round(equity * 100) / 100,
+      livePl: Math.round(livePl * 100) / 100,
+      openPos,
+    };
+  }, [filteredLocations, financeOverlay]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -640,31 +685,109 @@ const AdminPage = () => {
       )}
 
       {totals && (
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Total received (successful payments)
-            </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
-              USD {totals.sum_successful_payments_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
+        <div className="mb-8 space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Total received (successful payments)
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                USD {fmtUsd(totals.sum_successful_payments_usd)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">
+                Wallet recharges only
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
+                USD {fmtUsd(totals.sum_successful_recharges_usd)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
+                Total user wallets
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
+                USD {fmtUsd(totals.sum_wallet_balances_usd)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                Total user equity
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-900">
+                USD {fmtUsd(totals.sum_equity_usd ?? 0)}
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-700">Wallet + live P/L per user</p>
+            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">
+                Total live P/L (users)
+              </p>
+              <p
+                className={cn(
+                  "mt-2 text-2xl font-bold tabular-nums",
+                  (totals.sum_live_pl_usd ?? 0) >= 0 ? "text-emerald-700" : "text-red-600",
+                )}
+              >
+                {(totals.sum_live_pl_usd ?? 0) >= 0 ? "+" : ""}
+                USD {fmtUsd(totals.sum_live_pl_usd ?? 0)}
+              </p>
+              <p className="mt-1 text-[11px] text-sky-700">
+                {(totals.total_open_positions ?? 0).toLocaleString()} open position
+                {(totals.total_open_positions ?? 0) === 1 ? "" : "s"}
+              </p>
+            </div>
+            {mt5Master && (mt5Master.balance != null || mt5Master.equity != null) ? (
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-800">
+                  MT5 master account (socket)
+                </p>
+                {mt5Master.balance != null ? (
+                  <p className="mt-2 text-lg font-bold tabular-nums text-indigo-900">
+                    Balance USD {fmtUsd(Number(mt5Master.balance))}
+                  </p>
+                ) : null}
+                {mt5Master.equity != null ? (
+                  <p className="mt-1 text-lg font-bold tabular-nums text-indigo-900">
+                    Equity USD {fmtUsd(Number(mt5Master.equity))}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-[11px] text-indigo-700">
+                  Compare with your MT4/MT5 panel
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  MT5 master account (socket)
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Waiting for balance/equity on socket feed
+                </p>
+              </div>
+            )}
           </div>
-          <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">
-              Wallet recharges only
-            </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
-              USD {totals.sum_successful_recharges_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
-              Total in user wallets now
-            </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
-              USD {totals.sum_wallet_balances_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-          </div>
+          {hasActiveFilters ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+              <span className="font-semibold">Filtered view totals: </span>
+              wallets USD {fmtUsd(filteredFinanceTotals.wallet)}
+              {" · "}
+              equity USD {fmtUsd(filteredFinanceTotals.equity)}
+              {" · "}
+              live P/L{" "}
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  filteredFinanceTotals.livePl >= 0 ? "text-emerald-800" : "text-red-700",
+                )}
+              >
+                {(filteredFinanceTotals.livePl >= 0 ? "+" : "") + fmtUsd(filteredFinanceTotals.livePl)}
+              </span>
+              {" · "}
+              {filteredFinanceTotals.openPos.toLocaleString()} open
+            </div>
+          ) : null}
         </div>
       )}
 

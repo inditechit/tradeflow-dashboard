@@ -127,33 +127,32 @@ const Mytrades = () => {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
-    const applyLiveProfit = (ticket: string, raw: number) => {
-      if (!myTicketIdsRef.current.has(ticket)) return;
-      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
-      setRows((prev) =>
-        prev.map((t) =>
-          String(t.ticket_id ?? "") === ticket
-            ? { ...t, mt5_total_profit: raw }
-            : t
-        )
-      );
+    const applyLiveProfit = () => {
+      scheduleBoardRefresh();
+    };
+
+    const refreshTimerRef = { current: null as ReturnType<typeof setTimeout> | null };
+    const scheduleBoardRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        void fetchBoard();
+      }, 600);
     };
 
     socket.on("mt5live", (live: { ticket?: unknown; profit?: unknown }) => {
       const ticket = String(live.ticket ?? "");
-      const raw = Number(live.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-      applyLiveProfit(ticket, raw);
+      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
+      applyLiveProfit();
     });
 
     socket.on("mt5data", (trade: { ticket?: unknown; profit?: unknown }) => {
       const ticket = String(trade.ticket ?? "");
-      const raw = Number(trade.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-      applyLiveProfit(ticket, raw);
+      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
+      applyLiveProfit();
     });
 
     return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       clearInterval(poll);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);

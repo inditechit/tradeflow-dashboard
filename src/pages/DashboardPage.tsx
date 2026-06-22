@@ -14,12 +14,6 @@ import { fetchAllUserTrades } from '@/utils/fetchAllUserTrades';
 import { plTextClass } from '@/utils/plColors';
 import { DashboardNotificationsBanner } from '@/components/notifications/DashboardNotificationsBanner';
 import { io } from 'socket.io-client';
-import {
-  resolveEffectiveSlice,
-  isTradeClosed,
-  recomputeOpenUserLivePl,
-  type UserTradeRowLike,
-} from '@/utils/userTradePl';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -112,31 +106,48 @@ const DashboardPage = () => {
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
+  const [apiEquity, setApiEquity] = useState(0);
   const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
   const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
-  const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
-  const depositBaselineRef = useRef(0);
-  const allTradeRowsRef = useRef<UserTradeRowLike[]>([]);
-  const liveRawByTicketRef = useRef<Record<string, number>>({});
+  const liveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
-  /** Open P/L only when wallet &gt; 0 (no new assigns at $0). */
+  /** Backend is source of truth (wallet + live P/L from mt5_trades, same as allocation). */
   const displayLivePl =
     walletBalance > 0.01 && openPositionCount > 0 && !isBusted ? livePl : 0;
   const equity =
-    isBusted || walletBalance <= 0.01 ? 0 : Math.max(0, walletBalance + displayLivePl);
-  const withdrawableDisplay =
-    openPositionCount > 0 ? 0 : Math.max(0, isBusted && !softBust ? 0 : walletBalance);
+    isBusted || walletBalance <= 0.01 ? 0 : Math.max(0, apiEquity > 0 ? apiEquity : walletBalance + displayLivePl);
+  const withdrawableDisplay = Math.max(0, withdrawableFromApi);
   const displayPendingClosedPl = pendingClosedPl;
 
-  const recomputeOpenPlSequential = useCallback((walletStart: number) => {
-    return recomputeOpenUserLivePl(
-      allTradeRowsRef.current,
-      walletStart,
-      depositBaselineRef.current,
-      liveRawByTicketRef.current,
+  const applySummarySnapshot = useCallback((summary: Record<string, unknown>, wData?: { wallet?: { balance?: unknown; currency?: string } }) => {
+    const busted = summary.busted === true;
+    const isSoft = summary.soft_bust === true;
+    const summaryWallet = Number(summary.wallet_balance ?? wData?.wallet?.balance ?? 0);
+    const summaryCurrency = String(summary.currency ?? wData?.wallet?.currency ?? "USD");
+
+    setIsBusted(busted);
+    setSoftBust(isSoft);
+    setOpenPositionCount(Number(summary.open_positions ?? 0));
+    setApiEquity(Number(summary.equity ?? 0));
+    setPendingClosedPl(Number(summary.pending_closed_pl ?? 0));
+    setLivePl(Number(summary.live_pl ?? 0));
+    setWithdrawableFromApi(
+      Number(summary.withdrawable_equity ?? (summary.can_withdraw ? summaryWallet : 0)),
     );
+
+    if (busted && !isSoft && summaryWallet <= 0.01) {
+      setWallet({ balance: 0, currency: summaryCurrency });
+      setTradingActive(false);
+      setAssignFunded(false);
+      return;
+    }
+
+    setWallet({ balance: summaryWallet, currency: summaryCurrency });
+    if (summary.trading_active === false) {
+      setTradingActive(false);
+    }
   }, []);
 
   const loadFinance = useCallback(async () => {
@@ -156,11 +167,7 @@ const DashboardPage = () => {
       const wData = await wRes.json();
       const pData = await pRes.json();
       const assignData = await assignRes.json();
-      const summaryData = await summaryRes.json();
-
-      if (wData.success && wData.wallet) {
-        setWallet(wData.wallet);
-      }
+      let summaryData = await summaryRes.json();
 
       if (pData.success) {
         const joinFromApi = pData.created_at || pData.joined_at || pData.signup_date;
@@ -169,129 +176,41 @@ const DashboardPage = () => {
         }
       }
 
-      const walletOk = Number(wData?.wallet?.balance ?? assignData?.balance ?? 0) > 0;
+      // Settle any closed tickets, then re-read summary so equity matches backend ledger.
+      await fetchAllUserTrades(uid);
+      const summaryAfterRes = await fetch(`${API_BASE}/user/summary/${uid}`);
+      const summaryAfter = await summaryAfterRes.json();
+      if (summaryAfter?.success) summaryData = summaryAfter;
+
+      const walletOk = Number(summaryData?.wallet_balance ?? wData?.wallet?.balance ?? 0) > 0;
       const active =
         summaryData?.trading_active !== false && assignData?.trading_active !== false;
       setTradingActive(active);
-      const funded =
+      setAssignFunded(
         summaryData?.funded !== false &&
-        assignData?.funded !== false &&
-        walletOk &&
-        active;
-      setAssignFunded(funded);
-
-      const tradesData = await fetchAllUserTrades(uid);
-
-      const summaryAfterRes = await fetch(`${API_BASE}/user/summary/${uid}`);
-      const summaryAfter = await summaryAfterRes.json();
-
-      depositBaselineRef.current = Number(
-        summaryAfter?.deposit_baseline ??
-          summaryData?.deposit_baseline ??
-          summaryData?.total_invested ??
-          0,
+          assignData?.funded !== false &&
+          walletOk &&
+          active,
       );
-      const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
-      let openCount = 0;
-      const allRows: UserTradeRowLike[] = [];
-      if (tradesData?.success && Array.isArray(tradesData.trades)) {
-        for (const t of tradesData.trades) {
-          const ticket = String(t.ticket_id ?? '');
-          const liveRaw = ticket ? liveRawByTicketRef.current[ticket] : undefined;
-          const row =
-            liveRaw != null && Number.isFinite(liveRaw)
-              ? { ...t, mt5_total_profit: liveRaw }
-              : t;
-          allRows.push(row as UserTradeRowLike);
-          if (isTradeClosed(row)) continue;
-          openCount += 1;
-          if (!ticket) continue;
-          const slice = resolveEffectiveSlice(row as UserTradeRowLike);
-          nextSlice[ticket] = {
-            v_i: slice.v_i,
-            V: slice.V,
-            fee: slice.fee,
-            pct: slice.pct,
-          };
-        }
-      }
-      allTradeRowsRef.current = allRows;
-      liveTicketRef.current = nextSlice;
-      setOpenPositionCount(openCount);
-      const wBal = Number(
-        summaryAfter?.wallet_balance ??
-          summaryData?.wallet_balance ??
-          wData?.wallet?.balance ??
-          assignData?.balance ??
-          0,
-      );
-      const openPlSum = openCount > 0 ? recomputeOpenPlSequential(wBal) : 0;
 
-      const effectiveSummary =
-        summaryAfter?.success === true ? summaryAfter : summaryData;
-
-      if (effectiveSummary?.success) {
-        const busted = effectiveSummary.busted === true;
-        const isSoft = effectiveSummary.soft_bust === true;
-        setIsBusted(busted);
-        setSoftBust(isSoft);
-        if (busted && !isSoft && Number(effectiveSummary.wallet_balance ?? 0) <= 0.01) {
-          setWallet({ balance: 0, currency: effectiveSummary.currency || "USD" });
-          setPendingClosedPl(0);
-          setLivePl(0);
-          setWithdrawableFromApi(0);
-          setOpenPositionCount(0);
-          setTradingActive(false);
-          setAssignFunded(false);
-        } else if (busted && isSoft) {
-          if (effectiveSummary.wallet_balance != null) {
-            setWallet({
-              balance: effectiveSummary.wallet_balance,
-              currency: effectiveSummary.currency || "USD",
-            });
-          }
-          setPendingClosedPl(Number(effectiveSummary.pending_closed_pl ?? 0));
-          setLivePl(Number(effectiveSummary.live_pl ?? openPlSum));
-          setWithdrawableFromApi(
-            Number(
-              effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? wBal : 0,
-            ),
-          );
-          setTradingActive(false);
-        } else {
-          const summaryWallet = Number(effectiveSummary.wallet_balance ?? wBal);
-          if (effectiveSummary.wallet_balance != null) {
-            setWallet({
-              balance: summaryWallet,
-              currency: effectiveSummary.currency || wData?.wallet?.currency || "USD",
-            });
-          }
-          const apiLive = Number(effectiveSummary.live_pl ?? 0);
-          const apiPending = Number(effectiveSummary.pending_closed_pl ?? 0);
-          setPendingClosedPl(apiPending);
-          setLivePl(
-            openCount > 0
-              ? Math.abs(openPlSum) > 0.001 || Math.abs(apiLive) < 0.001
-                ? openPlSum
-                : apiLive
-              : apiLive,
-          );
-          setWithdrawableFromApi(
-            Number(effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? summaryWallet : 0),
-          );
-        }
-      } else {
-        setIsBusted(false);
-        setPendingClosedPl(0);
-        setLivePl(openPlSum);
-        setWithdrawableFromApi(walletBalance + openPlSum);
+      if (summaryData?.success) {
+        applySummarySnapshot(summaryData, wData);
+      } else if (wData.success && wData.wallet) {
+        setWallet(wData.wallet);
       }
     } catch (err) {
       console.error('Finance load error:', err);
     } finally {
       setLoadingFinance(false);
     }
-  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser, recomputeOpenPlSequential]);
+  }, [currentUser?.userId, currentUser?.role, currentUser?.createdAt, updateUser, applySummarySnapshot]);
+
+  const scheduleFinanceRefresh = useCallback(() => {
+    if (liveRefreshTimerRef.current) clearTimeout(liveRefreshTimerRef.current);
+    liveRefreshTimerRef.current = setTimeout(() => {
+      void loadFinance();
+    }, 600);
+  }, [loadFinance]);
 
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
@@ -342,28 +261,6 @@ const DashboardPage = () => {
       setTradingActionLoading(false);
     }
   };
-
-  const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
-    if (isBusted) return;
-    const ctx = liveTicketRef.current[ticket];
-    if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
-    liveRawByTicketRef.current = { ...liveRawByTicketRef.current, [ticket]: rawProfit };
-    allTradeRowsRef.current = allTradeRowsRef.current.map((row) =>
-      String(row.ticket_id ?? '') === ticket
-        ? {
-            ...row,
-            mt5_total_profit: rawProfit,
-            mt5_volume: ctx.V,
-            allocated_volume: ctx.v_i,
-          }
-        : row,
-    );
-    const sum = recomputeOpenPlSequential(walletBalance);
-    setLivePl(sum);
-    if (walletBalance + sum <= 0) {
-      void loadFinance();
-    }
-  }, [isBusted, walletBalance, loadFinance, recomputeOpenPlSequential]);
 
   useEffect(() => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -424,11 +321,8 @@ const DashboardPage = () => {
     loadFinance();
     const interval = setInterval(loadFinance, 10000);
 
-    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
-      const ticket = String(payload.ticket ?? '');
-      const raw = Number(payload.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-      applyLiveMt5Profit(ticket, raw);
+    const onLive = () => {
+      scheduleFinanceRefresh();
     };
     socket.on('mt5live', onLive);
     socket.on('mt5data', onLive);
@@ -438,7 +332,7 @@ const DashboardPage = () => {
       socket.off('mt5live', onLive);
       socket.off('mt5data', onLive);
     };
-  }, [currentUser?.userId, currentUser?.role, loadFinance, applyLiveMt5Profit]);
+  }, [currentUser?.userId, currentUser?.role, loadFinance, scheduleFinanceRefresh]);
 
   useEffect(() => {
     if (!currentUser?.userId) return;

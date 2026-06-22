@@ -30,23 +30,30 @@ export function buildFinanceOverlay(
   depositBaseline: number,
   openRows: UserTradeRowLike[],
   apiLivePl?: number | null,
+  apiEquity?: number | null,
   liveProfitByTicket?: Record<string, number>,
 ): AdminFinanceOverlay {
   const wallet = Math.max(0, Number(walletBalance) || 0);
   const openCount = openRows.filter((r) => !isTradeClosed(r)).length;
-  const computed =
-    wallet > 0.01 && openCount > 0
-      ? recomputeUserLivePl(openRows, wallet, depositBaseline, liveProfitByTicket)
-      : 0;
   const apiLive = apiLivePl != null ? Number(apiLivePl) : NaN;
-  // Prefer socket-driven client recompute when open rows exist; API is fallback only.
-  const live_pl =
-    openCount > 0
-      ? computed
-      : Number.isFinite(apiLive)
-        ? apiLive
-        : 0;
-  const equity = wallet <= 0.01 ? 0 : Math.max(0, Math.round((wallet + live_pl) * 100) / 100);
+  const apiEq = apiEquity != null ? Number(apiEquity) : NaN;
+
+  let live_pl = 0;
+  if (wallet > 0.01 && openCount > 0) {
+    live_pl = Number.isFinite(apiLive)
+      ? apiLive
+      : recomputeUserLivePl(openRows, wallet, depositBaseline, liveProfitByTicket);
+  } else if (Number.isFinite(apiLive)) {
+    live_pl = apiLive;
+  }
+
+  const equity =
+    wallet <= 0.01
+      ? 0
+      : Number.isFinite(apiEq)
+        ? Math.max(0, apiEq)
+        : Math.max(0, Math.round((wallet + live_pl) * 100) / 100);
+
   const withdrawable_equity =
     openCount > 0 ? 0 : Math.max(0, Math.round(wallet * 100) / 100);
   return { live_pl, equity, withdrawable_equity };
