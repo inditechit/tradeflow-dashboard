@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import reactSwc from "@vitejs/plugin-react-swc";
+import reactBabel from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -12,7 +13,14 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    process.env.VITE_BUILD_BABEL === "1" ? reactBabel() : reactSwc(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
+  build: {
+    sourcemap: false,
+    reportCompressedSize: false,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
