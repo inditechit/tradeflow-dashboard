@@ -72,8 +72,12 @@ export async function verifySession(
   userId: string,
   cached: UserData | null
 ): Promise<SessionVerifyResult> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${API_BASE}/auth/session/${userId}`);
+    const res = await fetch(`${API_BASE}/auth/session/${userId}`, {
+      signal: controller.signal,
+    });
     if (res.status === 404 || res.status === 403) {
       return { status: "invalid" };
     }
@@ -96,5 +100,7 @@ export async function verifySession(
       return { status: "offline", user: cached };
     }
     return { status: "invalid" };
+  } finally {
+    window.clearTimeout(timer);
   }
 }

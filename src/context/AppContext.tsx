@@ -119,17 +119,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Show UI immediately with cached session; re-verify role in background.
+      setCurrentUser(stored);
+      setAuthReady(true);
+
       const result = await verifySession(stored.userId, stored);
       if (cancelled) return;
 
       if (result.status === "invalid") {
         setCurrentUser(null);
         persistUser(null);
-      } else {
+      } else if (result.status === "valid") {
         setCurrentUser(result.user);
         persistUser(result.user);
       }
-      setAuthReady(true);
     })();
 
     return () => {
