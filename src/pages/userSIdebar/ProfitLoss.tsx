@@ -140,9 +140,13 @@ const ProfitLoss = () => {
       }, 600);
     };
 
-    const onLive = (payload: { ticket?: unknown }) => {
+    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
       const ticket = String(payload.ticket ?? "");
+      const raw = Number(payload.profit);
       if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
+      if (Number.isFinite(raw)) {
+        setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      }
       scheduleRefresh();
     };
 

@@ -42,6 +42,7 @@ const profitNum = (t) => {
 const Dashboard = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [socketLive, setSocketLive] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [accountMetrics, setAccountMetrics] = useState(null);
   const [platformTotals, setPlatformTotals] = useState(null);
@@ -108,7 +109,17 @@ const Dashboard = () => {
     fetchAccountMetrics();
     fetchPlatformTotals();
 
+    const poll = setInterval(() => {
+      fetchTrades();
+      fetchAccountMetrics();
+    }, 15000);
+
     const socket = getLiveSocket();
+    setSocketLive(socket.connected);
+    const onConnect = () => setSocketLive(true);
+    const onDisconnect = () => setSocketLive(false);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
 
     const upsertTrade = (trade) => {
       if (!trade?.ticket) return;
@@ -150,6 +161,9 @@ const Dashboard = () => {
     });
 
     return () => {
+      clearInterval(poll);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
       socket.off("live:trade", upsertTrade);
       socket.off("live:tick");
       socket.off("live:metrics");
@@ -391,14 +405,24 @@ const Dashboard = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
+        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
           <input
             type="text"
             placeholder="Search Symbol..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            className="flex-1 min-w-[200px] px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           />
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              socketLive ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${socketLive ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+            />
+            {socketLive ? "Live socket connected" : "Live socket offline — polling every 15s"}
+          </span>
         </div>
 
         <div className="min-h-[300px]">
@@ -432,7 +456,7 @@ const Dashboard = () => {
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${plBadgeClass(isProfit)}`}
                     >
                       <span
-                        className={`animate-pulse w-2 h-2 rounded-full ${plDotClass(isProfit)}`}
+                        className={`w-2 h-2 rounded-full ${socketLive ? "animate-pulse" : "opacity-40"} ${plDotClass(isProfit)}`}
                       />
 
                       {isProfit ? "+" : ""}

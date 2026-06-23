@@ -7,9 +7,13 @@ let socket: Socket | null = null;
 export function getLiveSocket(): Socket {
   if (!socket) {
     socket = io(LIVE_SOCKET_URL, {
-      transports: ["websocket"],
+      // Polling first — required when nginx/Cloudflare proxy Socket.IO
+      transports: ["polling", "websocket"],
       path: "/socket.io",
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 2000,
     });
   }
   return socket;
@@ -28,3 +32,47 @@ export type LiveMetricsPayload = {
   margin_level?: number;
   updated_at?: string;
 };
+
+/** Subscribe to backend live P/L ticks (returns unsubscribe). */
+export function onLiveTick(handler: (payload: LiveTickPayload) => void): () => void {
+  const s = getLiveSocket();
+  const wrapped = (payload: LiveTickPayload) => handler(payload);
+  s.on("live:tick", wrapped);
+  return () => {
+    s.off("live:tick", wrapped);
+  };
+}
+
+export function onLiveTrade(handler: (trade: Record<string, unknown>) => void): () => void {
+  const s = getLiveSocket();
+  const wrapped = (trade: Record<string, unknown>) => handler(trade);
+  s.on("live:trade", wrapped);
+  return () => {
+    s.off("live:trade", wrapped);
+  };
+}
+
+export function onLiveMetrics(handler: (metrics: LiveMetricsPayload) => void): () => void {
+  const s = getLiveSocket();
+  const wrapped = (metrics: LiveMetricsPayload) => handler(metrics);
+  s.on("live:metrics", wrapped);
+  return () => {
+    s.off("live:metrics", wrapped);
+  };
+}
+
+export function onLiveSocketConnect(handler: () => void): () => void {
+  const s = getLiveSocket();
+  s.on("connect", handler);
+  return () => {
+    s.off("connect", handler);
+  };
+}
+
+export function onLiveSocketDisconnect(handler: () => void): () => void {
+  const s = getLiveSocket();
+  s.on("disconnect", handler);
+  return () => {
+    s.off("disconnect", handler);
+  };
+}
