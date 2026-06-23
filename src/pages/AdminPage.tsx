@@ -134,7 +134,10 @@ const AdminPage = () => {
       const response = await fetch(`${API_BASE}/admin/mt5-metrics`);
       const data = await response.json();
       if (data.success && data.metrics) {
-        setMt5Master(data.metrics as Mt5MasterMetrics);
+        setMt5Master({
+          ...(data.metrics as Mt5MasterMetrics),
+          source: data.source as string | undefined,
+        });
       }
     } catch {
       // optional — master panel card hidden until data arrives
@@ -147,7 +150,7 @@ const AdminPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users?finance=1`);
+      const response = await fetch(`${API_BASE}/admin/users?finance=1&all=1`);
       const data = await response.json();
       if (data.success) {
         setLocations(data.users);
