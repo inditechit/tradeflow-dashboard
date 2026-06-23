@@ -15,6 +15,7 @@ import { tradeInDateRange } from "@/utils/mt5TradeDates";
 import { plBadgeClass, plDotClass, plTextClass } from "@/utils/plColors";
 import { API_BASE } from "@/config/api";
 import { getLiveSocket } from "@/lib/liveSocket";
+import { useLiveFeedStatus } from "@/hooks/useLiveFeedStatus";
 
 const fmtMoney = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
@@ -43,6 +44,8 @@ const Dashboard = () => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [socketLive, setSocketLive] = useState(false);
+  const [lastClientTickAt, setLastClientTickAt] = useState(null);
+  const { status: feedStatus } = useLiveFeedStatus(8000);
   const [searchTerm, setSearchTerm] = useState("");
   const [accountMetrics, setAccountMetrics] = useState(null);
   const [platformTotals, setPlatformTotals] = useState(null);
@@ -109,10 +112,11 @@ const Dashboard = () => {
     fetchAccountMetrics();
     fetchPlatformTotals();
 
+    const pollMs = feedStatus.mt5FeedLive ? 15000 : 5000;
     const poll = setInterval(() => {
       fetchTrades();
       fetchAccountMetrics();
-    }, 15000);
+    }, pollMs);
 
     const socket = getLiveSocket();
     setSocketLive(socket.connected);
@@ -139,6 +143,7 @@ const Dashboard = () => {
     socket.on("live:trade", upsertTrade);
 
     socket.on("live:tick", (live) => {
+      setLastClientTickAt(Date.now());
       setTrades((prev) =>
         prev.map((t) =>
           Number(t.ticket) === Number(live.ticket)
@@ -168,7 +173,7 @@ const Dashboard = () => {
       socket.off("live:tick");
       socket.off("live:metrics");
     };
-  }, []);
+  }, [feedStatus.mt5FeedLive]);
 
   const tradesInRange = useMemo(
     () => trades.filter((t) => tradeInDateRange(t, dateFrom, dateTo)),
@@ -421,8 +426,39 @@ const Dashboard = () => {
             <span
               className={`h-2 w-2 rounded-full ${socketLive ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
             />
-            {socketLive ? "Live socket connected" : "Live socket offline — polling every 15s"}
+            {socketLive ? "App socket connected" : "App socket offline"}
           </span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              feedStatus.mt5FeedLive
+                ? "bg-emerald-100 text-emerald-800"
+                : feedStatus.mt5BridgeConnected
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-red-100 text-red-800"
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                feedStatus.mt5FeedLive
+                  ? "bg-emerald-500 animate-pulse"
+                  : feedStatus.mt5BridgeConnected
+                    ? "bg-amber-500"
+                    : "bg-red-500"
+              }`}
+            />
+            {feedStatus.mt5FeedLive
+              ? `MT5 feed live · tick ${feedStatus.secondsSinceTick ?? 0}s ago`
+              : feedStatus.mt5BridgeConnected
+                ? "MT5 connected — no ticks yet"
+                : feedStatus.mt5BridgeUrl
+                  ? "MT5 feed offline (check MT5_SOCKET_URL)"
+                  : "MT5_SOCKET_URL not set on API"}
+          </span>
+          {lastClientTickAt ? (
+            <span className="text-[11px] text-slate-500">
+              Last UI tick: {Math.round((Date.now() - lastClientTickAt) / 1000)}s ago
+            </span>
+          ) : null}
         </div>
 
         <div className="min-h-[300px]">

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { getLiveSocket } from "@/lib/liveSocket";
+import { useLiveFeedStatus } from "@/hooks/useLiveFeedStatus";
 import {
   buildFinanceOverlay,
   groupOpenRowsByUser,
@@ -94,6 +95,7 @@ const AdminPage = () => {
 
   const { currentUser } = useApp();
   const { can } = useEmployeeAccess();
+  const { status: feedStatus } = useLiveFeedStatus(8000);
   const isVoiceAdmin = can("action:users:voice");
   const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
@@ -763,7 +765,13 @@ const AdminPage = () => {
                   MT5 master account (socket)
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Waiting for balance/equity on socket feed
+                  {feedStatus.mt5FeedLive
+                    ? "MT5 feed is live — waiting for balance/equity payload"
+                    : feedStatus.mt5BridgeUrl
+                      ? feedStatus.mt5BridgeConnected
+                        ? "MT5 bridge connected but no ticks yet — P/L won't move until EA sends data"
+                        : `MT5 bridge not connected${feedStatus.bridgeError ? `: ${feedStatus.bridgeError}` : ""}`
+                      : "Set MT5_SOCKET_URL on API server (e.g. https://astroapi.inditechit.com)"}
                 </p>
               </div>
             )}
