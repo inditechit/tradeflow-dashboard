@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { io } from "socket.io-client";
 import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
@@ -14,17 +13,14 @@ import { plBadgeClass, plDotClass } from "@/utils/plColors";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-import { API_BASE, SOCKET_URL } from "@/config/api";
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
 const PAGE_SIZE = 50;
 
 type StatusFilter = "all" | "open" | "closed";
-
-const socket = io(SOCKET_URL, {
-  transports: ["websocket"],
-});
 
 type UserTradeRow = UserTradeRowLike & {
   price?: unknown;
@@ -71,7 +67,7 @@ const Mytrades = () => {
   const myTicketIdsRef = useRef<Set<string>>(new Set());
   const myRatiosRef = useRef<Record<string, number>>({});
 
-  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [isConnected, setIsConnected] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const fetchBoard = useCallback(async () => {
@@ -124,6 +120,8 @@ const Mytrades = () => {
 
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
+    const socket = getLiveSocket();
+    setIsConnected(socket.connected);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
@@ -139,25 +137,22 @@ const Mytrades = () => {
       }, 600);
     };
 
-    socket.on("mt5live", (live: { ticket?: unknown; profit?: unknown }) => {
-      const ticket = String(live.ticket ?? "");
+    const onLive = (payload: { ticket?: unknown }) => {
+      const ticket = String(payload.ticket ?? "");
       if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
       applyLiveProfit();
-    });
+    };
 
-    socket.on("mt5data", (trade: { ticket?: unknown; profit?: unknown }) => {
-      const ticket = String(trade.ticket ?? "");
-      if (!ticket || !myTicketIdsRef.current.has(ticket)) return;
-      applyLiveProfit();
-    });
+    socket.on("live:tick", onLive);
+    socket.on("live:trade", onLive);
 
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       clearInterval(poll);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("mt5live");
-      socket.off("mt5data");
+      socket.off("live:tick", onLive);
+      socket.off("live:trade", onLive);
     };
   }, [currentUser?.userId, fetchBoard]);
 

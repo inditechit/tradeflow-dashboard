@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { io } from "socket.io-client";
 import {
   RefreshCw,
   Loader2,
@@ -24,7 +23,8 @@ import {
   YAxis,
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE, SOCKET_URL } from "@/config/api";
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 import {
   groupOpenRowsByUser,
   sumPlatformLiveLiability,
@@ -34,8 +34,6 @@ import {
 } from "@/utils/adminLiveFinance";
 import type { UserTradeRowLike } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
-
-const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
 const PIE_COLORS = ["#E6B800", "#6366f1", "#10b981", "#f59e0b", "#94a3b8"];
 
@@ -250,19 +248,20 @@ const AdminFinancialStatsPage = () => {
     const onConnect = () => setSocketLive(true);
     const onDisconnect = () => setSocketLive(false);
 
+    const socket = getLiveSocket();
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("mt5live", applyTicketProfit);
-    socket.on("mt5data", applyTicketProfit);
-    socket.on("mt5metrics", onMetrics);
+    socket.on("live:tick", applyTicketProfit);
+    socket.on("live:trade", applyTicketProfit);
+    socket.on("live:metrics", onMetrics);
     setSocketLive(socket.connected);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("mt5live", applyTicketProfit);
-      socket.off("mt5data", applyTicketProfit);
-      socket.off("mt5metrics", onMetrics);
+      socket.off("live:tick", applyTicketProfit);
+      socket.off("live:trade", applyTicketProfit);
+      socket.off("live:metrics", onMetrics);
     };
   }, []);
 

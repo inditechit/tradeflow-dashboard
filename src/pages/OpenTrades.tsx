@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarRange, RefreshCw } from "lucide-react";
-import { io } from "socket.io-client";
 import {
   formatIsoDateTime,
   tradeInDateRange,
@@ -8,7 +7,8 @@ import {
 import { plTextClass } from "@/utils/plColors";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-import { API_BASE, SOCKET_URL } from "@/config/api";
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   fmtMt5Price,
@@ -21,7 +21,6 @@ import {
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
 import { TicketAssignDialog } from "@/components/admin/TicketAssignDialog";
 
-const socket = io(SOCKET_URL, { transports: ["websocket"] });
 const PAGE_SIZE = 50;
 
 type Mt5Trade = {
@@ -164,16 +163,17 @@ const OpenTrades = () => {
     };
     const onConnect = () => setSocketLive(true);
     const onDisconnect = () => setSocketLive(false);
+    const socket = getLiveSocket();
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("mt5live", applyLive);
-    socket.on("mt5data", applyLive);
+    socket.on("live:tick", applyLive);
+    socket.on("live:trade", applyLive);
     setSocketLive(socket.connected);
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("mt5live", applyLive);
-      socket.off("mt5data", applyLive);
+      socket.off("live:tick", applyLive);
+      socket.off("live:trade", applyLive);
     };
   }, []);
 

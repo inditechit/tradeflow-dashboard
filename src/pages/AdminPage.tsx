@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
@@ -22,7 +21,8 @@ import UserLabelsDisplay from '../components/admin/UserLabelsDisplay';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
-import { API_BASE, SOCKET_URL } from "@/config/api";
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 import {
   buildFinanceOverlay,
   groupOpenRowsByUser,
@@ -31,7 +31,6 @@ import {
 } from "@/utils/adminLiveFinance";
 import type { UserTradeRowLike } from "@/utils/userTradePl";
 
-const adminSocket = io(SOCKET_URL, { transports: ["websocket"] });
 import {
   formatAdminDate,
   kycBadgeStyles,
@@ -217,12 +216,13 @@ const AdminPage = () => {
       }, 600);
     };
 
-    adminSocket.on("mt5live", scheduleRefresh);
-    adminSocket.on("mt5data", scheduleRefresh);
+    const adminSocket = getLiveSocket();
+    adminSocket.on("live:tick", scheduleRefresh);
+    adminSocket.on("live:trade", scheduleRefresh);
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      adminSocket.off("mt5live", scheduleRefresh);
-      adminSocket.off("mt5data", scheduleRefresh);
+      adminSocket.off("live:tick", scheduleRefresh);
+      adminSocket.off("live:trade", scheduleRefresh);
     };
   }, [fetchLocations, fetchMt5Metrics]);
 

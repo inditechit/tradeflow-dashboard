@@ -9,13 +9,11 @@ import {
 } from 'lucide-react';
 import { formatMoneyAmount } from '@/utils/userProfitShare';
 import { getPackageById, packageDisplayName } from '@/constants/packages';
-import { API_BASE, SOCKET_URL } from '@/config/api';
+import { API_BASE } from '@/config/api';
+import { getLiveSocket } from '@/lib/liveSocket';
 import { fetchAllUserTrades } from '@/utils/fetchAllUserTrades';
 import { plTextClass } from '@/utils/plColors';
 import { DashboardNotificationsBanner } from '@/components/notifications/DashboardNotificationsBanner';
-import { io } from 'socket.io-client';
-
-const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
 type PaymentTxn = {
   id: number | string;
@@ -321,16 +319,17 @@ const DashboardPage = () => {
     loadFinance();
     const interval = setInterval(loadFinance, 10000);
 
+    const socket = getLiveSocket();
     const onLive = () => {
       scheduleFinanceRefresh();
     };
-    socket.on('mt5live', onLive);
-    socket.on('mt5data', onLive);
+    socket.on('live:tick', onLive);
+    socket.on('live:trade', onLive);
 
     return () => {
       clearInterval(interval);
-      socket.off('mt5live', onLive);
-      socket.off('mt5data', onLive);
+      socket.off('live:tick', onLive);
+      socket.off('live:trade', onLive);
     };
   }, [currentUser?.userId, currentUser?.role, loadFinance, scheduleFinanceRefresh]);
 

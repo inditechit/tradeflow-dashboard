@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, TrendingUp, TrendingDown, Wallet, Coins, BarChart3, Percent } from "lucide-react";
-import { io } from "socket.io-client";
 import { useApp } from "@/context/AppContext";
 import {
   sumLiveProfitLoss,
@@ -14,14 +13,13 @@ import {
   parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
-import { API_BASE, SOCKET_URL } from "@/config/api";
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
-
-const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
 type Summary = {
   success: true;
@@ -148,12 +146,13 @@ const ProfitLoss = () => {
       scheduleRefresh();
     };
 
-    socket.on("mt5live", onLive);
-    socket.on("mt5data", onLive);
+    const socket = getLiveSocket();
+    socket.on("live:tick", onLive);
+    socket.on("live:trade", onLive);
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);
-      socket.off("mt5live", onLive);
-      socket.off("mt5data", onLive);
+      socket.off("live:tick", onLive);
+      socket.off("live:trade", onLive);
     };
   }, [currentUser?.userId, refresh]);
 

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { io } from "socket.io-client";
 import {
   RefreshCw,
   CalendarRange,
@@ -14,19 +13,8 @@ import {
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
 import { plBadgeClass, plDotClass, plTextClass } from "@/utils/plColors";
-import { API_BASE, SOCKET_URL } from "@/config/api";
-
-const socket = io(SOCKET_URL, {
-  transports: ["websocket"],
-});
-
-
-
-
-
-
-
-
+import { API_BASE } from "@/config/api";
+import { getLiveSocket } from "@/lib/liveSocket";
 
 const fmtMoney = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
@@ -120,7 +108,10 @@ const Dashboard = () => {
     fetchAccountMetrics();
     fetchPlatformTotals();
 
-    socket.on("mt5data", (trade) => {
+    const socket = getLiveSocket();
+
+    const upsertTrade = (trade) => {
+      if (!trade?.ticket) return;
       setTrades((prev) => {
         const index = prev.findIndex(
           (t) => Number(t.ticket) === Number(trade.ticket)
@@ -132,27 +123,11 @@ const Dashboard = () => {
         }
         return [trade, ...prev];
       });
-    });
+    };
 
-    // Keep closed rows in the feed (final P/L) — removing them broke totals vs MT4/history.
-    socket.on("mt5close", (trade) => {
-      setTrades((prev) => {
-        const ticket = Number(trade.ticket);
-        const idx = prev.findIndex((t) => Number(t.ticket) === ticket);
-        const merged = {
-          ...trade,
-          status: normStatus(trade) || "CLOSED",
-        };
-        if (idx !== -1) {
-          const next = [...prev];
-          next[idx] = { ...next[idx], ...merged };
-          return next;
-        }
-        return [merged, ...prev];
-      });
-    });
+    socket.on("live:trade", upsertTrade);
 
-    socket.on("mt5live", (live) => {
+    socket.on("live:tick", (live) => {
       setTrades((prev) =>
         prev.map((t) =>
           Number(t.ticket) === Number(live.ticket)
@@ -162,7 +137,7 @@ const Dashboard = () => {
       );
     });
 
-    socket.on("mt5metrics", (payload) => {
+    socket.on("live:metrics", (payload) => {
       const m = payload?.metrics || payload;
       if (m && (m.equity != null || m.margin != null)) {
         setAccountMetrics({
@@ -175,10 +150,9 @@ const Dashboard = () => {
     });
 
     return () => {
-      socket.off("mt5data");
-      socket.off("mt5close");
-      socket.off("mt5live");
-      socket.off("mt5metrics");
+      socket.off("live:trade", upsertTrade);
+      socket.off("live:tick");
+      socket.off("live:metrics");
     };
   }, []);
 
