@@ -17,6 +17,20 @@ import { API_BASE } from "@/config/api";
 import { getLiveSocket } from "@/lib/liveSocket";
 import { useLiveFeedStatus } from "@/hooks/useLiveFeedStatus";
 
+function isMt5TradeOpen(t) {
+  const st = String(t?.status ?? "").toUpperCase();
+  if (st.includes("CLOSE")) return false;
+  const ct = t?.close_time;
+  if (
+    ct != null &&
+    String(ct).trim() !== "" &&
+    String(ct) !== "0000-00-00 00:00:00"
+  ) {
+    return false;
+  }
+  return true;
+}
+
 const fmtMoney = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   return new Intl.NumberFormat("en-US", {
@@ -29,8 +43,6 @@ const fmtPct = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   return `${Number(n).toFixed(2)}%`;
 };
-
-const normStatus = (t) => String(t?.status ?? "").toUpperCase();
 
 const profitNum = (t) => {
   if (t?.profit === undefined || t?.profit === null || t?.profit === "") {
@@ -127,9 +139,15 @@ const Dashboard = () => {
 
     const upsertTrade = (trade) => {
       if (!trade?.ticket) return;
+      if (!isMt5TradeOpen(trade)) {
+        setTrades((prev) =>
+          prev.filter((t) => Number(t.ticket) !== Number(trade.ticket)),
+        );
+        return;
+      }
       setTrades((prev) => {
         const index = prev.findIndex(
-          (t) => Number(t.ticket) === Number(trade.ticket)
+          (t) => Number(t.ticket) === Number(trade.ticket),
         );
         if (index !== -1) {
           const updatedTrades = [...prev];
@@ -144,13 +162,17 @@ const Dashboard = () => {
 
     socket.on("live:tick", (live) => {
       setLastClientTickAt(Date.now());
-      setTrades((prev) =>
-        prev.map((t) =>
+      setTrades((prev) => {
+        const idx = prev.findIndex(
+          (t) => Number(t.ticket) === Number(live.ticket),
+        );
+        if (idx === -1) return prev;
+        return prev.map((t) =>
           Number(t.ticket) === Number(live.ticket)
             ? { ...t, profit: live.profit }
-            : t
-        )
-      );
+            : t,
+        );
+      });
     });
 
     socket.on("live:metrics", (payload) => {
@@ -188,12 +210,11 @@ const Dashboard = () => {
     let openNotional = 0;
 
     for (const t of tradesInRange) {
-      const st = normStatus(t);
       const p = profitNum(t);
       const vol = Number(t.volume);
       const px = Number(t.price);
 
-      if (st === "OPEN") {
+      if (isMt5TradeOpen(t)) {
         if (Number.isFinite(vol) && Number.isFinite(px)) {
           openNotional += vol * px;
         }
@@ -201,7 +222,7 @@ const Dashboard = () => {
         continue;
       }
 
-      if (st === "CLOSED" && p !== null) {
+      if (!isMt5TradeOpen(t) && p !== null) {
         realizedNet += p;
         if (p > 0) realizedProfit += p;
         if (p < 0) realizedLoss += Math.abs(p);
@@ -222,8 +243,8 @@ const Dashboard = () => {
 
   const filteredTrades = tradesInRange.filter(
     (t) =>
-      String(t.status ?? "").toUpperCase() === "OPEN" &&
-      t.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
+      isMt5TradeOpen(t) &&
+      t.symbol?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const dateFilterActive = Boolean(dateFrom || dateTo);
