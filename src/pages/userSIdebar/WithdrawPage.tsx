@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet, XCircle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
@@ -66,9 +66,14 @@ const WithdrawPage = () => {
   const [withdrawTotal, setWithdrawTotal] = useState(0);
   const [withdrawPage, setWithdrawPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpMaskedEmail, setOtpMaskedEmail] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpConfirming, setOtpConfirming] = useState(false);
+  const [cancelBusyId, setCancelBusyId] = useState<number | null>(null);
 
   const load = useCallback(async (pageNum = 1) => {
     if (!userId) return;
@@ -147,6 +152,15 @@ const WithdrawPage = () => {
     }
   };
 
+  const requestWithdrawOtp = async (amt: number) => {
+    const res = await fetch(`${API_BASE}/user/withdraw/${userId}/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amt }),
+    });
+    return res.json();
+  };
+
   const handleSubmit = async () => {
     if (!userId) return;
     if (fundLock.locked) {
@@ -194,32 +208,126 @@ const WithdrawPage = () => {
       });
       return;
     }
-    setSubmitting(true);
+
+    setOtpSending(true);
+    try {
+      const data = await requestWithdrawOtp(amt);
+      if (!data.success) {
+        toast({
+          title: "Could not send code",
+          description: data.error ?? "Try again",
+          variant: "destructive",
+        });
+        return;
+      }
+      setOtpCode("");
+      setOtpMaskedEmail(data.maskedEmail ?? data.message ?? "your email");
+      setOtpDialogOpen(true);
+      toast({
+        title: "Verification code sent",
+        description: data.message ?? "Check your email for the 6-digit code.",
+      });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    if (!userId) return;
+    const amt = Number(amount);
+    const code = otpCode.trim();
+    if (!code || code.length < 6) {
+      toast({
+        title: "Enter verification code",
+        description: "Enter the 6-digit code from your email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setOtpConfirming(true);
     try {
       const res = await fetch(`${API_BASE}/user/withdraw/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amt }),
+        body: JSON.stringify({ amount: amt, otp: code }),
       });
       const data = await res.json();
-      if (data.success) {
-        toast({
-          title: "Request submitted",
-          description: "An admin will review and send USDT (trc20) to your saved address.",
-        });
-        setAmount("");
-        load();
-      } else {
+      if (!data.success) {
         toast({
           title: "Request failed",
           description: data.error ?? "Try again",
           variant: "destructive",
         });
+        return;
       }
+      toast({
+        title: "Request submitted",
+        description: "An admin will review and send USDT (trc20) to your saved address.",
+      });
+      setAmount("");
+      setOtpDialogOpen(false);
+      setOtpCode("");
+      load();
     } catch {
       toast({ title: "Network error", variant: "destructive" });
     } finally {
-      setSubmitting(false);
+      setOtpConfirming(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!userId) return;
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt < MIN_WITHDRAW) return;
+    setOtpSending(true);
+    try {
+      const data = await requestWithdrawOtp(amt);
+      if (!data.success) {
+        toast({
+          title: "Could not resend code",
+          description: data.error ?? "Try again",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Code resent",
+        description: data.message ?? "Check your email again.",
+      });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleCancelRequest = async (requestId: number) => {
+    if (!userId) return;
+    const ok = window.confirm("Cancel this pending withdrawal request?");
+    if (!ok) return;
+    setCancelBusyId(requestId);
+    try {
+      const res = await fetch(`${API_BASE}/user/withdraw/${userId}/${requestId}/cancel`, {
+        method: "PATCH",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast({
+          title: "Could not cancel",
+          description: data.error ?? "Try again",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Withdrawal cancelled" });
+      load(withdrawPage);
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setCancelBusyId(null);
     }
   };
 
@@ -230,7 +338,7 @@ const WithdrawPage = () => {
   const hasAddress = Boolean(payoutSaved);
   const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0;
   const unlockLabel = fundLock.unlockAt
-    ? new Date(trialLock.unlockAt).toLocaleString(undefined, {
+    ? new Date(fundLock.unlockAt).toLocaleString(undefined, {
         dateStyle: "medium",
         timeStyle: "short",
       })
@@ -244,7 +352,8 @@ const WithdrawPage = () => {
           Withdraw USDT (trc20)
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Paid plans: outbound USDT typically within 5 seconds to 1 minute after approval. Enter how much you want to withdraw.
+          Paid plans: outbound USDT typically within 5 seconds to 1 minute after approval. Enter how much
+          you want to withdraw — we email a verification code to your registered address before submitting.
         </p>
       </div>
 
@@ -372,15 +481,16 @@ const WithdrawPage = () => {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || submitting || !amount || withdrawBlocked}
+            disabled={loading || otpSending || otpConfirming || !amount || withdrawBlocked}
             className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
           >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Submit withdrawal request
+            {otpSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {otpSending ? "Sending code…" : "Continue — verify by email"}
           </Button>
           {!hasAddress && !loading && (
             <p className="text-xs text-slate-500">
-              Enter an amount and submit — if no address is saved, a popup will ask for your trc20 wallet.
+              Enter an amount and continue — if no address is saved, a popup will ask for your trc20 wallet.
+              A 6-digit code is sent to your profile email before the request is created.
             </p>
           )}
         </div>
@@ -433,6 +543,64 @@ const WithdrawPage = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
+        <DialogContent className="z-[100] max-w-md border-slate-200 bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Confirm withdrawal</DialogTitle>
+            <DialogDescription className="text-left text-slate-600">
+              Enter the 6-digit code sent to{" "}
+              <span className="font-medium text-slate-800">{otpMaskedEmail || "your email"}</span>.
+              The code expires in 5 minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label htmlFor="wd-otp" className="text-slate-800">
+              Verification code
+            </Label>
+            <Input
+              id="wd-otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="max-w-[10rem] font-mono text-lg tracking-widest border-slate-200 bg-white text-slate-900"
+              disabled={otpConfirming}
+            />
+            <p className="text-xs text-slate-500">
+              Withdrawing ${Number(amount || 0).toFixed(2)} USD to your saved trc20 address.
+            </p>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              className="sm:mr-auto"
+              disabled={otpSending || otpConfirming}
+              onClick={() => void handleResendOtp()}
+            >
+              {otpSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Resend code
+            </Button>
+            <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+              <Button type="button" variant="ghost" onClick={() => setOtpDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={otpConfirming || otpCode.trim().length < 6}
+                className="gap-2 bg-[#FFD700] text-black hover:bg-[#E6C200]"
+                onClick={() => void handleConfirmOtp()}
+              >
+                {otpConfirming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Confirm withdrawal
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 font-sans text-lg font-semibold text-slate-900">Your requests</h2>
         {loading ? (
@@ -449,7 +617,8 @@ const WithdrawPage = () => {
                   <th className="pb-2 pr-4">When</th>
                   <th className="pb-2 pr-4">Amount</th>
                   <th className="pb-2 pr-4">Status</th>
-                  <th className="pb-2">Tx / note</th>
+                  <th className="pb-2 pr-4">Tx / note</th>
+                  <th className="pb-2">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,15 +637,21 @@ const WithdrawPage = () => {
                             ? "border-yellow-200 bg-[#FFF9E6] text-neutral-900"
                             : r.status === "pending"
                               ? "border-amber-200 bg-amber-50 text-amber-900"
-                              : "border-red-200 bg-red-50 text-red-900"
+                              : r.status === "cancelled"
+                                ? "border-slate-200 bg-slate-100 text-slate-700"
+                                : "border-red-200 bg-red-50 text-red-900"
                         }`}
                       >
                         {r.status}
                       </span>
                     </td>
-                    <td className="py-3 text-slate-600">
+                    <td className="py-3 pr-4 text-slate-600">
                       {r.status === "rejected" && r.rejection_reason ? (
                         <span className="text-sm text-red-800">{r.rejection_reason}</span>
+                      ) : r.status === "cancelled" ? (
+                        <span className="text-sm text-slate-600">
+                          {r.rejection_reason ?? "Cancelled by you"}
+                        </span>
                       ) : r.outbound_tx_hash ? (
                         <a
                           href={`https://tronscan.org/#/transaction/${encodeURIComponent(r.outbound_tx_hash)}`}
@@ -486,6 +661,27 @@ const WithdrawPage = () => {
                         >
                           {r.outbound_tx_hash}
                         </a>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      {r.status === "pending" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={cancelBusyId === r.id}
+                          className="gap-1 border-red-200 text-red-700 hover:bg-red-50"
+                          onClick={() => void handleCancelRequest(r.id)}
+                        >
+                          {cancelBusyId === r.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          Cancel
+                        </Button>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}

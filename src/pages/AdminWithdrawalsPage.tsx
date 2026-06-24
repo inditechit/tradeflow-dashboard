@@ -42,6 +42,7 @@ function statusClass(s: string) {
   const x = String(s).toLowerCase();
   if (x === "completed") return "border-yellow-200 bg-[#FFF9E6] text-neutral-900";
   if (x === "pending") return "border-amber-200 bg-amber-50 text-amber-900";
+  if (x === "cancelled") return "border-slate-200 bg-slate-100 text-slate-700";
   return "border-red-200 bg-red-50 text-red-900";
 }
 
