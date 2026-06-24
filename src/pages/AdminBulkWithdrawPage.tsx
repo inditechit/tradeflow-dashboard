@@ -122,12 +122,15 @@ const AdminBulkWithdrawPage = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return users.filter((u) => {
-      if (eligibleOnly && !u.eligible) return false;
-      if (!q) return true;
-      const hay = `${u.user_id} ${u.name ?? ""} ${u.email ?? ""}`.toLowerCase();
-      return hay.includes(q);
-    });
+    return users
+      .filter((u) => u.wallet_balance > 0.01)
+      .filter((u) => {
+        if (eligibleOnly && !u.eligible) return false;
+        if (!q) return true;
+        const hay = `${u.user_id} ${u.name ?? ""} ${u.email ?? ""}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) => b.wallet_balance - a.wallet_balance || a.user_id - b.user_id);
   }, [users, search, eligibleOnly]);
 
   const selectedRows = useMemo(() => {
@@ -235,8 +238,8 @@ const AdminBulkWithdrawPage = () => {
             Bulk withdraw
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Review each user&apos;s invested amount, equity, and withdrawable balance. Select users,
-            set amounts, then queue withdrawal requests or send USDT immediately.
+            Users with wallet balance only, sorted highest to lowest. Set amounts and queue
+            requests or send USDT in bulk.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Approve queued requests on{" "}
@@ -347,6 +350,9 @@ const AdminBulkWithdrawPage = () => {
                   User
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
+                  Wallet
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Invested
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
@@ -395,6 +401,9 @@ const AdminBulkWithdrawPage = () => {
                         {u.email && (
                           <div className="text-xs text-slate-600">{u.email}</div>
                         )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums font-semibold text-slate-900 sm:px-6">
+                        {money(u.wallet_balance)}
                       </td>
                       <td className="px-4 py-3 tabular-nums text-slate-800 sm:px-6">
                         {u.invested != null ? money(u.invested) : "—"}
