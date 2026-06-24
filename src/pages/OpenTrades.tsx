@@ -73,6 +73,15 @@ function rowCopyPlForGroup(
 }
 
 function totalSharePct(rows: AdminOpenAssignRow[]): number {
+  if (!rows.length) return 0;
+  const V = Number(rows[0]?.mt5_volume ?? rows[0]?.total_trade_volume ?? 0);
+  if (V > 0) {
+    let allocSum = 0;
+    for (const r of rows) {
+      allocSum += Number(r.allocated_volume ?? 0);
+    }
+    return Math.round((allocSum / V) * 10000) / 100;
+  }
   let sum = 0;
   for (const r of rows) {
     const { effectiveShare } = resolveEffectiveSlice(r);

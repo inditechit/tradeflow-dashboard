@@ -188,7 +188,7 @@ export function resolveMt5BuySellPrices(
   };
 }
 
-/** Volume slice: prefer global pool share from allocation, not ticket-only headcount. */
+/** Volume slice: share = allocated_volume / master_volume when known. */
 export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const V = Number(r.mt5_volume || r.total_trade_volume || 0);
   const allocated = Number(r.allocated_volume || 0);
@@ -199,7 +199,9 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
       : Number(r.user_bal || 0);
   const sumInv = Number(r.sum_user_investment || 0);
   const derivedShare = sumInv > 0 ? userInv / sumInv : 0;
-  const effectiveShare = storedShare > 0 ? storedShare : derivedShare;
+  const volumeShare = V > 0 && allocated > 0 ? allocated / V : 0;
+  const effectiveShare =
+    volumeShare > 0 ? volumeShare : storedShare > 0 ? storedShare : derivedShare;
   let v_i = allocated > 0 ? allocated : 0;
   if (v_i <= 0 && V > 0 && storedShare > 0) {
     v_i = V * storedShare;
