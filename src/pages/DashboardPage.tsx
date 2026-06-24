@@ -107,6 +107,8 @@ const DashboardPage = () => {
   const [loadingFinance, setLoadingFinance] = useState(true);
   const [assignFunded, setAssignFunded] = useState(true);
   const [tradingActive, setTradingActive] = useState(true);
+  const [subscriptionActive, setSubscriptionActive] = useState(true);
+  const [tradingStopReason, setTradingStopReason] = useState<string | null>(null);
   const [tradingActionLoading, setTradingActionLoading] = useState(false);
   const [tradingActionError, setTradingActionError] = useState('');
   const [isBusted, setIsBusted] = useState(false);
@@ -173,11 +175,14 @@ const DashboardPage = () => {
       const active =
         summaryData?.trading_active !== false && assignData?.trading_active !== false;
       setTradingActive(active);
+      setSubscriptionActive(summaryData?.subscription_active !== false);
+      setTradingStopReason(summaryData?.trading_stop_reason ?? null);
       const funded =
         summaryData?.funded !== false &&
         assignData?.funded !== false &&
         walletOk &&
-        active;
+        active &&
+        summaryData?.subscription_active !== false;
       setAssignFunded(funded);
 
       const tradesData = await fetchAllUserTrades(uid);
@@ -233,6 +238,8 @@ const DashboardPage = () => {
       if (effectiveSummary?.success) {
         const busted = effectiveSummary.busted === true;
         const isSoft = effectiveSummary.soft_bust === true;
+        setSubscriptionActive(effectiveSummary.subscription_active !== false);
+        setTradingStopReason(effectiveSummary.trading_stop_reason ?? null);
         setIsBusted(busted);
         setSoftBust(isSoft);
         if (busted && !isSoft && Number(effectiveSummary.wallet_balance ?? 0) <= 0.01) {
@@ -524,11 +531,30 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {currentUser?.role !== 'admin' && !isBusted && !tradingActive && walletBalance > 0 && (
+        {currentUser?.role !== 'admin' && !isBusted && !subscriptionActive && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-medium">Copy trading stopped — package expired</p>
+            <p className="mt-1 text-amber-900">
+              Your trading package has ended. You will not receive new trades until you{' '}
+              <button
+                type="button"
+                className="font-semibold text-amber-950 underline decoration-amber-800"
+                onClick={() => navigate('/packages')}
+              >
+                buy a new package
+              </button>
+              . Open positions stay active until they close on the master account.
+            </p>
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && !isBusted && subscriptionActive && !tradingActive && walletBalance > 0 && (
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
             <p className="font-medium">Trading is paused</p>
             <p className="mt-1 text-slate-600">
-              Your equity is in your wallet. Restart trading when you want to join new live trades again.
+              {tradingStopReason === 'user_paused'
+                ? 'You paused copy trading. Restart when you want to join new live trades again.'
+                : 'Your equity is in your wallet. Restart trading when you want to join new live trades again.'}
             </p>
           </div>
         )}
@@ -649,6 +675,11 @@ const DashboardPage = () => {
               <p className="mt-2 text-xs text-slate-500">
                 {isBusted || walletBalance <= 0.01 ? (
                   <>Balance + open P/L = $0 — recharge to trade again</>
+                ) : !subscriptionActive ? (
+                  <>
+                    {formatMoneyAmount(walletBalance, currency)} in account — package expired, no new
+                    trades
+                  </>
                 ) : !tradingActive && openPositionCount === 0 ? (
                   <>
                     {formatMoneyAmount(walletBalance, currency)} in account — trading paused
@@ -694,7 +725,7 @@ const DashboardPage = () => {
                 ) : (
                   <button
                     type="button"
-                    disabled={tradingActionLoading || walletBalance <= 0}
+                    disabled={tradingActionLoading || walletBalance <= 0 || !subscriptionActive}
                     onClick={handleRestartTrading}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-yellow-300 bg-[#FFD700] px-3 py-2 text-xs font-bold text-black hover:bg-[#E6C200] disabled:opacity-60"
                   >
