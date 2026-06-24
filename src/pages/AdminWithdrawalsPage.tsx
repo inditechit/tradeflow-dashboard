@@ -3,11 +3,13 @@ import {
   ArrowDownToLine,
   Check,
   Loader2,
+  Plus,
   RefreshCw,
   Search,
   XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +38,7 @@ type WithdrawalRow = {
   user_name: string | null;
   user_email: string | null;
   user_telegram: string | null;
+  admin_initiated?: number | boolean;
 };
 
 function statusClass(s: string) {
@@ -68,6 +71,13 @@ const AdminWithdrawalsPage = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 100;
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createUserId, setCreateUserId] = useState<number | null>(null);
+  const [createAmount, setCreateAmount] = useState("");
+  const [createSendOnChain, setCreateSendOnChain] = useState(true);
+  const [createTxHash, setCreateTxHash] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
 
   const load = useCallback(async (pageNum = 1) => {
     setLoading(true);
@@ -178,6 +188,63 @@ const confirmApprove = async () => {
     }
   };
 
+  const confirmCreate = async () => {
+    if (createUserId == null) {
+      toast({ title: "Select a user", variant: "destructive" });
+      return;
+    }
+    const amt = Number(createAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast({ title: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+    if (!createSendOnChain && !createTxHash.trim()) {
+      toast({
+        title: "Transaction hash required",
+        description: "Paste the outbound TRC20 tx hash or enable automatic send.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreateBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/withdrawals/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: createUserId,
+          amount: amt,
+          sendOnChain: createSendOnChain,
+          outbound_tx_hash: createTxHash.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Withdrawal completed",
+          description: data.txHash
+            ? `Sent $${amt.toFixed(2)} · TX ${String(data.txHash).slice(0, 12)}…`
+            : `Processed $${amt.toFixed(2)}`,
+        });
+        setCreateOpen(false);
+        setCreateUserId(null);
+        setCreateAmount("");
+        setCreateTxHash("");
+        load();
+      } else {
+        toast({
+          title: "Withdrawal failed",
+          description: data.error ?? "Try again",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   const openTxFix = (id: number) => {
     setTxFixId(id);
     setTxFixHash("");
@@ -225,16 +292,32 @@ const confirmApprove = async () => {
   Approve to automatically send USDT (TRC20) to the user's wallet and deduct their in-app balance after successful blockchain verification.
 </p>
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => void load(page)}
-          disabled={loading}
-          className="gap-2 shrink-0 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
-        >
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            type="button"
+            className="gap-2 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200]"
+            onClick={() => {
+              setCreateUserId(null);
+              setCreateAmount("");
+              setCreateTxHash("");
+              setCreateSendOnChain(true);
+              setCreateOpen(true);
+            }}
+          >
+            <Plus size={18} />
+            Pay user
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void load(page)}
+            disabled={loading}
+            className="gap-2 shrink-0 rounded-xl bg-slate-100 text-slate-900 hover:bg-slate-200 disabled:opacity-70"
+          >
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -284,6 +367,11 @@ const confirmApprove = async () => {
                     </td>
                     <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
                       ${Number(r.amount_usd).toFixed(2)}
+                      {r.admin_initiated ? (
+                        <span className="ml-2 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                          Admin
+                        </span>
+                      ) : null}
                     </td>
                     <td className="max-w-[220px] px-4 py-3 sm:px-6">
                       <span className="break-all font-mono text-xs text-slate-800">{r.trc20_address}</span>
@@ -364,6 +452,80 @@ const confirmApprove = async () => {
         onPageChange={(p) => void load(p)}
         itemLabel="withdrawals"
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="border-slate-200 bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-black">Pay user (admin withdrawal)</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Select a user, enter the USD amount, and send USDT to their saved TRC20 address. Their
+              in-app wallet is debited after the transfer is verified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <Label className="text-slate-800">User</Label>
+              <UserSearchSelect
+                value={createUserId}
+                onChange={(id) => setCreateUserId(id)}
+                showClearOption={false}
+                placeholder="Search user…"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-wd-amt" className="text-slate-800">
+                Amount (USD)
+              </Label>
+              <Input
+                id="admin-wd-amt"
+                type="number"
+                min={1}
+                step="0.01"
+                value={createAmount}
+                onChange={(e) => setCreateAmount(e.target.value)}
+                className="mt-1 border-slate-200"
+              />
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={createSendOnChain}
+                onChange={(e) => setCreateSendOnChain(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Send USDT automatically from admin wallet
+            </label>
+            {!createSendOnChain && (
+              <div>
+                <Label htmlFor="admin-wd-tx" className="text-slate-800">
+                  Outbound TRC20 tx hash
+                </Label>
+                <Input
+                  id="admin-wd-tx"
+                  value={createTxHash}
+                  onChange={(e) => setCreateTxHash(e.target.value)}
+                  placeholder="Paste after manual send"
+                  className="mt-1 font-mono text-sm"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#FFD700] text-black hover:bg-[#E6C200]"
+              disabled={createBusy}
+              onClick={() => void confirmCreate()}
+            >
+              {createBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Send &amp; debit wallet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
         <DialogContent className="border-slate-200 bg-white sm:max-w-md">
