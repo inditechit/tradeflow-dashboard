@@ -446,7 +446,7 @@ const WithdrawPage = () => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="max-w-xs border-slate-200 bg-white text-slate-900"
-              disabled={loading || submitting || withdrawBlocked}
+              disabled={loading || otpSending || otpConfirming || withdrawBlocked}
             />
           </div>
 
