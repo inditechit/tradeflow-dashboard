@@ -43,6 +43,7 @@ const ALL_MENU = [
   { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
   { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
   { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
+  { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
   { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
   { name: "Admin alerts", icon: BellRing, path: "/admin/alerts" },
   { name: "Notifications", icon: Bell, path: "/admin/notifications" },

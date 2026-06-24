@@ -46,6 +46,7 @@ import AdminProfilePage from "./pages/AdminProfilePage";
 import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 import AdminUserTradesPage from "./pages/AdminUserTradesPage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
+import AdminBulkWithdrawPage from "./pages/AdminBulkWithdrawPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
@@ -155,6 +156,7 @@ const App = () => (
               <Route path="user-pnl-report" element={<AdminUserPnlReportPage />} />
               <Route path="employees" element={<AdminEmployeesPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+              <Route path="bulk-withdraw" element={<AdminBulkWithdrawPage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />

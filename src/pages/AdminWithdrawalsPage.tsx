@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE } from "@/config/api";
+import { Link } from "react-router-dom";
 
 type WithdrawalRow = {
   id: number;
@@ -289,7 +290,11 @@ const confirmApprove = async () => {
             Withdrawal requests
           </h1>
          <p className="mt-1 text-sm text-slate-600">
-  Approve to automatically send USDT (TRC20) to the user's wallet and deduct their in-app balance after successful blockchain verification.
+  Approve to automatically send USDT (TRC20) to the user's wallet and deduct their in-app balance after successful blockchain verification.{" "}
+  <Link to="/admin/bulk-withdraw" className="font-semibold text-neutral-800 underline">
+    Bulk withdraw
+  </Link>{" "}
+  for multi-user payouts.
 </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
