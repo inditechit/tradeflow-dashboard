@@ -18,6 +18,7 @@ import { API_BASE, SOCKET_URL } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { TradeSummaryFooter } from "@/components/trades/TradeSummaryFooter";
 import { plBadgeClass, plTextClass } from "@/utils/plColors";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
@@ -33,6 +34,8 @@ type Summary = {
   realised_loss: number;
   realised_net: number;
   fees_paid: number;
+  total_deposited_usd?: number;
+  total_withdrawn_usd?: number;
   open_positions: number;
   live_pl: number;
   fee_per_lot_usd: number;
@@ -446,48 +449,18 @@ const ProfitLoss = () => {
               )}
             </tbody>
             {sortedRows.length > 0 && (
-              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
-                <tr>
-                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-                    Total fees
-                  </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-slate-800">
-                    {fmtUsd(tableTotals.fees, currency)}
-                  </td>
-                  <td />
-                </tr>
-                <tr>
-                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-                    Complete profit (your share)
-                  </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
-                    {fmtUsd(tableTotals.profit, currency)}
-                  </td>
-                  <td />
-                </tr>
-                <tr>
-                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-                    Complete loss (your share)
-                  </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
-                    {fmtUsd(tableTotals.loss, currency)}
-                  </td>
-                  <td />
-                </tr>
-                <tr className="border-t border-slate-200">
-                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
-                    Net P/L (your share)
-                  </td>
-                  <td
-                    className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.net >= 0 ? plTextClass(tableTotals.net) : plTextClass(-1)
-                    }`}
-                  >
-                    {fmtUsd(tableTotals.net, currency)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
+              <TradeSummaryFooter
+                colSpan={8}
+                trailingColSpan={1}
+                tableTotals={tableTotals}
+                capital={{
+                  totalDeposited: Number(summary?.total_deposited_usd ?? 0),
+                  totalWithdrawn: Number(summary?.total_withdrawn_usd ?? 0),
+                  walletBalance: Number(summary?.wallet_balance ?? 0),
+                }}
+                fmtUsd={(n) => fmtUsd(n, currency)}
+                plTextClass={plTextClass}
+              />
             )}
           </table>
         </div>

@@ -497,7 +497,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 : "—"}
             </DetailBlock>
 
-            <DetailBlock title="Dollar cut">
+            <DetailBlock title="Fee per lot">
               {user.dollar_amount ? `$${user.dollar_amount}` : "—"}
             </DetailBlock>
 

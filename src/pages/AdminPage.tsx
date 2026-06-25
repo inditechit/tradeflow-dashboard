@@ -719,17 +719,17 @@ const AdminPage = () => {
                 )}
                 {can("col:users:wallet") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Wallet
+                  Wallet (settled)
                 </th>
                 )}
                 {can("col:users:equity") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Equity
+                  Equity (wallet + open P/L)
                 </th>
                 )}
                 {can("col:users:live_pl") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Live P/L
+                  Open P/L (unrealized)
                 </th>
                 )}
                 {can("col:users:withdrawable") && (
@@ -759,7 +759,7 @@ const AdminPage = () => {
                 )}
                 {can("col:users:dollar_cut") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Dollar cut
+                  Fee / lot
                 </th>
                 )}
                 {can("col:users:risk") && (

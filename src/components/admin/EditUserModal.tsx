@@ -157,7 +157,7 @@ const EditUserModal: React.FC<Props> = ({
           </div>
 
           <div className="col-span-1">
-            <label className="label">Fixed Dollar Cut ($)</label>
+            <label className="label">Fee per lot ($)</label>
             <input
               type="number"
               step="any"
