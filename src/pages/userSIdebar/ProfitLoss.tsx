@@ -9,6 +9,7 @@ import {
   recomputeOpenUserLivePl,
   sumUserFacingPlTotals,
   resolveMt5BuySellPrices,
+  resolveEffectiveSlice,
   fmtMt5Price,
   isOpenTrade,
   parseMt5Price,
@@ -292,9 +293,9 @@ const ProfitLoss = () => {
     <div className="mx-auto max-w-7xl p-4">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Profit &amp; Loss</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Transactions</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your share of every assigned trade — after fee and admin profit cut.
+            Your share of every assigned trade — volume, fee, and P/L after profit rules.
           </p>
         </div>
 
@@ -385,8 +386,14 @@ const ProfitLoss = () => {
                     entryPriceByTicketRef.current
                   );
 
-                  const vol = Number(r.allocated_volume ?? 0);
-                  const fee = Number(r.proportional_fee ?? 0);
+                  const slice = resolveEffectiveSlice({
+                    ...r,
+                    user_fee_per_lot_usd:
+                      (r as UserTradeRow & { user_fee_per_lot_usd?: number }).user_fee_per_lot_usd ??
+                      summary?.fee_per_lot_usd,
+                  });
+                  const vol = slice.v_i;
+                  const fee = slice.fee;
 
                   return (
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">

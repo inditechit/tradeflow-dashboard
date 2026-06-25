@@ -9,6 +9,7 @@ import {
   buildSequentialUserFacingPlMap,
   sumUserFacingPlTotals,
   sortTradesChronological,
+  resolveEffectiveSlice,
   isOpenTrade,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
@@ -49,6 +50,7 @@ const TradeHistory = () => {
   const [depositBaseline, setDepositBaseline] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
+  const [feePerLotUsd, setFeePerLotUsd] = useState(30);
 
   const fetchAssignedTickets = async () => {
     if (!currentUser?.userId) return;
@@ -77,6 +79,7 @@ const TradeHistory = () => {
         );
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
+        setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
       }
       setRows(data.trades as UserTradeRow[]);
     } catch (err) {
@@ -192,8 +195,14 @@ const TradeHistory = () => {
                   const open = isOpenTrade(r);
                   const st = normTradeStatus({ status: r.mt5_status });
                   const settled = Boolean(r.wallet_settled_at);
-                  const vol = Number(r.allocated_volume ?? 0);
-                  const fee = Number(r.proportional_fee ?? 0);
+                  const slice = resolveEffectiveSlice({
+                    ...r,
+                    user_fee_per_lot_usd:
+                      (r as UserTradeRow & { user_fee_per_lot_usd?: number }).user_fee_per_lot_usd ??
+                      feePerLotUsd,
+                  });
+                  const vol = slice.v_i;
+                  const fee = slice.fee;
 
                   return (
                     <tr

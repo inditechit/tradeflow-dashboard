@@ -117,8 +117,9 @@ const App = () => (
 
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="my-trades" element={<Mytrades />} />
+              <Route path="transactions" element={<ProfitLoss />} />
               <Route path="pnl" element={<ProfitLoss />} />
-              <Route path="transactions" element={<Transactionspage />} />
+              <Route path="wallet-payments" element={<Transactionspage />} />
               <Route path="trade-history" element={<TradeHistory />} />
               <Route path="recharge" element={<RechargePage />} />
               <Route path="withdraw" element={<WithdrawPage />} />

@@ -105,8 +105,8 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/user/dashboard" },
     // { name: "My Trades", icon: TrendingUp, path: "/user/my-trades" },
-    { name: "History", icon: BarChart3, path: "/user/pnl" },
-    { name: "Transactions", icon: ArrowLeftRight, path: "/user/transactions" },
+    { name: "Transactions", icon: BarChart3, path: "/user/transactions" },
+    { name: "Wallet payments", icon: ArrowLeftRight, path: "/user/wallet-payments" },
     // { name: "Order History", icon: ClipboardList, path: "/user/trade-history" },
     { name: "Recharge Wallet", icon: Wallet, path: "/user/recharge" },
     { name: "Withdraw USDT", icon: ArrowDownToLine, path: "/user/withdraw" },

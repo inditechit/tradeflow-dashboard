@@ -20,6 +20,8 @@ export type UserTradeRowLike = {
   amt_invested?: unknown;
   sum_user_investment?: unknown;
   proportional_fee?: unknown;
+  user_fee_per_lot_usd?: unknown;
+  pool_share_pct?: unknown;
   admin_profit_percentage?: unknown;
   snapshot_pct?: unknown;
   user_pct?: unknown;
@@ -192,7 +194,7 @@ export function resolveMt5BuySellPrices(
 export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const V = Number(r.mt5_volume || r.total_trade_volume || 0);
   const allocated = Number(r.allocated_volume || 0);
-  const storedShare = Number(r.user_volume_share || 0);
+  const storedShare = Number(r.user_volume_share || r.pool_share_pct || 0);
   const userInv =
     Number(r.user_investment_amount || 0) > 0
       ? Number(r.user_investment_amount)
@@ -212,7 +214,7 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
   const fee =
     r.proportional_fee != null && Number(r.proportional_fee) > 0
       ? Number(r.proportional_fee)
-      : v_i * FEE_PER_LOT_USD;
+      : v_i * Number(r.user_fee_per_lot_usd ?? FEE_PER_LOT_USD);
   const snapshotPct = Number(r.snapshot_pct ?? 0);
   const storedPct = Number(r.admin_profit_percentage ?? 0);
   const userPct = Number(r.user_pct ?? 0);
@@ -593,7 +595,7 @@ export function sumUserFacingPlTotals(
     const ticket = String(r.ticket_id ?? "");
     const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
     const pl = rowUserFacingPl(r, live, undefined, facingMap);
-    const fee = Number(r.proportional_fee ?? 0);
+    const fee = resolveEffectiveSlice(r).fee;
     if (fee > 0) fees += fee;
     if (pl >= 0) profit += pl;
     else loss += pl;

@@ -12,6 +12,7 @@ import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 const PAGE_SIZE = 50;
 import {
   fmtMt5Price,
+  resolveEffectiveSlice,
   isOpenTrade,
   isTradeClosed,
   rowUserFacingPl,
@@ -60,6 +61,7 @@ const AdminUserTradesPage = () => {
   const [depositBaseline, setDepositBaseline] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
+  const [feePerLotUsd, setFeePerLotUsd] = useState(30);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -81,6 +83,7 @@ const AdminUserTradesPage = () => {
         );
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
+        setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
       }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
@@ -231,8 +234,14 @@ const AdminUserTradesPage = () => {
                 pageItems.map((r) => {
                   const open = isOpenTrade(r);
                   const userPl = rowUserFacingPl(r, undefined, undefined, facingMap);
-                  const vol = Number(r.allocated_volume ?? 0);
-                  const fee = Number(r.proportional_fee ?? 0);
+                  const slice = resolveEffectiveSlice({
+                    ...r,
+                    user_fee_per_lot_usd:
+                      (r as UserTradeRow & { user_fee_per_lot_usd?: number }).user_fee_per_lot_usd ??
+                      feePerLotUsd,
+                  });
+                  const vol = slice.v_i;
+                  const fee = slice.fee;
                   const buyPrice = Number(r.price);
                   const rowKey = String(r.assignment_id ?? r.ticket_id);
 
