@@ -581,6 +581,31 @@ export function isOpenTrade(r: UserTradeRowLike): boolean {
   return !isTradeClosed(r);
 }
 
+export function sumUserFacingPlTotals(
+  rows: UserTradeRowLike[],
+  facingMap?: Map<number, number>,
+  liveProfitByTicket?: Record<string, number>,
+): { profit: number; loss: number; net: number; fees: number } {
+  let profit = 0;
+  let loss = 0;
+  let fees = 0;
+  for (const r of rows) {
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    const pl = rowUserFacingPl(r, live, undefined, facingMap);
+    const fee = Number(r.proportional_fee ?? 0);
+    if (fee > 0) fees += fee;
+    if (pl >= 0) profit += pl;
+    else loss += pl;
+  }
+  return {
+    profit: round2(profit),
+    loss: round2(loss),
+    net: round2(profit + loss),
+    fees: round2(fees),
+  };
+}
+
 export function sumLiveProfitLoss(
   rows: UserTradeRowLike[],
   liveProfitByTicket?: Record<string, number>,

@@ -819,32 +819,6 @@ function SingleUserReport({ report }: { report: UserReport }) {
         title={`Wallet activity (${report.trades.length}/${report.trade_total} trades)`}
         subtitle="Recharges + trades by event time (newest first)"
       />
-
-      {(report.trade_absences?.length ?? 0) > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
-          <div className="border-b px-4 py-3 font-semibold text-slate-800">
-            Absent from trades ({report.trade_absences!.length})
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-100 text-left text-slate-600">
-                <th className="p-3">Ticket</th>
-                <th className="p-3">Trade opened</th>
-                <th className="p-3">Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...report.trade_absences!].reverse().map((a) => (
-                <tr key={`${a.ticket_id}-${a.mt5_open_time}`} className="border-t">
-                  <td className="p-3 font-mono text-xs">{a.ticket_id}</td>
-                  <td className="p-3 text-xs text-slate-600">{fmtDateTime(a.mt5_open_time)}</td>
-                  <td className="p-3 text-xs">{ABSENCE_LABELS[a.reason] ?? a.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

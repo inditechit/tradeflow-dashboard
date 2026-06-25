@@ -56,6 +56,7 @@ const ALL_MENU = [
   { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
   { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
   { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
+  { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
   { name: "Employees", icon: UserCog, path: "/admin/employees", adminOnly: true },
 ] as Array<{
   name: string;

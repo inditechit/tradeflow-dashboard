@@ -3,9 +3,13 @@ import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { normTradeStatus } from "@/utils/mt5TradeDates";
+import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 import {
   rowUserFacingPl,
   buildSequentialUserFacingPlMap,
+  sumUserFacingPlTotals,
+  sortTradesChronological,
+  isOpenTrade,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
@@ -20,7 +24,19 @@ const PAGE_SIZE = 50;
 type UserTradeRow = UserTradeRowLike & {
   ticket_id: string;
   assignment_id?: number;
+  open_time?: string | null;
+  close_time?: string | null;
+  assignment_created_at?: string | null;
 };
+
+function fmtUsd(n: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
 
 const TradeHistory = () => {
   const navigate = useNavigate();
@@ -77,9 +93,15 @@ const TradeHistory = () => {
     fetchUserTrades();
   }, [currentUser?.userId]);
 
-  const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id)));
-  }, [rows]);
+  const sortedRows = useMemo(
+    () =>
+      sortTradesChronological(rows).sort((a, b) => {
+        const ta = new Date(String(a.open_time ?? a.assignment_created_at ?? "").replace(" ", "T")).getTime();
+        const tb = new Date(String(b.open_time ?? b.assignment_created_at ?? "").replace(" ", "T")).getTime();
+        return tb - ta;
+      }),
+    [rows],
+  );
 
   const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
 
@@ -88,8 +110,12 @@ const TradeHistory = () => {
     [sortedRows, walletBalance, depositBaseline],
   );
 
-  const sharePl = (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap);
-  const walletPl = (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap);
+  const tableTotals = useMemo(
+    () => sumUserFacingPlTotals(sortedRows, facingMap),
+    [sortedRows, facingMap],
+  );
+
+  const userPl = (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap);
 
   return (
     <div className="mx-auto max-w-7xl p-4">
@@ -107,12 +133,12 @@ const TradeHistory = () => {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            All assigned trades — open and closed. Wallet P/L is what hit your balance when the trade
-            closed. Live rows are estimates only until cut.
+          <p className="mt-1 max-w-2xl text-xs text-slate-500">
+            Only trades assigned to you. P/L is your wallet share (after fee and profit rules).
+            Fees are shown separately. Open rows are estimates until the trade closes.
           </p>
           {total > 0 && (
-            <p className="mt-1 text-xs font-medium text-slate-400">{total} trades loaded</p>
+            <p className="mt-1 text-xs font-medium text-slate-400">{total} assigned trades</p>
           )}
         </div>
 
@@ -133,11 +159,11 @@ const TradeHistory = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Opened</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Closed</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your volume</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Invested</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Share P/L</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">On withdraw</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
@@ -152,18 +178,16 @@ const TradeHistory = () => {
               ) : sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                    No trades yet
+                    No assigned trades yet
                   </td>
                 </tr>
               ) : (
                 pageItems.map((r, index) => {
-                  const pl = sharePl(r);
-                  const wPl = walletPl(r);
-                  const isProfit = pl >= 0;
+                  const pl = userPl(r);
+                  const open = isOpenTrade(r);
                   const st = normTradeStatus({ status: r.mt5_status });
                   const settled = Boolean(r.wallet_settled_at);
                   const vol = Number(r.allocated_volume ?? 0);
-                  const invested = Number(r.user_investment_amount ?? 0);
                   const fee = Number(r.proportional_fee ?? 0);
 
                   return (
@@ -173,31 +197,25 @@ const TradeHistory = () => {
                     >
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
+                        {formatIsoDateTime(r.open_time ?? r.assignment_created_at ?? null)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
+                        {open ? "—" : formatIsoDateTime(r.close_time ?? null)}
+                      </td>
+                      <td className="px-6 py-4 text-sm tabular-nums text-slate-600">
                         {vol > 0 ? vol.toFixed(4) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {invested > 0 ? `$${invested.toFixed(2)}` : "—"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
+                      <td className="px-6 py-4 text-sm tabular-nums text-slate-600">
+                        {fee > 0 ? fmtUsd(fee) : "—"}
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          isProfit ? plTextClass(pl) : plTextClass(-1)
+                          pl >= 0 ? plTextClass(pl) : plTextClass(-1)
                         }`}
                       >
-                        {settled ? "" : "~"}
-                        {pl.toFixed(2)}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm font-semibold tabular-nums ${
-                          wPl >= 0 ? plTextClass(wPl) : plTextClass(-1)
-                        }`}
-                        title="Your share credited on withdraw (profit % after fee; losses full)"
-                      >
-                        {settled ? "" : "~"}
-                        {wPl.toFixed(2)}
+                        {open ? "~" : ""}
+                        {fmtUsd(pl)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
@@ -215,6 +233,50 @@ const TradeHistory = () => {
                 })
               )}
             </tbody>
+            {sortedRows.length > 0 && (
+              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                <tr>
+                  <td colSpan={5} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Total fees
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-slate-800">
+                    {fmtUsd(tableTotals.fees)}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+                <tr>
+                  <td colSpan={5} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Complete profit (your share)
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
+                    {fmtUsd(tableTotals.profit)}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+                <tr>
+                  <td colSpan={5} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Complete loss (your share)
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
+                    {fmtUsd(tableTotals.loss)}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+                <tr className="border-t border-slate-200">
+                  <td colSpan={5} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
+                    Net P/L (your share)
+                  </td>
+                  <td
+                    className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
+                      tableTotals.net >= 0 ? plTextClass(tableTotals.net) : plTextClass(-1)
+                    }`}
+                  >
+                    {fmtUsd(tableTotals.net)}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
         <ListPaginationBar

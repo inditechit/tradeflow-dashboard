@@ -4,10 +4,10 @@ import { io } from "socket.io-client";
 import { useApp } from "@/context/AppContext";
 import {
   sumLiveProfitLoss,
-  rowGrossPl,
-  rowFinalWalletPl,
+  rowUserFacingPl,
   buildSequentialUserFacingPlMap,
   recomputeOpenUserLivePl,
+  sumUserFacingPlTotals,
   resolveMt5BuySellPrices,
   fmtMt5Price,
   isOpenTrade,
@@ -198,40 +198,18 @@ const ProfitLoss = () => {
   );
 
   const tableTotals = useMemo(() => {
-    let grossProfit = 0;
-    let grossLoss = 0;
-    let finalProfit = 0;
-    let finalLoss = 0;
-    for (const r of sortedRows) {
-      const ticket = String(r.ticket_id ?? "");
-      const live = liveRawByTicket[ticket];
-      const gross = rowGrossPl(r, live);
-      const final = rowFinalWalletPl(r, live, undefined, facingMap);
-      if (gross >= 0) grossProfit += gross;
-      else grossLoss += gross;
-      if (final >= 0) finalProfit += final;
-      else finalLoss += final;
-    }
-    const hasRows = sortedRows.length > 0;
-    if (!hasRows && apiTotals) {
+    const fromRows = sumUserFacingPlTotals(sortedRows, facingMap, liveRawByTicket);
+    if (sortedRows.length > 0) return fromRows;
+    if (apiTotals) {
       return {
-        grossProfit: apiTotals.total_profit,
-        grossLoss: apiTotals.total_loss,
-        grossNet: apiTotals.net_pl,
-        finalProfit: apiTotals.total_profit,
-        finalLoss: apiTotals.total_loss,
-        finalNet: apiTotals.net_pl,
+        profit: apiTotals.total_profit,
+        loss: apiTotals.total_loss,
+        net: apiTotals.net_pl,
+        fees: Number(summary?.fees_paid ?? 0),
       };
     }
-    return {
-      grossProfit,
-      grossLoss,
-      grossNet: grossProfit + grossLoss,
-      finalProfit,
-      finalLoss,
-      finalNet: finalProfit + finalLoss,
-    };
-  }, [sortedRows, liveRawByTicket, apiTotals, facingMap]);
+    return { profit: 0, loss: 0, net: 0, fees: 0 };
+  }, [sortedRows, liveRawByTicket, apiTotals, facingMap, summary?.fees_paid]);
 
   const cycleNote = useMemo(() => {
     if (total > 0) {
@@ -356,8 +334,8 @@ const ProfitLoss = () => {
         <div className="px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
           <p className="text-xs text-slate-500 mt-1">
-            P/L = your share of master trade profit/loss (before fee). Final = amount cut or
-            credited to wallet (includes fee on every close).
+            Your wallet share per trade — fee shown separately. P/L is what hits your balance
+            (after fee and profit rules), not the full master trade.
             {cycleNote ? ` ${cycleNote}` : ""}
           </p>
         </div>
@@ -374,22 +352,21 @@ const ProfitLoss = () => {
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy price</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell price</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">P/L</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Final</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your P/L</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
                     No trades yet
                   </td>
                 </tr>
@@ -397,10 +374,8 @@ const ProfitLoss = () => {
                 pageItems.map((r) => {
                   const ticket = String(r.ticket_id ?? "");
                   const open = isOpenTrade(r);
-                  const grossPl = rowGrossPl(r, liveRawByTicket[ticket]);
-                  const finalPl = rowFinalWalletPl(r, liveRawByTicket[ticket], undefined, facingMap);
-                  const grossProfit = grossPl >= 0;
-                  const finalProfit = finalPl >= 0;
+                  const userPl = rowUserFacingPl(r, liveRawByTicket[ticket], undefined, facingMap);
+                  const isProfit = userPl >= 0;
                   
                   const { buyPrice, sellPrice, buyIsLive, sellIsLive } = resolveMt5BuySellPrices(
                     r,
@@ -448,19 +423,11 @@ const ProfitLoss = () => {
                       </td>
                       <td
                         className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          grossProfit ? plTextClass(1) : plTextClass(-1)
+                          isProfit ? plTextClass(1) : plTextClass(-1)
                         }`}
                       >
                         {open ? "~" : ""}
-                        {fmtUsd(grossPl, currency)}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          finalProfit ? plTextClass(1) : plTextClass(-1)
-                        }`}
-                      >
-                        {open ? "~" : ""}
-                        {fmtUsd(finalPl, currency)}
+                        {fmtUsd(userPl, currency)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
@@ -482,45 +449,41 @@ const ProfitLoss = () => {
               <tfoot className="border-t-2 border-slate-200 bg-slate-50">
                 <tr>
                   <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-                    Complete profit (P/L)
+                    Total fees
                   </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
-                    {fmtUsd(tableTotals.grossProfit, currency)}
-                  </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
-                    {fmtUsd(tableTotals.finalProfit, currency)}
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-slate-800">
+                    {fmtUsd(tableTotals.fees, currency)}
                   </td>
                   <td />
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-                    Complete loss (P/L)
+                    Complete profit (your share)
+                  </td>
+                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
+                    {fmtUsd(tableTotals.profit, currency)}
+                  </td>
+                  <td />
+                </tr>
+                <tr>
+                  <td colSpan={8} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
+                    Complete loss (your share)
                   </td>
                   <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
-                    {fmtUsd(tableTotals.grossLoss, currency)}
-                  </td>
-                  <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
-                    {fmtUsd(tableTotals.finalLoss, currency)}
+                    {fmtUsd(tableTotals.loss, currency)}
                   </td>
                   <td />
                 </tr>
                 <tr className="border-t border-slate-200">
                   <td colSpan={8} className="px-6 py-3 text-right text-sm font-bold text-slate-800">
-                    Net (P/L / Final)
+                    Net P/L (your share)
                   </td>
                   <td
                     className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.grossNet >= 0 ? plTextClass(tableTotals.grossNet) : plTextClass(-1)
+                      tableTotals.net >= 0 ? plTextClass(tableTotals.net) : plTextClass(-1)
                     }`}
                   >
-                    {fmtUsd(tableTotals.grossNet, currency)}
-                  </td>
-                  <td
-                    className={`px-6 py-3 text-sm font-extrabold tabular-nums ${
-                      tableTotals.finalNet >= 0 ? plTextClass(tableTotals.finalNet) : plTextClass(-1)
-                    }`}
-                  >
-                    {fmtUsd(tableTotals.finalNet, currency)}
+                    {fmtUsd(tableTotals.net, currency)}
                   </td>
                   <td />
                 </tr>

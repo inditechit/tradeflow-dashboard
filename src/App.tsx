@@ -59,6 +59,7 @@ import AdminCouponsPage from "./pages/AdminCouponsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import AdminUserPnlReportPage from "./pages/AdminUserPnlReportPage";
 import AdminEmployeesPage from "./pages/AdminEmployeesPage";
+import AdminWalletRebuildDocPage from "./pages/AdminWalletRebuildDocPage";
 import EmployeeChooseExperiencePage from "./pages/EmployeeChooseExperiencePage";
 import { EmployeeChooseRoute } from "./components/auth/EmployeeChooseRoute";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
@@ -154,6 +155,7 @@ const App = () => (
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
               <Route path="financial-stats" element={<AdminFinancialStatsPage />} />
               <Route path="user-pnl-report" element={<AdminUserPnlReportPage />} />
+              <Route path="wallet-rebuild-doc" element={<AdminWalletRebuildDocPage />} />
               <Route path="employees" element={<AdminEmployeesPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="bulk-withdraw" element={<AdminBulkWithdrawPage />} />

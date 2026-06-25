@@ -33,6 +33,7 @@ export const ADMIN_TAB_PATH_KEYS: Record<string, string> = {
   "/admin/wallet-ledger": "tab:wallet_ledger",
   "/admin/financial-stats": "tab:financial_stats",
   "/admin/user-pnl-report": "tab:user_pnl_report",
+  "/admin/wallet-rebuild-doc": "tab:financial_stats",
   "/admin/employees": "tab:employees",
 };
 
@@ -66,6 +67,7 @@ export const ADMIN_MENU_PATHS = [
   "/admin/wallet-ledger",
   "/admin/financial-stats",
   "/admin/user-pnl-report",
+  "/admin/wallet-rebuild-doc",
 ];
 
 export function firstAllowedEmployeePath(

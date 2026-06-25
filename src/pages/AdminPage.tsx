@@ -479,6 +479,14 @@ const AdminPage = () => {
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/admin/wallet-rebuild-doc")}
+            className="rounded-xl border-slate-300 text-slate-800 hover:bg-slate-50"
+          >
+            Wallet rebuild doc
+          </Button>
           <EmployeeGate perm="action:users:add">
             <Button
               type="button"
