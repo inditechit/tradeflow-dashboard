@@ -32,8 +32,10 @@ type UserTradeRow = UserTradeRowLike & {
 type StatusFilter = "all" | "open" | "closed" | "absent";
 
 const ABSENCE_LABELS: Record<string, string> = {
-  not_funded_at_open: "Not funded when trade opened",
-  wallet_exhausted_at_open: "Wallet too low at trade open",
+  zero_wallet_at_open: "Wallet was $0 when trade opened",
+  subscription_inactive_at_open: "Package inactive when trade opened",
+  not_funded_at_open: "Wallet was $0 when trade opened",
+  wallet_exhausted_at_open: "Wallet was $0 when trade opened",
 };
 
 function absenceToRow(a: TradeAbsenceRow): UserTradeRow {
