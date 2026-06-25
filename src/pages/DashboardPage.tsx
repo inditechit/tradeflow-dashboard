@@ -543,18 +543,7 @@ const DashboardPage = () => {
               >
                 buy a new package
               </button>
-              . Open positions stay active until they close on the master account.
-            </p>
-          </div>
-        )}
-
-        {currentUser?.role !== 'admin' && !isBusted && subscriptionActive && !tradingActive && walletBalance > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
-            <p className="font-medium">Trading is paused</p>
-            <p className="mt-1 text-slate-600">
-              {tradingStopReason === 'user_paused'
-                ? 'You paused copy trading. Restart when you want to join new live trades again.'
-                : 'Your equity is in your wallet. Restart trading when you want to join new live trades again.'}
+              . Open positions still settle to your wallet when they close on the master account.
             </p>
           </div>
         )}
@@ -707,37 +696,6 @@ const DashboardPage = () => {
                   trade closes; then profit or loss is applied to your wallet.
                 </p>
               )}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {tradingActive ? (
-                  <button
-                    type="button"
-                    disabled={tradingActionLoading}
-                    onClick={handleStopTrading}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-60"
-                  >
-                    {tradingActionLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Pause className="h-3.5 w-3.5" />
-                    )}
-                    Exit trading
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={tradingActionLoading || walletBalance <= 0 || !subscriptionActive}
-                    onClick={handleRestartTrading}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-yellow-300 bg-[#FFD700] px-3 py-2 text-xs font-bold text-black hover:bg-[#E6C200] disabled:opacity-60"
-                  >
-                    {tradingActionLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Play className="h-3.5 w-3.5" />
-                    )}
-                    Restart trading
-                  </button>
-                )}
-              </div>
             </div>
           </section>
         )}
