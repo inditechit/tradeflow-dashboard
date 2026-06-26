@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   MapPin,
   History,
-  Mail,
   Phone,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { packageDisplayName } from "@/constants/packages";
 import {
   buildFinanceOverlay,
   groupOpenRowsByUser,
@@ -424,7 +424,6 @@ const AdminPage = () => {
         "col:users:dollar_cut",
         "col:users:risk",
         "col:users:actions",
-        "col:users:email",
         "col:users:mobile",
         "col:users:telegram",
         "col:users:location",
@@ -772,11 +771,6 @@ const AdminPage = () => {
                   Action
                 </th>
                 )}
-                {can("col:users:email") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Email
-                </th>
-                )}
                 {can("col:users:mobile") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Mobile
@@ -821,6 +815,11 @@ const AdminPage = () => {
                     <span className="font-semibold text-slate-900">{loc.name}</span>
                     )}
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
+                    <div className="mt-1 text-[11px] font-medium text-slate-600">
+                      {loc.active_package_id
+                        ? packageDisplayName(String(loc.active_package_id))
+                        : "No active plan"}
+                    </div>
                   </td>
                   )}
 
@@ -1007,15 +1006,6 @@ const AdminPage = () => {
                       <MoreHorizontal className="h-4 w-4" />
                       Manage
                     </Button>
-                  </td>
-                  )}
-
-                  {can("col:users:email") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="flex max-w-[200px] items-start gap-2">
-                      <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="break-all text-xs text-slate-600">{loc.email || "—"}</span>
-                    </div>
                   </td>
                   )}
 

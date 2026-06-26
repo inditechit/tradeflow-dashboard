@@ -10,6 +10,7 @@ import {
   sumUserFacingPlTotals,
   resolveMt5BuySellPrices,
   resolveEffectiveSlice,
+  formatMt5SideLabel,
   fmtMt5Price,
   isOpenTrade,
   parseMt5Price,
@@ -350,6 +351,7 @@ const ProfitLoss = () => {
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Side</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Opened</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Closed</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
@@ -363,14 +365,14 @@ const ProfitLoss = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                     No trades yet
                   </td>
                 </tr>
@@ -399,6 +401,24 @@ const ProfitLoss = () => {
                     <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
+                      <td className="px-6 py-4 text-sm">
+                        {(() => {
+                          const side = formatMt5SideLabel(r.mt5_type);
+                          if (side === "—") return <span className="text-slate-400">—</span>;
+                          const isBuy = side === "Buy";
+                          return (
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                isBuy
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {side}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
                         {formatIsoDateTime(r.open_time ?? r.assignment_created_at ?? null)}
                       </td>
@@ -457,7 +477,7 @@ const ProfitLoss = () => {
             </tbody>
             {sortedRows.length > 0 && (
               <TradeSummaryFooter
-                colSpan={8}
+                colSpan={9}
                 trailingColSpan={1}
                 tableTotals={tableTotals}
                 capital={{

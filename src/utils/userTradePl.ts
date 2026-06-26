@@ -114,6 +114,15 @@ function isMt5BuyType(type: unknown): boolean {
   return t.includes("BUY");
 }
 
+/** Human label for MT5 deal direction (Buy / Sell). */
+export function formatMt5SideLabel(type: unknown): string {
+  const t = String(type ?? "").toUpperCase().trim();
+  if (!t) return "—";
+  if (t.includes("SELL")) return "Sell";
+  if (t.includes("BUY")) return "Buy";
+  return t.replace(/^DEAL_TYPE_|^ORDER_TYPE_/i, "");
+}
+
 export function contractSizeForSymbol(symbol?: unknown): number {
   const sym = String(symbol ?? "").toUpperCase();
   if (sym.startsWith("XAU") || sym.startsWith("GOLD")) return 100;
