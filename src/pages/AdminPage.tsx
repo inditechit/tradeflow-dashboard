@@ -584,8 +584,8 @@ const AdminPage = () => {
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
-            <option value="with_balance">Has balance ({'>'} $0)</option>
-            <option value="empty">No balance ($0)</option>
+            <option value="with_balance">Funded</option>
+            <option value="empty">Non Funded</option>
           </select>
         </div>
         </EmployeeGate>
