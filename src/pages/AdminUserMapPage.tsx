@@ -3,9 +3,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
+import { API_BASE } from "@/config/api";
+import { walletBalanceOf } from "@/utils/adminUserDisplay";
 import { isAdminRoleUser } from "@/utils/userRole";
-
-const API_BASE = "https://api.copytradeengine.org/api";
 
 type AdminUserRow = {
   id: number | string;
@@ -23,6 +23,9 @@ type AdminUserRow = {
   role?: string | null;
   is_online?: number | boolean | null;
   last_seen_at?: string | null;
+  wallet_balance?: number | string | null;
+  wallet_currency?: string | null;
+  has_wallet?: number | boolean | null;
 };
 
 type PinUser = AdminUserRow & {
@@ -117,6 +120,7 @@ const AdminUserMapPage: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [onlineFilter, setOnlineFilter] = useState<"all" | "online" | "offline">("all");
+  const [walletFilter, setWalletFilter] = useState<"all" | "funded" | "unfunded">("all");
 
   const fetchUsers = async () => {
     try {
@@ -159,6 +163,9 @@ const AdminUserMapPage: React.FC = () => {
     return allPins.filter((p) => {
       if (onlineFilter === "online" && !isUserOnline(p)) return false;
       if (onlineFilter === "offline" && isUserOnline(p)) return false;
+      const bal = walletBalanceOf(p);
+      if (walletFilter === "funded" && bal <= 0.02) return false;
+      if (walletFilter === "unfunded" && bal > 0.02) return false;
       if (!q) return true;
       const haystack = [
         p.id,
@@ -176,7 +183,7 @@ const AdminUserMapPage: React.FC = () => {
         .join(" ");
       return haystack.includes(q);
     });
-  }, [allPins, query, onlineFilter]);
+  }, [allPins, query, onlineFilter, walletFilter]);
 
   const usersWithoutLocation = users.length - allPins.length;
 
@@ -212,6 +219,15 @@ const AdminUserMapPage: React.FC = () => {
             <option value="all">All users</option>
             <option value="online">Online only</option>
             <option value="offline">Offline only</option>
+          </select>
+          <select
+            value={walletFilter}
+            onChange={(e) => setWalletFilter(e.target.value as "all" | "funded" | "unfunded")}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+          >
+            <option value="all">All wallets</option>
+            <option value="funded">Has funds</option>
+            <option value="unfunded">No funds</option>
           </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -289,6 +305,13 @@ const AdminUserMapPage: React.FC = () => {
                             {[p.city, p.state, p.country].filter(Boolean).join(", ")}
                           </div>
                         )}
+                        <div className="text-slate-700 font-medium tabular-nums">
+                          Wallet: {p.wallet_currency ?? "USD"}{" "}
+                          {walletBalanceOf(p).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </div>
                         <div className="pt-1 text-xs text-slate-400 tabular-nums">
                           {p.lat.toFixed(5)}, {p.lon.toFixed(5)}
                         </div>
@@ -325,7 +348,9 @@ const AdminUserMapPage: React.FC = () => {
       {filteredPins.length === 0 && !loading && (
         <div className="mt-4 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-500">
           No users with a location
-          {query || onlineFilter !== "all" ? " match your filters." : " yet."}
+          {query || onlineFilter !== "all" || walletFilter !== "all"
+            ? " match your filters."
+            : " yet."}
         </div>
       )}
     </div>
