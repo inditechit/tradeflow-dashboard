@@ -344,7 +344,7 @@ const DashboardPage = () => {
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
     const ok = window.confirm(
-      'Stop trading? Your current share of each open position will be frozen from the live MT5 feed. Your wallet will update only when those trades close on the master account.',
+      'Stop trading? Your share of each open position will be settled to your wallet now at the current live price. You will not receive new copy trades until you start again.',
     );
     if (!ok) return;
     setTradingActionLoading(true);
@@ -617,9 +617,9 @@ const DashboardPage = () => {
               </p>
               <p className="mt-1 text-slate-500">
                 {tradingActive
-                  ? 'Stop trading freezes your current open-position P/L from the live MT5 feed and blocks new trades.'
+                  ? 'Stop trading settles your open positions to your wallet now and blocks new copy trades.'
                   : tradingStopReason === 'manual_stop'
-                    ? 'Your open-position P/L is frozen. Start trading again to receive new copy trades.'
+                    ? 'Your stopped trades are already settled. Start trading again to receive new copy trades.'
                     : 'Start trading after your wallet and package are active.'}
               </p>
             </div>
