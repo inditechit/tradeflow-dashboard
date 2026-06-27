@@ -406,6 +406,7 @@ const SignupPage = () => {
       const data = await response.json();
 
       if (data.success) {
+        sessionStorage.removeItem("referrer_key");
         // Account created. If the user attached extra KYC docs at signup,
         // push them now via the existing /user/profile/:userId/documents
         // endpoint. This is fire-and-forget so signup never blocks on it.
@@ -466,6 +467,7 @@ const SignupPage = () => {
         setErrorMessage(data?.error || "Google signup failed.");
         return;
       }
+      sessionStorage.removeItem("referrer_key");
       const user: UserData = {
         name: data.name ?? "",
         mobile: "",

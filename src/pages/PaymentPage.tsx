@@ -57,9 +57,10 @@ const PaymentPage = () => {
     void (async () => {
       try {
         const body: Record<string, string> = { packageId: selectedPackage.id };
+        if (currentUser?.userId) body.userId = String(currentUser.userId);
         if (referralKey) body.r = referralKey;
         else if (storedCoupon) body.code = storedCoupon;
-        else return;
+        else if (!currentUser?.userId) return;
 
         const res = await fetch(`${API_BASE}/coupons/validate`, {
           method: "POST",
@@ -81,7 +82,7 @@ const PaymentPage = () => {
         // optional pricing preview
       }
     })();
-  }, [selectedPackage, isTrial]);
+  }, [selectedPackage, isTrial, currentUser?.userId]);
 
   useEffect(() => {
     if (!currentUser?.userId || isTrial) return;

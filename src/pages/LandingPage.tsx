@@ -159,7 +159,7 @@ export default function LandingPage() {
   const { isReady, role } = useVerifiedSession();
   const { currentUser } = useApp();
   const { packages: subscriptionPlans, loading: plansLoading, referralApplied, couponApplied } =
-    usePackages();
+    usePackages(currentUser?.userId);
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");

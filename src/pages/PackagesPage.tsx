@@ -56,7 +56,9 @@ const PackagesPage = () => {
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages();
+  const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages(
+    currentUser?.userId,
+  );
   const trialPkg = packages.find((p) => p.isTrial);
   const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
 

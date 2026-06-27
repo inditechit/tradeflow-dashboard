@@ -32,7 +32,7 @@ export function captureReferralKeyFromUrl() {
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
-export function usePackages() {
+export function usePackages(userId?: string | null) {
   const [packages, setPackages] = useState<SubscriptionPackage[]>(SUBSCRIPTION_PACKAGES);
   const [rawPackages, setRawPackages] = useState<ApiPackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,7 @@ export function usePackages() {
       if (referralKey) setStoredCouponCode(null);
 
       const params = new URLSearchParams();
+      if (userId) params.set("userId", String(userId));
       if (referralKey) params.set("r", referralKey);
       else if (couponCode) params.set("coupon", couponCode);
       const qs = params.toString() ? `?${params.toString()}` : "";
@@ -59,8 +60,10 @@ export function usePackages() {
         setPackages(mapped);
         setRawPackages(data.packages);
         setFromApi(true);
-        setReferralApplied(Boolean(referralKey));
-        setCouponApplied(Boolean(couponCode));
+        const storedReferral = data.referralSource === "stored";
+        const linkReferral = Boolean(referralKey) || data.referralSource === "link";
+        setReferralApplied(storedReferral || linkReferral);
+        setCouponApplied(Boolean(couponCode) || data.referralSource === "coupon");
       } else {
         setPackages(SUBSCRIPTION_PACKAGES);
         setFromApi(false);
@@ -75,7 +78,7 @@ export function usePackages() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     void load();
