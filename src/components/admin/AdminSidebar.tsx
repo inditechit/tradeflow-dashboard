@@ -96,7 +96,7 @@ const MENU: MenuEntry[] = [
       { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
       { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
       { name: "Invoices", icon: FileText, path: "/admin/invoices" },
-      { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
+      // { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
     ],
   },
   {
