@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE, SOCKET_URL } from "@/config/api";
-import { packageDisplayName } from "@/constants/packages";
+import { SUBSCRIPTION_PACKAGES, packageDisplayName } from "@/constants/packages";
 import {
   buildFinanceOverlay,
   groupOpenRowsByUser,
@@ -68,8 +68,9 @@ const AdminPage = () => {
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
+  const [filterPackage, setFilterPackage] = useState<string>('all');
   const [filterTag, setFilterTag] = useState('all');
-  const [walletSort, setWalletSort] = useState<'high' | 'low'>('high');
+  const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
@@ -373,14 +374,25 @@ const AdminPage = () => {
         (filterWallet === "with_balance" && bal > 0.02) ||
         (filterWallet === "empty" && bal <= 0.02);
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet;
+      const activePkg = String(loc.active_package_id ?? "").trim();
+      const matchPackage =
+        filterPackage === "all" ||
+        (filterPackage === "none" && !activePkg) ||
+        activePkg === filterPackage;
+
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage;
     });
 
     return filtered.sort((a, b) => {
+      if (userSort === "joined_new" || userSort === "joined_old") {
+        const ta = new Date(String(a.created_at ?? "")).getTime() || 0;
+        const tb = new Date(String(b.created_at ?? "")).getTime() || 0;
+        return userSort === "joined_new" ? tb - ta : ta - tb;
+      }
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
-      return walletSort === "high" ? diff : -diff;
+      return userSort === "wallet_high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag, userSort]);
 
   const totalUserCount = locations.length;
   const filteredUserCount = filteredLocations.length;
@@ -391,9 +403,23 @@ const AdminPage = () => {
       filterKyc !== "all" ||
       filterOnline !== "all" ||
       filterWallet !== "all" ||
+      filterPackage !== "all" ||
       filterTag !== "all",
-    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag],
+    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag],
   );
+
+  const sortLabel = useMemo(() => {
+    switch (userSort) {
+      case "wallet_low":
+        return "wallet balance (low → high)";
+      case "joined_new":
+        return "join date (newest first)";
+      case "joined_old":
+        return "join date (oldest first)";
+      default:
+        return "wallet balance (high → low)";
+    }
+  }, [userSort]);
 
   const {
     page: userPage,
@@ -405,7 +431,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterTag, walletSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag, userSort, setUserPage]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -467,7 +493,7 @@ const AdminPage = () => {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Manage accounts, wallets, addresses &amp; KYC · sorted by wallet balance
+            Manage accounts, wallets, addresses &amp; KYC · sorted by {sortLabel}
             {hasActiveFilters ? (
               <span className="font-medium text-slate-800">
                 {" "}
@@ -588,6 +614,24 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Package
+          </label>
+          <select
+            value={filterPackage}
+            onChange={(e) => setFilterPackage(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All packages</option>
+            <option value="none">No active plan</option>
+            {SUBSCRIPTION_PACKAGES.filter((p) => !p.isTrial).map((pkg) => (
+              <option key={pkg.id} value={pkg.id}>
+                {pkg.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <EmployeeGate perm="filter:users:tag">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -608,19 +652,35 @@ const AdminPage = () => {
         <EmployeeGate perm="filter:users:wallet_sort">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Wallet sort
+            Sort users
           </label>
           <select
-            value={walletSort}
-            onChange={(e) => setWalletSort(e.target.value as "high" | "low")}
+            value={userSort}
+            onChange={(e) =>
+              setUserSort(e.target.value as "wallet_high" | "wallet_low" | "joined_new" | "joined_old")
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
-            <option value="high">Highest balance first</option>
-            <option value="low">Lowest balance first</option>
+            <option value="wallet_high">Wallet — highest first</option>
+            <option value="wallet_low">Wallet — lowest first</option>
+            <option value="joined_new">Join date — newest first</option>
+            <option value="joined_old">Join date — oldest first</option>
           </select>
         </div>
         </EmployeeGate>
-        <div className="flex items-end sm:col-span-2 lg:col-span-8">
+        <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-8">
+          <Button
+            type="button"
+            variant={userSort === "joined_new" ? "default" : "outline"}
+            onClick={() => setUserSort((prev) => (prev === "joined_new" ? "wallet_high" : "joined_new"))}
+            className={`h-[38px] rounded-lg px-4 ${
+              userSort === "joined_new"
+                ? "bg-slate-900 text-white hover:bg-slate-800"
+                : "border-slate-300 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            {userSort === "joined_new" ? "Join date (newest)" : "Sort by join date"}
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -630,10 +690,11 @@ const AdminPage = () => {
               setFilterKyc('all');
               setFilterOnline('all');
               setFilterWallet('all');
+              setFilterPackage('all');
               setFilterTag('all');
-              setWalletSort('high');
+              setUserSort('wallet_high');
             }}
-            className="h-[38px] w-full rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:w-auto sm:px-8"
+            className="h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:px-8"
           >
             Clear Filters
           </Button>
