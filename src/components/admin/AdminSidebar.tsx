@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -24,6 +24,7 @@ import {
   FileBarChart,
   UserCog,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
@@ -35,43 +36,95 @@ type AdminSidebarProps = {
   onClose: () => void;
 };
 
-const ALL_MENU = [
-  { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-  { name: "Packages we sell", icon: Package, path: "/admin/package-catalog" },
-  { name: "Profile", icon: User, path: "/admin/profile" },
-  { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
-  { name: "Users", icon: Users, path: "/admin/users", showLive: true },
-  { name: "User map", icon: MapIcon, path: "/admin/user-map" },
-  { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
-  { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
-  { name: "Unmatched payments", icon: AlertTriangle, path: "/admin/unmatched-payments" },
-  { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
-  { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
-  { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
-  { name: "Admin alerts", icon: BellRing, path: "/admin/alerts" },
-  { name: "Notifications", icon: Bell, path: "/admin/notifications" },
-  { name: "Packages", icon: Package, path: "/admin/packages" },
-  { name: "Coupons", icon: Tag, path: "/admin/coupons" },
-  { name: "Invoices", icon: FileText, path: "/admin/invoices" },
-  { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
-  { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
-  { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
-  { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
-  { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
-  { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
-  { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
-  { name: "Employees", icon: UserCog, path: "/admin/employees", adminOnly: true },
-] as Array<{
+type IconType = React.ComponentType<{ size?: number; className?: string }>;
+
+type MenuItem = {
   name: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: IconType;
   path: string;
   showLive?: boolean;
   adminOnly?: boolean;
-}>;
+};
+
+type MenuEntry =
+  | ({ kind: "item" } & MenuItem)
+  | { kind: "group"; label: string; icon: IconType; items: MenuItem[] };
+
+/** Grouped navigation — collapsible sections keep the sidebar short. */
+const MENU: MenuEntry[] = [
+  { kind: "item", name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { kind: "item", name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
+  {
+    kind: "group",
+    label: "Users",
+    icon: Users,
+    items: [
+      { name: "All users", icon: Users, path: "/admin/users", showLive: true },
+      { name: "User map", icon: MapIcon, path: "/admin/user-map" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "Payments",
+    icon: Wallet,
+    items: [
+      { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
+      { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
+      { name: "Unmatched payments", icon: AlertTriangle, path: "/admin/unmatched-payments" },
+      { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
+      { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
+      { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "Packages & marketing",
+    icon: Package,
+    items: [
+      { name: "Packages we sell", icon: Package, path: "/admin/package-catalog" },
+      { name: "Packages", icon: Package, path: "/admin/packages" },
+      { name: "Coupons", icon: Tag, path: "/admin/coupons" },
+      { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
+      { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "Reports",
+    icon: PieChart,
+    items: [
+      { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
+      { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
+      { name: "Invoices", icon: FileText, path: "/admin/invoices" },
+      { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "Support & alerts",
+    icon: Headphones,
+    items: [
+      { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
+      { name: "Admin alerts", icon: BellRing, path: "/admin/alerts" },
+      { name: "Notifications", icon: Bell, path: "/admin/notifications" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "System",
+    icon: UserCog,
+    items: [
+      { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
+      { name: "Employees", icon: UserCog, path: "/admin/employees", adminOnly: true },
+    ],
+  },
+  { kind: "item", name: "Profile", icon: User, path: "/admin/profile" },
+];
 
 const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const { isAdmin, can } = useEmployeeAccess();
+  const location = useLocation();
 
   useEffect(() => {
     let cancelled = false;
@@ -94,14 +147,63 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     };
   }, []);
 
-  const menu = useMemo(() => {
-    return ALL_MENU.filter((item) => {
-      if (item.adminOnly && !isAdmin) return false;
-      if (isAdmin) return true;
-      const tabKey = tabKeyForPath(item.path);
-      return tabKey ? can(tabKey) : false;
-    });
+  const canSee = (item: MenuItem) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (isAdmin) return true;
+    const tabKey = tabKeyForPath(item.path);
+    return tabKey ? can(tabKey) : false;
+  };
+
+  /** Filter entries by permission and drop empty groups. */
+  const entries = useMemo(() => {
+    const out: MenuEntry[] = [];
+    for (const entry of MENU) {
+      if (entry.kind === "item") {
+        if (canSee(entry)) out.push(entry);
+      } else {
+        const items = entry.items.filter(canSee);
+        if (items.length > 0) out.push({ ...entry, items });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, can]);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Auto-open the group that contains the active route.
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      for (const entry of entries) {
+        if (entry.kind === "group") {
+          const active = entry.items.some((i) => location.pathname.startsWith(i.path));
+          if (active) next[entry.label] = true;
+        }
+      }
+      return next;
+    });
+  }, [location.pathname, entries]);
+
+  const toggleGroup = (label: string) =>
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+
+  const liveBadge = (show?: boolean) =>
+    show && liveCount != null && liveCount > 0 ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+        title="Users seen in the last 90 seconds"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        {liveCount}
+      </span>
+    ) : null;
+
+  const itemClasses = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all touch-manipulation",
+      isActive ? "bg-[#FFD700] text-black" : "text-slate-600 hover:bg-white/80 active:bg-white",
+    );
 
   return (
     <>
@@ -138,35 +240,58 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
             </h1>
           </div>
 
-          <nav className="flex flex-col gap-1 sm:gap-2" aria-label="Admin navigation">
-            {menu.map((item) => {
-              const Icon = item.icon;
+          <nav className="flex flex-col gap-1" aria-label="Admin navigation">
+            {entries.map((entry) => {
+              if (entry.kind === "item") {
+                const Icon = entry.icon;
+                return (
+                  <NavLink key={entry.path} to={entry.path} onClick={onClose} className={itemClasses}>
+                    <Icon size={18} className="shrink-0" />
+                    <span className="flex-1">{entry.name}</span>
+                    {liveBadge(entry.showLive)}
+                  </NavLink>
+                );
+              }
+
+              const Icon = entry.icon;
+              const open = openGroups[entry.label] ?? false;
+              const groupHasLive = entry.items.some((i) => i.showLive);
               return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => onClose()}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all touch-manipulation",
-                      isActive
-                        ? "bg-[#FFD700] text-black"
-                        : "text-slate-600 hover:bg-white/80 active:bg-white",
-                    )
-                  }
-                >
-                  <Icon size={18} className="shrink-0" />
-                  <span className="flex-1">{item.name}</span>
-                  {item.showLive && liveCount != null && liveCount > 0 && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-                      title="Users seen in the last 90 seconds"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {liveCount}
-                    </span>
+                <div key={entry.label} className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(entry.label)}
+                    className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-white/80"
+                    aria-expanded={open}
+                  >
+                    <Icon size={18} className="shrink-0" />
+                    <span className="flex-1 text-left">{entry.label}</span>
+                    {!open && liveBadge(groupHasLive)}
+                    <ChevronDown
+                      size={16}
+                      className={cn("shrink-0 transition-transform", open && "rotate-180")}
+                    />
+                  </button>
+                  {open && (
+                    <div className="mt-1 flex flex-col gap-1 border-l border-slate-200 pl-3">
+                      {entry.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        return (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={onClose}
+                            className={itemClasses}
+                          >
+                            <ItemIcon size={18} className="shrink-0" />
+                            <span className="flex-1">{item.name}</span>
+                            {liveBadge(item.showLive)}
+                          </NavLink>
+                        );
+                      })}
+                    </div>
                   )}
-                </NavLink>
+                </div>
               );
             })}
           </nav>

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { 
-  User, LogOut, 
-  Loader2, Plus, TrendingUp,
+  LogOut, 
+  Loader2, Plus, TrendingUp, TrendingDown,
   ArrowRight, Pause, Play,
   LifeBuoy,
 } from 'lucide-react';
@@ -514,12 +514,31 @@ const DashboardPage = () => {
         {/* Header Profile Card */}
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-neutral-900/8 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center border border-yellow-200 text-neutral-900">
-              <User size={32} />
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center border ${
+                displayLivePl >= 0
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {displayLivePl >= 0 ? <TrendingUp size={30} /> : <TrendingDown size={30} />}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">  
-                Welcome back, {currentUser?.telegram || 'Trader'}
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Live P/L (open)
+              </p>
+              <h1
+                className={`text-3xl font-extrabold tabular-nums ${
+                  displayLivePl >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}
+              >
+                {displayLivePl >= 0 ? '+' : '-'}
+                {currency === 'USD' ? '$' : ''}
+                {Math.abs(displayLivePl).toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+                {currency !== 'USD' ? ` ${currency}` : ''}
               </h1>
             </div>
           </div>
@@ -540,25 +559,42 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Live chart at the top of the user panel */}
+        {/* Chart + active trades: 50/50 on desktop, stacked (chart above) on mobile */}
         {currentUser?.role !== 'admin' && (
-          <section>
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="text-neutral-900" size={24} />
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
-                  <p className="text-xs text-slate-500">
-                    Gold spot (XAU/USD) · OANDA feed
-                  </p>
+          <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            {/* Left: live chart */}
+            <div className="flex min-w-0 flex-col">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="text-neutral-900" size={24} />
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
+                    <p className="text-xs text-slate-500">
+                      Gold spot (XAU/USD) · OANDA feed
+                    </p>
+                  </div>
                 </div>
+                <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
+                  XAUUSD
+                </span>
               </div>
-              <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
-                XAUUSD
-              </span>
+              <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
+                <TradingViewChart theme={theme} />
+              </div>
             </div>
-            <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
-              <TradingViewChart theme={theme} />
+
+            {/* Right: active trades + account summary */}
+            <div className="flex min-w-0 flex-col">
+              <h2 className="mb-4 text-xl font-bold text-slate-800">Active trades</h2>
+              <Mt5TradeHistoryList
+                trades={activeTradeRows as Mt5HistoryRow[]}
+                getRowPl={getRowPl}
+                loading={loadingFinance && historyRows.length === 0}
+                currency={currency}
+                entryByTicket={entryPriceByTicketRef.current}
+                emptyMessage="No active trades"
+                accountSummary={accountSummary}
+              />
             </div>
           </section>
         )}
@@ -679,21 +715,6 @@ const DashboardPage = () => {
           </button>
         )}
 
-        {/* Active trades (MT5-style) + account summary */}
-        {currentUser?.role !== 'admin' && (
-          <section>
-            <h2 className="mb-4 text-xl font-bold text-slate-800">Active trades</h2>
-            <Mt5TradeHistoryList
-              trades={activeTradeRows as Mt5HistoryRow[]}
-              getRowPl={getRowPl}
-              loading={loadingFinance && historyRows.length === 0}
-              currency={currency}
-              entryByTicket={entryPriceByTicketRef.current}
-              emptyMessage="No active trades"
-              accountSummary={accountSummary}
-            />
-          </section>
-        )}
       </div>
     </div>
   );

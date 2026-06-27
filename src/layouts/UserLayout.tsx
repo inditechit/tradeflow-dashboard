@@ -56,7 +56,7 @@ const UserLayout = () => {
     <ThemeProvider>
     <SubscriptionProvider>
       <ProfileComplianceProvider>
-        <div className="user-shell flex h-[100dvh] min-h-0 bg-white">
+        <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
           <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">

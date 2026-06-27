@@ -4,12 +4,8 @@ import {
   RefreshCw,
   CalendarRange,
   Wallet,
-  TrendingUp,
   TrendingDown,
-  PieChart,
   Landmark,
-  Scale,
-  Gauge,
   Percent,
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
@@ -57,6 +53,7 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [accountMetrics, setAccountMetrics] = useState(null);
   const [platformTotals, setPlatformTotals] = useState(null);
+  const [financials, setFinancials] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -69,6 +66,26 @@ const Dashboard = () => {
           sumWallets: Number(data.totals.sum_wallet_balances_usd ?? 0),
           liveUsers: Number(data.totals.live_users ?? 0),
           totalUsers: Number(data.totals.total_users ?? 0),
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const fetchFinancials = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/financial-stats`);
+      const data = await res.json();
+      if (data.success && data.stats) {
+        const s = data.stats;
+        setFinancials({
+          totalFees: Number(s.brokerage_fees_usd ?? 0),
+          totalDeposited: Number(s.facts?.total_recharged_usd ?? 0),
+          totalWithdrawn: Number(s.facts?.total_withdrawn_usd ?? 0),
+          currentWallet: Number(
+            s.owe_users_breakdown?.wallets_usd ?? platformTotals?.sumWallets ?? 0,
+          ),
         });
       }
     } catch {
@@ -119,6 +136,7 @@ const Dashboard = () => {
     fetchTrades();
     fetchAccountMetrics();
     fetchPlatformTotals();
+    fetchFinancials();
 
     socket.on("mt5data", (trade) => {
       setTrades((prev) => {
@@ -193,6 +211,9 @@ const Dashboard = () => {
     let realizedNet = 0;
     let floatingPl = 0;
     let openNotional = 0;
+    let closedCount = 0;
+    let winCount = 0;
+    let openCount = 0;
 
     for (const t of tradesInRange) {
       const st = normStatus(t);
@@ -201,6 +222,7 @@ const Dashboard = () => {
       const px = Number(t.price);
 
       if (st === "OPEN") {
+        openCount += 1;
         if (Number.isFinite(vol) && Number.isFinite(px)) {
           openNotional += vol * px;
         }
@@ -209,13 +231,19 @@ const Dashboard = () => {
       }
 
       if (st === "CLOSED" && p !== null) {
+        closedCount += 1;
         realizedNet += p;
-        if (p > 0) realizedProfit += p;
+        if (p > 0) {
+          realizedProfit += p;
+          winCount += 1;
+        }
         if (p < 0) realizedLoss += Math.abs(p);
       }
     }
 
     const combinedNet = realizedNet + floatingPl;
+    const winRate = closedCount > 0 ? (winCount / closedCount) * 100 : null;
+    const profitFactor = realizedLoss > 0 ? realizedProfit / realizedLoss : null;
 
     return {
       openNotional,
@@ -224,6 +252,11 @@ const Dashboard = () => {
       realizedLoss,
       realizedNet,
       combinedNet,
+      closedCount,
+      openCount,
+      winCount,
+      winRate,
+      profitFactor,
     };
   }, [tradesInRange]);
 
@@ -235,26 +268,30 @@ const Dashboard = () => {
 
   const dateFilterActive = Boolean(dateFrom || dateTo);
 
-  const equity = accountMetrics?.equity;
-  const margin = accountMetrics?.margin;
-  const freeMargin = accountMetrics?.free_margin;
-  const marginLevel = accountMetrics?.margin_level;
-
-  const statCard = (icon, label, value, sub) => (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-neutral-900/8">
-      <div className="mb-3 flex items-center gap-2 text-slate-500">
+  const moneyCard = (icon, tileClass, label, value) => (
+    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-neutral-900/8">
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tileClass}`}>
         {icon}
-        <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
       </div>
-      <div className="text-2xl font-extrabold tabular-nums text-slate-900">
-        {value}
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+        <p className="text-xl font-extrabold tabular-nums text-slate-900">{value}</p>
       </div>
-      {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
     </div>
   );
 
-  const plColor = plTextClass(stats.floatingPl);
-  const combinedColor = plTextClass(stats.combinedNet);
+  // Compact performance metric used in the stats strip.
+  const metricCell = (label, value, valueClass) => (
+    <div className="px-5 py-4">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className={`mt-1 text-xl font-extrabold tabular-nums ${valueClass || "text-slate-900"}`}>
+        {value}
+      </p>
+    </div>
+  );
+
   const realizedColor = plTextClass(stats.realizedNet);
 
   return (
@@ -322,98 +359,45 @@ const Dashboard = () => {
         )}
       </div>
 
-      <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        <strong>Two different views:</strong> Rows below = <strong>master MT5</strong> (broker account). User
-        app cards = each user&apos;s <strong>wallet + their % of trades</strong>. They are linked but not equal
-        dollar amounts.
-      </p>
-      {platformTotals && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          {statCard(
-            <Wallet className="h-4 w-4 text-emerald-700" />,
-            "All user wallets (platform)",
-            fmtMoney(platformTotals.sumWallets),
-            `Sum of in-app balances · ${platformTotals.liveUsers} users online`
-          )}
-          {statCard(
-            <PieChart className={`h-4 w-4 ${plColor}`} />,
-            "Master floating P/L (open)",
-            <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
-            "Full broker position profit — compare trend, not 1:1 with one user"
-          )}
-        </div>
-      )}
-
-      {/* Summary metrics — MT4-style split: realized (closed) vs floating (open) */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-
-         {statCard(
-          <TrendingUp className="h-4 w-4 text-emerald-600" />,
-          "Realized profit",
-          <span className="text-emerald-600">{fmtMoney(stats.realizedProfit)}</span>,
-          "CLOSED trades with profit &gt; 0 only."
+      {/* Money row — all 4 cards in one line */}
+      <div className="mb-6 grid grid-cols-4 gap-4">
+        {moneyCard(
+          <Percent className="h-5 w-5 text-sky-600" />,
+          "bg-sky-50",
+          "Total fees",
+          `$${fmtMoney(financials?.totalFees ?? 0)}`,
         )}
-        {statCard(
-          <TrendingDown className="h-4 w-4 text-red-500" />,
-          "Realized loss",
-          <span className="text-red-600">{fmtMoney(stats.realizedLoss)}</span>,
-          "CLOSED trades with profit &lt; 0 (absolute sum)."
+        {moneyCard(
+          <Wallet className="h-5 w-5 text-emerald-600" />,
+          "bg-emerald-50",
+          "Total deposited",
+          `$${fmtMoney(financials?.totalDeposited ?? 0)}`,
         )}
-
-        {statCard(
-          <Wallet className="h-4 w-4" />,
-          "Open notional (Σ vol×price)",
-          fmtMoney(stats.openNotional),
-          "Only OPEN trades. Same as your “total invested” column per open row; not broker margin."
+        {moneyCard(
+          <TrendingDown className="h-5 w-5 text-amber-600" />,
+          "bg-amber-50",
+          "Total withdrawn",
+          `$${fmtMoney(financials?.totalWithdrawn ?? 0)}`,
         )}
-        {statCard(
-          <PieChart className={`h-4 w-4 ${plColor}`} />,
-          "Floating P/L (open)",
-          <span className={plColor}>{fmtMoney(stats.floatingPl)}</span>,
-          "Sum of profit on OPEN trades only (unrealized)."
-        )}
-       
-        {statCard(
-          <PieChart className={`h-4 w-4 ${realizedColor}`} />,
-          "Closed P/L (master)",
-          <span className={realizedColor}>{fmtMoney(stats.realizedNet)}</span>,
-          "Sum of profit on CLOSED master tickets in date range."
-        )}
-        {statCard(
-          <PieChart className={`h-4 w-4 ${combinedColor}`} />,
-          "Combined P/L (feed)",
-          <span className={combinedColor}>{fmtMoney(stats.combinedNet)}</span>,
-          "Closed net + floating open. Matches Σ profit if every row is OPEN or CLOSED."
+        {moneyCard(
+          <Landmark className="h-5 w-5 text-indigo-600" />,
+          "bg-indigo-50",
+          "Current wallet",
+          `$${fmtMoney(financials?.currentWallet ?? platformTotals?.sumWallets ?? 0)}`,
         )}
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCard(
-          <Landmark className="h-4 w-4" />,
-          "Equity",
-          fmtMoney(equity),
-          equity == null
-            ? "From API / socket when your backend exposes it."
-            : undefined
+      {/* Performance strip — all 6 metrics in one line */}
+      <div className="mb-8 grid grid-cols-6 divide-x divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-neutral-900/8">
+        {metricCell("Gross profit", `$${fmtMoney(stats.realizedProfit)}`, "text-emerald-600")}
+        {metricCell("Gross loss", `-$${fmtMoney(stats.realizedLoss)}`, "text-red-600")}
+        {metricCell("Net profit", `$${fmtMoney(stats.realizedNet)}`, realizedColor)}
+        {metricCell(
+          "Profit factor",
+          stats.profitFactor == null ? "—" : stats.profitFactor.toFixed(2),
         )}
-        {statCard(
-          <Scale className="h-4 w-4" />,
-          "Margin",
-          fmtMoney(margin),
-          margin == null ? "Requires /admin/mt5-metrics or mt5metrics event." : undefined
-        )}
-        {statCard(
-          <Gauge className="h-4 w-4" />,
-          "Free margin",
-          fmtMoney(freeMargin),
-          freeMargin == null ? "Requires account metrics API." : undefined
-        )}
-        {statCard(
-          <Percent className="h-4 w-4" />,
-          "Margin level",
-          fmtPct(marginLevel),
-          marginLevel == null ? "Requires account metrics API." : undefined
-        )}
+        {metricCell("Win rate", stats.winRate == null ? "—" : fmtPct(stats.winRate))}
+        {metricCell("Total trades", stats.closedCount + stats.openCount)}
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">

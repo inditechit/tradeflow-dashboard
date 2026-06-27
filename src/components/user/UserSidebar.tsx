@@ -15,13 +15,10 @@ import {
   ShieldAlert,
   FileText,
   Bell,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useApp } from "@/context/AppContext";
-import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useProfileCompliance } from "@/context/ProfileComplianceContext";
@@ -45,7 +42,6 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
   const [supportUnread, setSupportUnread] = useState<number | null>(null);
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { theme, toggleTheme } = useTheme();
   const { loading: subLoading, fetchOk: subOk, isActive, accessRestricted } =
     useSubscription();
   const { loading: cLoading, fetchOk: cOk, complete: cComplete } =
@@ -231,34 +227,8 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
           </nav>
         </div>
 
-        <div className="mt-6 shrink-0 space-y-3 pb-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            aria-label="Toggle dark mode"
-          >
-            <span className="flex items-center gap-3">
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-              {theme === "dark" ? "Light theme" : "Dark theme"}
-            </span>
-            <span
-              className={cn(
-                "relative h-5 w-9 rounded-full transition-colors",
-                theme === "dark" ? "bg-[#FFD700]" : "bg-slate-300",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-                  theme === "dark" ? "translate-x-4" : "translate-x-0.5",
-                )}
-              />
-            </span>
-          </button>
-          <p className="text-center text-[10px] text-slate-400 sm:text-xs">
-            © 2026 Copy Trade Engine
-          </p>
+        <div className="mt-6 shrink-0 pb-2 text-center text-[10px] text-slate-400 sm:text-xs">
+          © 2026 Copy Trade Engine
         </div>
       </aside>
     </>

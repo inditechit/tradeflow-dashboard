@@ -189,105 +189,107 @@
 }
 
 /* ============================================================
-   User panel dark theme (scoped to .user-shell).
+   App dark theme (scoped to .app-shell — user & admin panels).
    Blue accent replaces the gold/yellow brand in dark mode.
    ============================================================ */
-[data-user-theme="dark"] .user-shell {
+[data-user-theme="dark"] .app-shell {
   background-color: #0b1220;
   color: #e2e8f0;
 }
 
 /* Surfaces */
-[data-user-theme="dark"] .user-shell .bg-white,
-[data-user-theme="dark"] .user-shell .hover\:bg-white\/80:hover,
-[data-user-theme="dark"] .user-shell .active\:bg-white:active {
+[data-user-theme="dark"] .app-shell .bg-white,
+[data-user-theme="dark"] .app-shell .hover\:bg-white\/80:hover,
+[data-user-theme="dark"] .app-shell .active\:bg-white:active {
   background-color: #111c2e !important;
 }
-[data-user-theme="dark"] .user-shell main,
-[data-user-theme="dark"] .user-shell .bg-slate-50,
-[data-user-theme="dark"] .user-shell .bg-slate-50\/80,
-[data-user-theme="dark"] .user-shell .bg-slate-50\/95,
-[data-user-theme="dark"] .user-shell .bg-\[\#F9F9F9\] {
+[data-user-theme="dark"] .app-shell main,
+[data-user-theme="dark"] .app-shell .bg-slate-50,
+[data-user-theme="dark"] .app-shell .bg-slate-50\/80,
+[data-user-theme="dark"] .app-shell .bg-slate-50\/95,
+[data-user-theme="dark"] .app-shell .bg-\[\#F9F9F9\] {
   background-color: #0d1626 !important;
 }
-[data-user-theme="dark"] .user-shell .bg-\[\#F2F2F2\],
-[data-user-theme="dark"] .user-shell .bg-slate-100,
-[data-user-theme="dark"] .user-shell .hover\:bg-slate-100:hover,
-[data-user-theme="dark"] .user-shell .hover\:bg-slate-50:hover {
+[data-user-theme="dark"] .app-shell .bg-\[\#F2F2F2\],
+[data-user-theme="dark"] .app-shell .bg-slate-100,
+[data-user-theme="dark"] .app-shell .hover\:bg-slate-100:hover,
+[data-user-theme="dark"] .app-shell .hover\:bg-slate-50:hover {
   background-color: #16243c !important;
 }
 
 /* Borders */
-[data-user-theme="dark"] .user-shell .border-slate-100,
-[data-user-theme="dark"] .user-shell .border-slate-200,
-[data-user-theme="dark"] .user-shell .border-slate-200\/80,
-[data-user-theme="dark"] .user-shell .border-slate-300 {
+[data-user-theme="dark"] .app-shell .border-slate-100,
+[data-user-theme="dark"] .app-shell .border-slate-200,
+[data-user-theme="dark"] .app-shell .border-slate-200\/80,
+[data-user-theme="dark"] .app-shell .border-slate-200\/90,
+[data-user-theme="dark"] .app-shell .border-slate-300 {
   border-color: #1e2d45 !important;
 }
 
 /* Text */
-[data-user-theme="dark"] .user-shell .text-slate-900,
-[data-user-theme="dark"] .user-shell .text-slate-800,
-[data-user-theme="dark"] .user-shell .text-neutral-900,
-[data-user-theme="dark"] .user-shell .text-black {
+[data-user-theme="dark"] .app-shell .text-slate-900,
+[data-user-theme="dark"] .app-shell .text-slate-800,
+[data-user-theme="dark"] .app-shell .text-neutral-900,
+[data-user-theme="dark"] .app-shell .text-neutral-800,
+[data-user-theme="dark"] .app-shell .text-black {
   color: #f1f5f9 !important;
 }
-[data-user-theme="dark"] .user-shell .text-slate-700,
-[data-user-theme="dark"] .user-shell .text-slate-600,
-[data-user-theme="dark"] .user-shell .text-neutral-700,
-[data-user-theme="dark"] .user-shell .text-neutral-600 {
+[data-user-theme="dark"] .app-shell .text-slate-700,
+[data-user-theme="dark"] .app-shell .text-slate-600,
+[data-user-theme="dark"] .app-shell .text-neutral-700,
+[data-user-theme="dark"] .app-shell .text-neutral-600 {
   color: #cbd5e1 !important;
 }
-[data-user-theme="dark"] .user-shell .text-slate-500,
-[data-user-theme="dark"] .user-shell .text-slate-400,
-[data-user-theme="dark"] .user-shell .text-neutral-500,
-[data-user-theme="dark"] .user-shell .text-neutral-400 {
+[data-user-theme="dark"] .app-shell .text-slate-500,
+[data-user-theme="dark"] .app-shell .text-slate-400,
+[data-user-theme="dark"] .app-shell .text-neutral-500,
+[data-user-theme="dark"] .app-shell .text-neutral-400 {
   color: #94a3b8 !important;
 }
 
 /* Gold / yellow accent -> blue */
-[data-user-theme="dark"] .user-shell .bg-\[\#FFD700\],
-[data-user-theme="dark"] .user-shell .bg-\[\#FFE000\],
-[data-user-theme="dark"] .user-shell .bg-\[\#ecd888\] {
+[data-user-theme="dark"] .app-shell .bg-\[\#FFD700\],
+[data-user-theme="dark"] .app-shell .bg-\[\#FFE000\],
+[data-user-theme="dark"] .app-shell .bg-\[\#ecd888\] {
   background-color: #2563eb !important;
   color: #ffffff !important;
 }
-[data-user-theme="dark"] .user-shell .hover\:bg-\[\#FFD700\]:hover,
-[data-user-theme="dark"] .user-shell .hover\:bg-\[\#E6C200\]:hover {
+[data-user-theme="dark"] .app-shell .hover\:bg-\[\#FFD700\]:hover,
+[data-user-theme="dark"] .app-shell .hover\:bg-\[\#E6C200\]:hover {
   background-color: #1d4ed8 !important;
   color: #ffffff !important;
 }
-[data-user-theme="dark"] .user-shell .bg-yellow-50,
-[data-user-theme="dark"] .user-shell .bg-yellow-50\/60,
-[data-user-theme="dark"] .user-shell .bg-\[\#FFF9E6\],
-[data-user-theme="dark"] .user-shell .bg-\[\#FFF9E6\]\/90 {
+[data-user-theme="dark"] .app-shell .bg-yellow-50,
+[data-user-theme="dark"] .app-shell .bg-yellow-50\/60,
+[data-user-theme="dark"] .app-shell .bg-\[\#FFF9E6\],
+[data-user-theme="dark"] .app-shell .bg-\[\#FFF9E6\]\/90 {
   background-color: #16243c !important;
 }
-[data-user-theme="dark"] .user-shell .text-yellow-900,
-[data-user-theme="dark"] .user-shell .text-yellow-800,
-[data-user-theme="dark"] .user-shell .text-yellow-700 {
+[data-user-theme="dark"] .app-shell .text-yellow-900,
+[data-user-theme="dark"] .app-shell .text-yellow-800,
+[data-user-theme="dark"] .app-shell .text-yellow-700 {
   color: #60a5fa !important;
 }
-[data-user-theme="dark"] .user-shell .border-yellow-200,
-[data-user-theme="dark"] .user-shell .border-yellow-300 {
+[data-user-theme="dark"] .app-shell .border-yellow-200,
+[data-user-theme="dark"] .app-shell .border-yellow-300 {
   border-color: #1d4ed8 !important;
 }
 
 /* Active nav item: blue instead of gold */
-[data-user-theme="dark"] .user-shell nav a.bg-\[\#FFD700\] {
+[data-user-theme="dark"] .app-shell nav a.bg-\[\#FFD700\] {
   background-color: #2563eb !important;
   color: #ffffff !important;
 }
 
 /* Inputs */
-[data-user-theme="dark"] .user-shell input,
-[data-user-theme="dark"] .user-shell textarea,
-[data-user-theme="dark"] .user-shell select {
+[data-user-theme="dark"] .app-shell input,
+[data-user-theme="dark"] .app-shell textarea,
+[data-user-theme="dark"] .app-shell select {
   background-color: #0f1a2b !important;
   color: #e2e8f0 !important;
   border-color: #1e2d45 !important;
 }
-[data-user-theme="dark"] .user-shell input::placeholder,
-[data-user-theme="dark"] .user-shell textarea::placeholder {
+[data-user-theme="dark"] .app-shell input::placeholder,
+[data-user-theme="dark"] .app-shell textarea::placeholder {
   color: #64748b !important;
 }

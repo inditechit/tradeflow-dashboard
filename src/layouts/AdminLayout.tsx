@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
+import { ThemeProvider } from "@/context/ThemeContext";
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -36,7 +37,8 @@ const AdminLayout = () => {
   }, [mobileNavOpen]);
 
   return (
-    <div className="flex h-[100dvh] min-h-0 bg-white">
+    <ThemeProvider>
+    <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
       <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
@@ -50,6 +52,7 @@ const AdminLayout = () => {
         </main>
       </div>
     </div>
+    </ThemeProvider>
   );
 };
 

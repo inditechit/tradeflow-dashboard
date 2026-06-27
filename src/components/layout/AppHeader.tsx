@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, User, Menu } from "lucide-react";
+import { LogOut, User, Menu, Moon, Sun } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { useApp } from "@/context/AppContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
 import { proofImageSrc } from "@/utils/userImageUrl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,6 +39,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const { currentUser, logout } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -124,6 +126,18 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
             {walletLabel}
           </button>
         ) : null}
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="shrink-0 touch-manipulation rounded-full text-slate-700 hover:bg-slate-100"
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          title={theme === "dark" ? "Light theme" : "Dark theme"}
+        >
+          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
 
         {variant === "user" ? (
           <NotificationBell userId={currentUser.userId} />
