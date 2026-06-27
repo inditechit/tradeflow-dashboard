@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, UserData } from '@/context/AppContext';
 import { GoogleLogin } from "@react-oauth/google";
 import {
   Mail, Camera, Loader2, CheckCircle, Shield,
-  User, Phone, Send, AtSign, Mic, MapPin, ArrowRight, ArrowLeft,
-  FileText, Home, X as XIcon,
+  User, Send, FileText, Home, ArrowRight, ArrowLeft, Circle,
 } from 'lucide-react';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
 import { AuthPasswordField } from "@/components/ui/password-input";
+import {
+  clearSignupDraft,
+  inferSignupErrorTarget,
+  loadSignupDraft,
+  saveSignupDraft,
+  type SignupErrorTarget,
+} from "@/utils/signupDraftStorage";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
@@ -151,13 +157,15 @@ const DocUploadRow = ({
 };
 
 // Input Field (Kept outside to prevent focus loss)
-const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }: any) => (
+const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange, autoFocus, onKeyDown }: any) => (
   <div className="relative group w-full">
     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-800 transition-colors">
       <Icon size={18} />
     </div>
     <input
       type={type}
+      autoFocus={autoFocus}
+      onKeyDown={onKeyDown}
       className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
       placeholder={placeholder}
       value={value}
@@ -170,10 +178,11 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
 
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    name: '', mobile: '', telegram: '', password: '', email: ''
-  });
+  const savedDraft = loadSignupDraft();
+  const [step, setStep] = useState<1 | 2>(savedDraft?.step ?? 1);
+  const [form, setForm] = useState(
+    savedDraft?.form ?? { name: '', mobile: '', telegram: '', password: '', email: '' },
+  );
 
   const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
   const [otp, setOtp] = useState('');
@@ -184,9 +193,42 @@ const SignupPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
 
+  const errorBannerRef = useRef<HTMLDivElement>(null);
+  const step1Ref = useRef<HTMLDivElement>(null);
+  const emailSectionRef = useRef<HTMLDivElement>(null);
+  const permissionsSectionRef = useRef<HTMLDivElement>(null);
+  const photoSectionRef = useRef<HTMLDivElement>(null);
+
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [docsStatus, setDocsStatus] = useState<string>('');
+
+  const scrollToRef = (ref: React.RefObject<HTMLElement | null>) => {
+    requestAnimationFrame(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
+  const showError = useCallback((message: string, target?: SignupErrorTarget) => {
+    const resolved = target ?? inferSignupErrorTarget(message);
+    setErrorMessage(message);
+    if (resolved === 'step1') {
+      setStep(1);
+      window.setTimeout(() => scrollToRef(step1Ref), 80);
+      return;
+    }
+    setStep(2);
+    window.setTimeout(() => {
+      if (resolved === 'email' || resolved === 'otp') scrollToRef(emailSectionRef);
+      else if (resolved === 'permissions') scrollToRef(permissionsSectionRef);
+      else if (resolved === 'photo') scrollToRef(photoSectionRef);
+      else scrollToRef(errorBannerRef);
+    }, 80);
+  }, []);
+
+  useEffect(() => {
+    saveSignupDraft({ step, form });
+  }, [step, form]);
 
   // Handle URL parsing and cleaning immediately on mount
   useEffect(() => {
@@ -238,12 +280,12 @@ const SignupPage = () => {
       if (data.success) {
         setOtpState('sent');
       } else {
-        setErrorMessage(data.error || 'Failed to send OTP.');
+        showError(data.error || 'Failed to send OTP.', 'email');
         setOtpState('idle');
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage('Server error. Is the backend running?');
+      showError('Server error. Is the backend running?', 'email');
       setOtpState('idle');
     }
   };
@@ -260,14 +302,23 @@ const SignupPage = () => {
 
       if (data.success) {
         setOtpState('verified');
+        setErrorMessage('');
       } else {
-        setErrorMessage(data.error || 'Invalid or expired OTP.');
+        showError(data.error || 'Invalid or expired OTP.', 'otp');
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage('Server error while verifying OTP.');
+      showError('Server error while verifying OTP.', 'otp');
     }
   };
+
+  // Auto-verify as soon as a full 6-digit OTP is entered — no extra click needed.
+  useEffect(() => {
+    if (otpState === 'sent' && otp.length === 6) {
+      void handleVerifyOtp();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, otpState]);
 
   const requestSystemPermissions = async () => {
     setErrorMessage('');
@@ -279,7 +330,7 @@ const SignupPage = () => {
       });
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        setErrorMessage('Camera is not available. Please use a modern browser on an HTTPS page.');
+        showError('Camera is not available. Please use a modern browser on an HTTPS page.', 'permissions');
         setPermissionsState('denied');
         return;
       }
@@ -297,14 +348,17 @@ const SignupPage = () => {
           },
           () => {
             stream.getTracks().forEach((t) => t.stop());
+            showError('Location permission is required. Please allow location access and try again.', 'permissions');
             setPermissionsState('denied');
           }
         );
       } else {
         stream.getTracks().forEach((t) => t.stop());
+        showError('Location is not supported on this device.', 'permissions');
         setPermissionsState('denied');
       }
     } catch {
+      showError('Could not access camera or location. Please allow permissions and try again.', 'permissions');
       setPermissionsState('denied');
     }
   };
@@ -312,7 +366,7 @@ const SignupPage = () => {
   const captureLivePhoto = () => {
     const video = videoRef.current;
     if (!video?.videoWidth) {
-      setErrorMessage('Camera preview is not ready. Wait a moment or tap Grant again.');
+      showError('Camera preview is not ready. Wait a moment or tap Grant again.', 'photo');
       return;
     }
     const canvas = document.createElement('canvas');
@@ -350,7 +404,7 @@ const SignupPage = () => {
     event.target.value = '';
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
-      setErrorMessage('Image is too large. Please pick something under 8 MB.');
+      showError('Image is too large. Please pick something under 8 MB.', 'photo');
       return;
     }
     try {
@@ -359,7 +413,7 @@ const SignupPage = () => {
       setErrorMessage('');
     } catch (err) {
       console.error(err);
-      setErrorMessage('Could not read that file. Try a different image.');
+      showError('Could not read that file. Try a different image.', 'photo');
     }
   };
 
@@ -383,6 +437,20 @@ const SignupPage = () => {
   const handleProceed = async () => {
     setErrorMessage('');
     setDocsStatus('');
+
+    if (otpState !== 'verified') {
+      showError('Please verify your email with the OTP first.', 'otp');
+      return;
+    }
+    if (permissionsState !== 'granted') {
+      showError('Please grant camera and location permissions first.', 'permissions');
+      return;
+    }
+    if (!livePhotoBase64) {
+      showError('Please capture your live photo before creating your account.', 'photo');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const storedRef = sessionStorage.getItem("referrer_key");
@@ -405,7 +473,8 @@ const SignupPage = () => {
       });
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success) {
+        clearSignupDraft();
         sessionStorage.removeItem("referrer_key");
         // Account created. If the user attached extra KYC docs at signup,
         // push them now via the existing /user/profile/:userId/documents
@@ -439,12 +508,13 @@ const SignupPage = () => {
         setIsSubmitting(false);
         navigate('/user/post-signup');
       } else {
-        setErrorMessage(data.error || 'Failed to create account.');
-        setIsSubmitting(false);
+        const errText = data.error || 'Failed to create account.';
+        showError(errText);
       }
+      setIsSubmitting(false);
     } catch (error) {
       console.error(error);
-      setErrorMessage('Server error. Could not create account.');
+      showError('Server error. Could not create account.');
       setIsSubmitting(false);
     }
   };
@@ -464,9 +534,10 @@ const SignupPage = () => {
       });
       const data = await response.json();
       if (!response.ok || !data?.success) {
-        setErrorMessage(data?.error || "Google signup failed.");
+        showError(data?.error || "Google signup failed.", 'step1');
         return;
       }
+      clearSignupDraft();
       sessionStorage.removeItem("referrer_key");
       const user: UserData = {
         name: data.name ?? "",
@@ -485,7 +556,7 @@ const SignupPage = () => {
       navigate(data.isNewUser ? "/user/post-signup" : "/user/dashboard");
     } catch (error) {
       console.error(error);
-      setErrorMessage("Google signup failed. Please try again.");
+      showError("Google signup failed. Please try again.", 'step1');
     } finally {
       setIsSubmitting(false);
     }
@@ -578,7 +649,10 @@ const SignupPage = () => {
 
         {/* Global Error Message Display */}
         {errorMessage && (
-          <div className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium text-center">
+          <div
+            ref={errorBannerRef}
+            className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium text-center"
+          >
             {errorMessage}
           </div>
         )}
@@ -586,13 +660,13 @@ const SignupPage = () => {
         {/* Body Section */}
         <div className="p-8 md:p-10 flex-1 pt-6 bg-white/95 backdrop-blur-md">
           {step === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div ref={step1Ref} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
                 <User size={22} className="text-yellow-800" /> Account Details
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-5">
-                <InputField icon={User} placeholder="Full Name" value={form.name} onChange={(e: any) => update('name', e.target.value)} />
+                <InputField icon={User} placeholder="Full Name" value={form.name} onChange={(e: any) => update('name', e.target.value)} autoFocus />
                 <div className="w-full">
                   <PhoneInput
                     country={"in"}
@@ -605,7 +679,13 @@ const SignupPage = () => {
                 </div>
                 <InputField icon={Send} placeholder="Telegram Username" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
                 {/* <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} /> */}
-                 <AuthPasswordField placeholder="Secure Password" value={form.password} onChange={(e) => update('password', e.target.value)} autoComplete="new-password" />
+                 <AuthPasswordField
+                   placeholder="Secure Password"
+                   value={form.password}
+                   onChange={(e) => update('password', e.target.value)}
+                   onKeyDown={(e) => { if (e.key === 'Enter' && isStep1Valid) setStep(2); }}
+                   autoComplete="new-password"
+                 />
               </div>
 
               <div className="pt-6 flex flex-col gap-4">
@@ -663,7 +743,37 @@ const SignupPage = () => {
                 <Shield size={22} className="text-yellow-800" /> Verification
               </h2>
 
-              <div className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4 shadow-sm">
+              {/* Live checklist so users always know exactly what's left before they can finish. */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  3 quick steps to finish
+                </p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    { label: 'Verify email', done: otpState === 'verified' },
+                    { label: 'Grant permissions', done: permissionsState === 'granted' },
+                    { label: 'Capture live photo', done: Boolean(livePhotoBase64) },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        item.done
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-slate-200 bg-slate-50 text-slate-500'
+                      }`}
+                    >
+                      {item.done ? (
+                        <CheckCircle size={16} className="shrink-0 text-emerald-600" />
+                      ) : (
+                        <Circle size={16} className="shrink-0 text-slate-300" />
+                      )}
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div ref={emailSectionRef} className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4 shadow-sm">
                 <h3 className="font-medium text-slate-800 mb-2">Email Verification</h3>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1">
@@ -685,7 +795,11 @@ const SignupPage = () => {
                       className="flex-1 w-full px-4 py-3.5 rounded-xl text-sm border border-slate-200 text-center tracking-widest font-mono focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 outline-none h-[50px]"
                       placeholder="Enter 6-digit OTP"
                       value={otp}
-                      onChange={e => setOtp(e.target.value)}
+                      onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      autoFocus
                       disabled={otpState === 'verified'}
                       style={{    color: 'black'}}
                     />
@@ -702,7 +816,7 @@ const SignupPage = () => {
                 )}
               </div>
 
-              <div className={`p-6 rounded-xl border transition-all duration-300 ${permissionsState === 'granted' ? 'border-yellow-300 bg-yellow-50/60' : 'border-slate-100 bg-slate-50/50 shadow-sm'}`}>
+              <div ref={permissionsSectionRef} className={`p-6 rounded-xl border transition-all duration-300 ${permissionsState === 'granted' ? 'border-yellow-300 bg-yellow-50/60' : 'border-slate-100 bg-slate-50/50 shadow-sm'}`}>
                 <div className="flex items-start gap-4 mb-5">
                   <div className={`p-3 rounded-full flex-shrink-0 ${permissionsState === 'granted' ? 'bg-yellow-100 text-neutral-900' : 'bg-yellow-100 text-neutral-900'}`}>
                     {permissionsState === 'granted' ? <CheckCircle size={24} /> : <Shield size={24} />}
@@ -751,7 +865,7 @@ const SignupPage = () => {
               </div>
 
               {permissionsState === 'granted' && (
-                <div className="p-6 rounded-xl border border-yellow-200 bg-yellow-50/40 space-y-4 shadow-sm">
+                <div ref={photoSectionRef} className="p-6 rounded-xl border border-yellow-200 bg-yellow-50/40 space-y-4 shadow-sm">
                   <h3 className="font-medium text-slate-800 flex items-center gap-2">
                     <Camera size={18} className="text-neutral-900" />
                     Live photo (required)

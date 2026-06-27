@@ -13,12 +13,14 @@ export type PermissionTab = {
 /** Path → tab permission key (sidebar / route guard). */
 export const ADMIN_TAB_PATH_KEYS: Record<string, string> = {
   "/admin/dashboard": "tab:dashboard",
+  "/admin/package-catalog": "tab:packages",
   "/admin/profile": "tab:profile",
   "/admin/open-trades": "tab:open_trades",
   "/admin/users": "tab:users",
   "/admin/user-map": "tab:user_map",
   "/admin/transactions": "tab:transactions",
   "/admin/recharge": "tab:recharge",
+  "/admin/unmatched-payments": "tab:transactions",
   "/admin/withdrawals": "tab:withdrawals",
   "/admin/bulk-withdraw": "tab:withdrawals",
   "/admin/support-tickets": "tab:support",
@@ -47,12 +49,14 @@ export function tabKeyForPath(path: string): string | null {
 /** Sidebar order — used for employee default landing. */
 export const ADMIN_MENU_PATHS = [
   "/admin/dashboard",
+  "/admin/package-catalog",
   "/admin/profile",
   "/admin/open-trades",
   "/admin/users",
   "/admin/user-map",
   "/admin/transactions",
   "/admin/recharge",
+  "/admin/unmatched-payments",
   "/admin/withdrawals",
   "/admin/bulk-withdraw",
   "/admin/support-tickets",

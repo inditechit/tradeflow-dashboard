@@ -55,6 +55,8 @@ import AdminNotificationsPage from "./pages/AdminNotificationsPage";
 import AdminAlertsPage from "./pages/AdminAlertsPage";
 import AdminInvoicesPage from "./pages/AdminInvoicesPage";
 import AdminPackagesPage from "./pages/AdminPackagesPage";
+import AdminPackageCatalogPage from "./pages/AdminPackageCatalogPage";
+import AdminUnmatchedPaymentsPage from "./pages/AdminUnmatchedPaymentsPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import AdminUserPnlReportPage from "./pages/AdminUserPnlReportPage";
@@ -151,6 +153,7 @@ const App = () => (
               <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<AdminRechargesPage />} />
+              <Route path="unmatched-payments" element={<AdminUnmatchedPaymentsPage />} />
               <Route path="affiliate-rules" element={<AffiliateRulesAdminPage />} />
               <Route path="referrals" element={<AdminReferralsPage />} />
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
@@ -166,6 +169,7 @@ const App = () => (
               <Route path="alerts" element={<AdminAlertsPage />} />
               <Route path="invoices" element={<AdminInvoicesPage />} />
               <Route path="packages" element={<AdminPackagesPage />} />
+              <Route path="package-catalog" element={<AdminPackageCatalogPage />} />
               <Route path="coupons" element={<AdminCouponsPage />} />
 
             </Route>

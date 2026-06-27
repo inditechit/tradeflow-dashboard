@@ -23,6 +23,7 @@ import {
   FileText,
   FileBarChart,
   UserCog,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
@@ -36,12 +37,14 @@ type AdminSidebarProps = {
 
 const ALL_MENU = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { name: "Packages we sell", icon: Package, path: "/admin/package-catalog" },
   { name: "Profile", icon: User, path: "/admin/profile" },
   { name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
   { name: "Users", icon: Users, path: "/admin/users", showLive: true },
   { name: "User map", icon: MapIcon, path: "/admin/user-map" },
   { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
   { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
+  { name: "Unmatched payments", icon: AlertTriangle, path: "/admin/unmatched-payments" },
   { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
   { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
   { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
