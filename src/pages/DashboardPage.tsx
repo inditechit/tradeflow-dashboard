@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/context/ThemeContext';
 import { 
   User, LogOut, 
   Loader2, Plus, TrendingUp,
@@ -27,7 +28,7 @@ const socket = io(SOCKET_URL, { transports: ['websocket'] });
 /** Free embed supports OANDA gold spot; FXCM:XAUUSD is not available in widgets. */
 const XAUUSD_SYMBOL = "OANDA:XAUUSD";
 
-const TradingViewChart = memo(() => {
+const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }) => {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ const TradingViewChart = memo(() => {
       symbol: XAUUSD_SYMBOL,
       interval: "15",
       timezone: "Etc/UTC",
-      theme: "light",
+      theme,
       style: "1",
       locale: "en",
       enable_publishing: false,
@@ -59,7 +60,7 @@ const TradingViewChart = memo(() => {
     return () => {
       if (container.current) container.current.innerHTML = "";
     };
-  }, []);
+  }, [theme]);
 
   return (
     <div
@@ -78,6 +79,7 @@ const TradingViewChart = memo(() => {
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { currentUser, updateUser, logout } = useApp();
+  const { theme } = useTheme();
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
   const [livePl, setLivePl] = useState(0);
@@ -556,7 +558,7 @@ const DashboardPage = () => {
               </span>
             </div>
             <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
-              <TradingViewChart />
+              <TradingViewChart theme={theme} />
             </div>
           </section>
         )}

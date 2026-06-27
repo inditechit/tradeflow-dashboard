@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, TrendingUp, TrendingDown, Wallet, Coins, BarChart3, Percent } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { io } from "socket.io-client";
 import { useApp } from "@/context/AppContext";
 import {
-  sumLiveProfitLoss,
   rowUserFacingPl,
   buildSequentialUserFacingPlMap,
-  recomputeOpenUserLivePl,
   isOpenTrade,
+  isTradeClosed,
   parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
@@ -39,21 +38,6 @@ type UserTradeRow = UserTradeRowLike & {
   close_time?: string | null;
   assignment_created_at?: string | null;
 };
-
-function fmtUsd(n: number, currency = "USD") {
-  const code = String(currency || "USD").toUpperCase();
-  const safe = /^[A-Z]{3}$/.test(code) ? code : "USD";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: safe,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  } catch {
-    return `${safe} ${n.toFixed(2)}`;
-  }
-}
 
 const ProfitLoss = () => {
   const { currentUser } = useApp();
@@ -155,6 +139,9 @@ const ProfitLoss = () => {
   const walletBalance = Number(summary?.wallet_balance ?? 0);
   const depositBaseline = Number(summary?.deposit_baseline ?? summary?.total_invested ?? 0);
 
+  // History shows closed/settled trades only — open positions live on the dashboard.
+  const closedRows = useMemo(() => rows.filter((r) => isTradeClosed(r)), [rows]);
+
   const facingMap = useMemo(
     () =>
       buildSequentialUserFacingPlMap(
@@ -172,78 +159,23 @@ const ProfitLoss = () => {
     [liveRawByTicket, facingMap],
   );
 
-  const liveFromSocket = useMemo(
-    () => sumLiveProfitLoss(rows, liveRawByTicket, walletBalance, depositBaseline),
-    [rows, liveRawByTicket, walletBalance, depositBaseline],
+  const accountSummary = useMemo(
+    () => ({
+      credit: 0,
+      deposit: Number(summary?.total_deposited_usd ?? 0),
+      withdrawal: -Math.abs(Number(summary?.total_withdrawn_usd ?? 0)),
+      balance: walletBalance,
+    }),
+    [summary?.total_deposited_usd, summary?.total_withdrawn_usd, walletBalance],
   );
-
-  const liveFromApi = useMemo(
-    () => sumLiveProfitLoss(rows, undefined, walletBalance, depositBaseline),
-    [rows, walletBalance, depositBaseline],
-  );
-
-  const livePlComputed = useMemo(
-    () => recomputeOpenUserLivePl(rows, walletBalance, depositBaseline, liveRawByTicket),
-    [rows, walletBalance, depositBaseline, liveRawByTicket],
-  );
-
-  const hasSocketLive = Object.keys(liveRawByTicket).length > 0;
-  const openCount = rows.filter((r) => isOpenTrade(r)).length;
-  const apiLive = Number(summary?.live_pl ?? 0);
-  const livePl =
-    openCount > 0 && walletBalance > 0.01
-      ? Math.abs(livePlComputed) > 0.001 || Math.abs(apiLive) < 0.001
-        ? livePlComputed
-        : apiLive
-      : apiLive || (hasSocketLive ? liveFromSocket.net : liveFromApi.net);
-
-  const cards = [
-    {
-      title: "Wallet balance",
-      value: fmtUsd(summary?.wallet_balance ?? 0, currency),
-      icon: Wallet,
-      tone: "neutral",
-    },
-    {
-      title: "Realised profit",
-      value: fmtUsd(summary?.realised_profit ?? 0, currency),
-      icon: TrendingUp,
-      tone: "profit",
-    },
-    {
-      title: "Realised loss",
-      value: fmtUsd(summary?.realised_loss ?? 0, currency),
-      icon: TrendingDown,
-      tone: "loss",
-    },
-    {
-      title: "Net realised",
-      value: fmtUsd(summary?.realised_net ?? 0, currency),
-      icon: BarChart3,
-      tone: (summary?.realised_net ?? 0) >= 0 ? "profit" : "loss",
-    },
-    {
-      title: "Live (open) P/L",
-      value: fmtUsd(livePl, currency),
-      icon: Percent,
-      tone: livePl >= 0 ? "profit" : "loss",
-    },
-    {
-      title: "Fees paid",
-      value: fmtUsd(summary?.fees_paid ?? 0, currency),
-      icon: Coins,
-      tone: "neutral",
-      footer: summary ? `${summary.fee_per_lot_usd} USDT / 1.0 lot` : undefined,
-    },
-  ];
 
   return (
     <div className="mx-auto max-w-5xl p-4">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Transactions</h1>
+          <h1 className="text-2xl font-bold text-slate-800">History</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your share of every assigned trade — volume, fee, and P/L after profit rules.
+            Your closed trades — entry/exit, volume and settled P/L after profit rules.
           </p>
         </div>
 
@@ -257,38 +189,14 @@ const ProfitLoss = () => {
         </button>
       </div>
 
-      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c) => {
-          const Icon = c.icon;
-          const toneCls =
-            c.tone === "profit"
-              ? "text-emerald-600"
-              : c.tone === "loss"
-                ? "text-red-600"
-                : "text-slate-900";
-          return (
-            <div
-              key={c.title}
-              className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-neutral-900/8"
-            >
-              <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-bold uppercase tracking-wide">{c.title}</span>
-              </div>
-              <p className={`text-2xl font-extrabold tabular-nums ${toneCls}`}>{c.value}</p>
-              {c.footer && <p className="mt-1 text-xs text-slate-400">{c.footer}</p>}
-            </div>
-          );
-        })}
-      </section>
-
       <Mt5TradeHistoryList
-        trades={rows}
+        trades={closedRows}
         getRowPl={getRowPl}
         loading={loading}
         currency={currency}
         entryByTicket={entryPriceByTicketRef.current}
-        emptyMessage="No trades yet"
+        emptyMessage="No closed trades yet"
+        accountSummary={accountSummary}
       />
     </div>
   );

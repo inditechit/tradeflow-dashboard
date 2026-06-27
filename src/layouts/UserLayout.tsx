@@ -10,6 +10,7 @@ import { ProfileComplianceProvider } from "@/context/ProfileComplianceContext";
 import SubscriptionExpiredGuard from "@/components/subscription/SubscriptionExpiredGuard";
 import ComplianceRequiredGuard from "@/components/compliance/ComplianceRequiredGuard";
 import MaintenanceGuard from "@/components/maintenance/MaintenanceGuard";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { API_BASE } from "@/config/api";
 
 const UserLayout = () => {
@@ -52,9 +53,10 @@ const UserLayout = () => {
   }, [mobileNavOpen]);
 
   return (
+    <ThemeProvider>
     <SubscriptionProvider>
       <ProfileComplianceProvider>
-        <div className="flex h-[100dvh] min-h-0 bg-white">
+        <div className="user-shell flex h-[100dvh] min-h-0 bg-white">
           <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
@@ -78,6 +80,7 @@ const UserLayout = () => {
         </div>
       </ProfileComplianceProvider>
     </SubscriptionProvider>
+    </ThemeProvider>
   );
 };
 

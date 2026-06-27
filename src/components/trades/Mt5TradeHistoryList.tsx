@@ -24,7 +24,8 @@ type PeriodKey = "today" | "week" | "month" | "all" | "custom";
 
 /** MT5-style account summary shown under the list (English labels). */
 export type Mt5AccountSummary = {
-  profit: number;
+  /** Optional: footer "Profit" is derived from the visible rows (period-aware), like MT5. */
+  profit?: number;
   credit?: number;
   deposit: number;
   /** Pass as a negative number to render like MT5 (e.g. -6000). */
@@ -150,6 +151,10 @@ export function Mt5TradeHistoryList({
   );
 
   const activeLabel = PERIOD_TABS.find((t) => t.key === period)?.label ?? "All";
+
+  // MT5-style: "Profit" reflects the trades currently shown (period-filtered),
+  // not a fixed realised total — so it always matches the rows above it.
+  const summaryProfit = periodNetPl;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
@@ -287,11 +292,11 @@ export function Mt5TradeHistoryList({
               <dt className="text-sm font-semibold text-slate-600">Profit</dt>
               <dd
                 className={`text-sm font-bold tabular-nums ${plTextClass(
-                  accountSummary.profit,
+                  summaryProfit,
                 )}`}
               >
-                {accountSummary.profit >= 0 ? "+" : ""}
-                {fmtMoney(accountSummary.profit, currency)}
+                {summaryProfit >= 0 ? "+" : ""}
+                {fmtMoney(summaryProfit, currency)}
               </dd>
             </div>
             <div className="flex items-center justify-between">
