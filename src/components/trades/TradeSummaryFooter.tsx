@@ -93,7 +93,7 @@ export function TradeSummaryFooter({
           </tr>
           <tr>
             <td colSpan={colSpan} className="px-6 py-3 text-right text-sm font-semibold text-slate-600">
-              Total withdrawn
+              Total withdrawl
             </td>
             <td className="px-6 py-3 text-sm font-semibold tabular-nums text-slate-700">
               {fmtUsd(capital?.totalWithdrawn ?? 0)}

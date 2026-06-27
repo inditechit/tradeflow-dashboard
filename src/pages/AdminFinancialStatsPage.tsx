@@ -393,7 +393,7 @@ const AdminFinancialStatsPage = () => {
                   <span className="font-medium tabular-nums">${fmt(stats.facts.total_recharged_usd)}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span>Total withdrawn</span>
+                  <span>Total withdrawl</span>
                   <span className="font-medium tabular-nums">${fmt(stats.facts.total_withdrawn_usd)}</span>
                 </li>
                 <li className="flex justify-between">

@@ -226,7 +226,7 @@ export function Mt5TradeHistoryList({
                 ? r.open_time ?? r.assignment_created_at
                 : r.close_time ?? r.wallet_settled_at ?? r.open_time,
             );
-            const sideCls = isSell ? "text-red-600" : "text-sky-600";
+            const sideCls = isSell ? "text-red-600" : "text-emerald-600";
 
             return (
               <div

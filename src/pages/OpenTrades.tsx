@@ -557,7 +557,7 @@ const OpenTrades = () => {
                 const exit = isBuy ? sellPrice : buyPrice;
                 const exitLive = isBuy ? sellIsLive : buyIsLive;
                 const stamp = fmtMt5DateTime(g.isOpen ? g.openTime : g.closeTime);
-                const sideCls = isSell ? "text-red-600" : "text-sky-600";
+                const sideCls = isSell ? "text-red-600" : "text-emerald-600";
 
                 return (
                   <div
@@ -658,7 +658,7 @@ const OpenTrades = () => {
                 const isOpen = String(trade.status ?? "").toUpperCase() === "OPEN";
                 const stamp = fmtMt5DateTime(isOpen ? trade.open_time : trade.close_time);
                 const profit = Number(trade.profit);
-                const sideCls = isSell ? "text-red-600" : "text-sky-600";
+                const sideCls = isSell ? "text-red-600" : "text-emerald-600";
 
                 return (
                   <div
