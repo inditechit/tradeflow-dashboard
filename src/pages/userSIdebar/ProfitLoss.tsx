@@ -7,22 +7,13 @@ import {
   rowUserFacingPl,
   buildSequentialUserFacingPlMap,
   recomputeOpenUserLivePl,
-  sumUserFacingPlTotals,
-  resolveMt5BuySellPrices,
-  resolveEffectiveSlice,
-  formatMt5SideLabel,
-  fmtMt5Price,
   isOpenTrade,
   parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { API_BASE, SOCKET_URL } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
-import { useClientPagination } from "@/hooks/useClientPagination";
-import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-import { TradeSummaryFooter } from "@/components/trades/TradeSummaryFooter";
-import { plBadgeClass, plTextClass } from "@/utils/plColors";
-import { formatIsoDateTime } from "@/utils/mt5TradeDates";
+import { Mt5TradeHistoryList } from "@/components/trades/Mt5TradeHistoryList";
 
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
@@ -49,22 +40,6 @@ type UserTradeRow = UserTradeRowLike & {
   assignment_created_at?: string | null;
 };
 
-type TradeCycle = {
-  since_last_recharge?: boolean;
-  last_recharge_at?: string | null;
-  trade_filter_at?: string | null;
-  cycle_deposit_usd?: number | null;
-  pinned_baseline?: boolean;
-  wallet_correction?: boolean;
-};
-
-type TradeTotals = {
-  total_profit: number;
-  total_loss: number;
-  net_pl: number;
-  trade_count?: number;
-};
-
 function fmtUsd(n: number, currency = "USD") {
   const code = String(currency || "USD").toUpperCase();
   const safe = /^[A-Z]{3}$/.test(code) ? code : "USD";
@@ -80,14 +55,10 @@ function fmtUsd(n: number, currency = "USD") {
   }
 }
 
-const PAGE_SIZE = 50;
-
 const ProfitLoss = () => {
   const { currentUser } = useApp();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rows, setRows] = useState<UserTradeRow[]>([]);
-  const [cycle, setCycle] = useState<TradeCycle | null>(null);
-  const [apiTotals, setApiTotals] = useState<TradeTotals | null>(null);
   const [loading, setLoading] = useState(false);
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
   const myTicketIdsRef = useRef<Set<string>>(new Set());
@@ -105,7 +76,6 @@ const ProfitLoss = () => {
       const sData = await sRes.json();
       if (sData?.success) setSummary(sData as Summary);
       if (tData?.success && Array.isArray(tData.trades)) {
-        if (tData.cycle) setCycle(tData.cycle as TradeCycle);
         const list = tData.trades as UserTradeRow[];
         const tickets = new Set<string>();
         for (const t of list) {
@@ -181,49 +151,26 @@ const ProfitLoss = () => {
     };
   }, [currentUser?.userId]);
 
-  const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => String(b.ticket_id).localeCompare(String(a.ticket_id))),
-    [rows],
-  );
-
-  const { page, setPage, pageItems, totalPages, total } = useClientPagination(sortedRows, PAGE_SIZE);
-
+  const currency = summary?.currency || "USD";
   const walletBalance = Number(summary?.wallet_balance ?? 0);
   const depositBaseline = Number(summary?.deposit_baseline ?? summary?.total_invested ?? 0);
 
   const facingMap = useMemo(
     () =>
       buildSequentialUserFacingPlMap(
-        sortedRows,
+        rows,
         walletBalance,
         depositBaseline,
         liveRawByTicket,
       ),
-    [sortedRows, walletBalance, depositBaseline, liveRawByTicket],
+    [rows, walletBalance, depositBaseline, liveRawByTicket],
   );
 
-  const tableTotals = useMemo(() => {
-    const fromRows = sumUserFacingPlTotals(sortedRows, facingMap, liveRawByTicket);
-    if (sortedRows.length > 0) return fromRows;
-    if (apiTotals) {
-      return {
-        profit: apiTotals.total_profit,
-        loss: apiTotals.total_loss,
-        net: apiTotals.net_pl,
-        fees: Number(summary?.fees_paid ?? 0),
-      };
-    }
-    return { profit: 0, loss: 0, net: 0, fees: 0 };
-  }, [sortedRows, liveRawByTicket, apiTotals, facingMap, summary?.fees_paid]);
-
-  const cycleNote = useMemo(() => {
-    if (total > 0) {
-      return `All ${total} assigned trades loaded (open and closed).`;
-    }
-    return null;
-  }, [total]);
-
-  const currency = summary?.currency || "USD";
+  const getRowPl = useMemo(
+    () => (r: UserTradeRow) =>
+      rowUserFacingPl(r, liveRawByTicket[String(r.ticket_id ?? "")], undefined, facingMap),
+    [liveRawByTicket, facingMap],
+  );
 
   const liveFromSocket = useMemo(
     () => sumLiveProfitLoss(rows, liveRawByTicket, walletBalance, depositBaseline),
@@ -291,8 +238,8 @@ const ProfitLoss = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl p-4">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-5xl p-4">
+      <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Transactions</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -310,7 +257,7 @@ const ProfitLoss = () => {
         </button>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => {
           const Icon = c.icon;
           const toneCls =
@@ -335,170 +282,14 @@ const ProfitLoss = () => {
         })}
       </section>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Your wallet share per trade — fee shown separately. P/L is what hits your balance
-            (after fee and profit rules), not the full master trade.
-            {cycleNote ? ` ${cycleNote}` : ""}
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Ticket</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Side</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Opened</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Closed</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your vol.</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Buy price</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Sell price</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Your P/L</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading && sortedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                    <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
-                    Loading…
-                  </td>
-                </tr>
-              ) : sortedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                    No trades yet
-                  </td>
-                </tr>
-              ) : (
-                pageItems.map((r) => {
-                  const ticket = String(r.ticket_id ?? "");
-                  const open = isOpenTrade(r);
-                  const userPl = rowUserFacingPl(r, liveRawByTicket[ticket], undefined, facingMap);
-                  const isProfit = userPl >= 0;
-                  
-                  const { buyPrice, sellPrice, buyIsLive, sellIsLive } = resolveMt5BuySellPrices(
-                    r,
-                    entryPriceByTicketRef.current
-                  );
-
-                  const slice = resolveEffectiveSlice({
-                    ...r,
-                    user_fee_per_lot_usd:
-                      (r as UserTradeRow & { user_fee_per_lot_usd?: number }).user_fee_per_lot_usd ??
-                      summary?.fee_per_lot_usd,
-                  });
-                  const vol = slice.v_i;
-                  const fee = slice.fee;
-
-                  return (
-                    <tr key={r.ticket_id} className="hover:bg-yellow-50/50">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-800">{r.ticket_id}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{r.symbol ?? "—"}</td>
-                      <td className="px-6 py-4 text-sm">
-                        {(() => {
-                          const side = formatMt5SideLabel(r.mt5_type);
-                          if (side === "—") return <span className="text-slate-400">—</span>;
-                          const isBuy = side === "Buy";
-                          return (
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                isBuy
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-red-50 text-red-700"
-                              }`}
-                            >
-                              {side}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                        {formatIsoDateTime(r.open_time ?? r.assignment_created_at ?? null)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                        {open ? "—" : formatIsoDateTime(r.close_time ?? null)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {vol > 0 ? vol.toFixed(4) : "—"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {buyPrice != null ? (
-                          <>
-                            {buyIsLive ? "~" : ""}
-                            {fmtMt5Price(buyPrice, r.symbol)}
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {sellPrice != null ? (
-                          <>
-                            {sellIsLive ? "~" : ""}
-                            {fmtMt5Price(sellPrice, r.symbol)}
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 tabular-nums">
-                        {fee > 0 ? fmtUsd(fee, currency) : "—"}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm font-bold tabular-nums ${
-                          isProfit ? plTextClass(1) : plTextClass(-1)
-                        }`}
-                      >
-                        {open ? "~" : ""}
-                        {fmtUsd(userPl, currency)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            open
-                              ? "bg-sky-50 text-sky-700"
-                              : "border border-slate-200 bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {open ? (r.mt5_status ?? "Open") : "Closed"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-            {sortedRows.length > 0 && (
-              <TradeSummaryFooter
-                colSpan={9}
-                trailingColSpan={1}
-                tableTotals={tableTotals}
-                capital={{
-                  totalDeposited: Number(summary?.total_deposited_usd ?? 0),
-                  totalWithdrawn: Number(summary?.total_withdrawn_usd ?? 0),
-                  walletBalance: Number(summary?.wallet_balance ?? 0),
-                }}
-                fmtUsd={(n) => fmtUsd(n, currency)}
-                plTextClass={plTextClass}
-              />
-            )}
-          </table>
-        </div>
-        <ListPaginationBar
-          page={page}
-          totalPages={totalPages}
-          total={total}
-          pageSize={PAGE_SIZE}
-          onPageChange={setPage}
-        />
-      </div>
+      <Mt5TradeHistoryList
+        trades={rows}
+        getRowPl={getRowPl}
+        loading={loading}
+        currency={currency}
+        entryByTicket={entryPriceByTicketRef.current}
+        emptyMessage="No trades yet"
+      />
     </div>
   );
 };

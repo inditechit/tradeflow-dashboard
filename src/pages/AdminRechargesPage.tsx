@@ -4,8 +4,7 @@ import { RefreshCw, Loader2, Users, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
 
 type PaymentRow = {
   id: number;
@@ -28,6 +27,27 @@ type RechargeStats = {
   success_amount_usd: number;
 };
 
+type StatusFilter = "all" | "success" | "pending" | "failed";
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "success", label: "Success" },
+  { key: "pending", label: "Pending" },
+  { key: "failed", label: "Failed" },
+];
+
+function parseStatusFilter(raw: string | null): StatusFilter {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s === "success" || s === "pending" || s === "failed") return s;
+  return "all";
+}
+
+function rowCreatedMs(createdAt: string | null | undefined) {
+  if (!createdAt) return 0;
+  const ms = new Date(createdAt).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 function statusPillClass(status: string) {
   switch (String(status).toLowerCase()) {
     case "pending":
@@ -45,6 +65,7 @@ const AdminRechargesPage = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const userIdParam = searchParams.get("userId")?.trim() ?? "";
+  const statusParam = parseStatusFilter(searchParams.get("status"));
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [stats, setStats] = useState<RechargeStats | null>(null);
@@ -52,6 +73,7 @@ const AdminRechargesPage = () => {
   const [activeFilter, setActiveFilter] = useState<number | null>(
     userIdParam && /^\d+$/.test(userIdParam) ? Number(userIdParam) : null,
   );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(statusParam);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creditingId, setCreditingId] = useState<number | null>(null);
@@ -60,19 +82,26 @@ const AdminRechargesPage = () => {
   const pageSize = 100;
 
   const fetchPayments = useCallback(
-    async (userId: number | null, pageNum = 1) => {
+    async (userId: number | null, status: StatusFilter, pageNum = 1) => {
       setLoading(true);
       setError("");
       try {
         const qs = new URLSearchParams();
         if (userId !== null) qs.set("userId", String(userId));
+        if (status !== "all") qs.set("status", status);
         qs.set("page", String(pageNum));
         qs.set("limit", String(pageSize));
         const res = await fetch(`${API_BASE}/admin/recharge?${qs.toString()}`);
         const data = await res.json();
         if (data.success) {
-          setPayments(data.payments ?? []);
-          setTotal(Number(data.total ?? data.payments?.length ?? 0));
+          const rows = (data.payments ?? []) as PaymentRow[];
+          rows.sort((a, b) => {
+            const diff = rowCreatedMs(b.created_at) - rowCreatedMs(a.created_at);
+            if (diff !== 0) return diff;
+            return Number(b.id) - Number(a.id);
+          });
+          setPayments(rows);
+          setTotal(Number(data.total ?? rows.length ?? 0));
           setPage(Number(data.page ?? pageNum));
           if (data.stats) {
             setStats({
@@ -112,11 +141,12 @@ const AdminRechargesPage = () => {
       setActiveFilter(null);
       setFilterUserId("");
     }
+    setStatusFilter(parseStatusFilter(searchParams.get("status")));
   }, [searchParams]);
 
   useEffect(() => {
-    fetchPayments(activeFilter, 1);
-  }, [activeFilter, fetchPayments]);
+    fetchPayments(activeFilter, statusFilter, 1);
+  }, [activeFilter, statusFilter, fetchPayments]);
 
   const applyUserFilter = () => {
     const t = filterUserId.trim();
@@ -124,15 +154,23 @@ const AdminRechargesPage = () => {
       toast({ title: "Invalid user id", description: "Use numbers only.", variant: "destructive" });
       return;
     }
-    if (!t) {
-      setSearchParams({});
-      return;
-    }
-    setSearchParams({ userId: t });
+    const next = new URLSearchParams(searchParams);
+    if (!t) next.delete("userId");
+    else next.set("userId", t);
+    setSearchParams(next);
   };
 
-  const clearFilter = () => {
-    setSearchParams({});
+  const clearUserFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("userId");
+    setSearchParams(next);
+  };
+
+  const setStatusFilterAndUrl = (status: StatusFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (status === "all") next.delete("status");
+    else next.set("status", status);
+    setSearchParams(next);
   };
 
   const creditWalletForPayment = async (paymentId: number) => {
@@ -156,7 +194,7 @@ const AdminRechargesPage = () => {
           ? `Balance is $${Number(data.balanceAfter).toFixed(2)}`
           : `Added funds — balance now $${Number(data.balanceAfter).toFixed(2)}`,
       });
-      await fetchPayments(activeFilter);
+      await fetchPayments(activeFilter, statusFilter, page);
     } catch {
       toast({ title: "Error", description: "Server error", variant: "destructive" });
     } finally {
@@ -169,6 +207,11 @@ const AdminRechargesPage = () => {
     return ` — user #${activeFilter}`;
   }, [activeFilter]);
 
+  const statusLabel = useMemo(() => {
+    if (statusFilter === "all") return "";
+    return ` · ${statusFilter}`;
+  }, [statusFilter]);
+
   return (
     <div className="w-full min-w-0 font-sans">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -178,15 +221,18 @@ const AdminRechargesPage = () => {
             {titleSuffix ? (
               <span className="font-semibold text-slate-600">{titleSuffix}</span>
             ) : null}
+            {statusLabel ? (
+              <span className="font-semibold capitalize text-slate-600">{statusLabel}</span>
+            ) : null}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            All wallet top-up attempts (live list). Successful rows credit user wallets after verification.
+            Wallet top-ups sorted by date (newest first). Filter by status or user.
           </p>
         </div>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => fetchPayments(activeFilter)}
+          onClick={() => fetchPayments(activeFilter, statusFilter, page)}
           disabled={loading}
           className="gap-2 shrink-0 rounded-xl bg-[#FFD700] text-black hover:bg-[#E6C200] disabled:opacity-70"
         >
@@ -196,52 +242,91 @@ const AdminRechargesPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <label htmlFor="recharge-user-filter" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Filter by user ID
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <input
-              id="recharge-user-filter"
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 42"
-              value={filterUserId}
-              onChange={(e) => setFilterUserId(e.target.value)}
-              className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-            />
-            <Button type="button" onClick={applyUserFilter} className="h-10 gap-1.5 bg-slate-800 text-white hover:bg-slate-900">
-              <Filter className="h-4 w-4" />
-              Apply
+      <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((f) => (
+            <Button
+              key={f.key}
+              type="button"
+              variant={statusFilter === f.key ? "default" : "outline"}
+              className={
+                statusFilter === f.key
+                  ? "bg-slate-800 text-white hover:bg-slate-900"
+                  : "border-slate-200"
+              }
+              onClick={() => setStatusFilterAndUrl(f.key)}
+            >
+              {f.label}
             </Button>
-            {activeFilter !== null && (
-              <Button type="button" variant="outline" onClick={clearFilter} className="h-10 gap-1.5">
-                <X className="h-4 w-4" />
-                Clear
-              </Button>
-            )}
-          </div>
+          ))}
         </div>
-        {activeFilter !== null && (
-          <Link
-            to={`/admin/user-profile/${activeFilter}`}
-            className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
-          >
-            <Users className="h-4 w-4" />
-            Open user profile
-          </Link>
-        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label htmlFor="recharge-user-filter" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Filter by user ID
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="recharge-user-filter"
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 42"
+                value={filterUserId}
+                onChange={(e) => setFilterUserId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyUserFilter();
+                }}
+                className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+              />
+              <Button type="button" onClick={applyUserFilter} className="h-10 gap-1.5 bg-slate-800 text-white hover:bg-slate-900">
+                <Filter className="h-4 w-4" />
+                Apply
+              </Button>
+              {activeFilter !== null && (
+                <Button type="button" variant="outline" onClick={clearUserFilter} className="h-10 gap-1.5">
+                  <X className="h-4 w-4" />
+                  Clear user
+                </Button>
+              )}
+            </div>
+          </div>
+          {activeFilter !== null && (
+            <Link
+              to={`/admin/user-profile/${activeFilter}`}
+              className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
+            >
+              <Users className="h-4 w-4" />
+              Open user profile
+            </Link>
+          )}
+        </div>
       </div>
 
       {stats && (
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setStatusFilterAndUrl("success")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              statusFilter === "success"
+                ? "border-yellow-400 ring-2 ring-yellow-300/60"
+                : "border-yellow-200"
+            } bg-[#FFF9E6]/90`}
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">Successful</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">{stats.success_count}</p>
-            <p className="mt-1 text-xs text-neutral-800/90">Completed recharges in this view</p>
-          </div>
-          <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
+            <p className="mt-1 text-xs text-neutral-800/90">Click to filter success</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilterAndUrl("success")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              statusFilter === "success"
+                ? "border-yellow-400 ring-2 ring-yellow-300/60"
+                : "border-yellow-300"
+            } bg-yellow-50/60`}
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">Volume (success)</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
               USD{" "}
@@ -251,17 +336,33 @@ const AdminRechargesPage = () => {
               })}
             </p>
             <p className="mt-1 text-xs text-neutral-900/90">Sum of successful amounts</p>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilterAndUrl("pending")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              statusFilter === "pending"
+                ? "border-amber-400 ring-2 ring-amber-300/60"
+                : "border-amber-200"
+            } bg-amber-50/60`}
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pending</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-amber-900">{stats.pending_count}</p>
-            <p className="mt-1 text-xs text-amber-800/90">Awaiting payment / confirmation</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
+            <p className="mt-1 text-xs text-amber-800/90">Click to filter pending</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilterAndUrl("failed")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              statusFilter === "failed"
+                ? "border-slate-400 ring-2 ring-slate-300/60"
+                : "border-slate-200"
+            } bg-slate-50/80`}
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Failed</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{stats.failed_count}</p>
-            <p className="mt-1 text-xs text-slate-500">Did not complete</p>
-          </div>
+            <p className="mt-1 text-xs text-slate-500">Click to filter failed</p>
+          </button>
         </div>
       )}
 
@@ -356,7 +457,7 @@ const AdminRechargesPage = () => {
         totalPages={Math.max(1, Math.ceil(total / pageSize))}
         total={total}
         pageSize={pageSize}
-        onPageChange={(p) => void fetchPayments(activeFilter, p)}
+        onPageChange={(p) => void fetchPayments(activeFilter, statusFilter, p)}
         itemLabel="recharges"
       />
     </div>

@@ -36,6 +36,9 @@ export type UserTradeRowLike = {
   user_raw_pl?: unknown;
   user_estimated_net_pl?: unknown;
   user_facing_pl?: unknown;
+  stop_snapshot_gross_pl_usd?: unknown;
+  stop_snapshot_master_profit_usd?: unknown;
+  stop_snapshot_at?: unknown;
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;

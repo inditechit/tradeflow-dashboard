@@ -1,37 +1,28 @@
-import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { 
-  Plane, Globe, Video, User, LogOut, 
-  Loader2, CheckCircle2, Clock, Plus, TrendingUp,
-  Wallet, CircleDollarSign, ArrowRight, Pause, Play,
+  User, LogOut, 
+  Loader2, Plus, TrendingUp,
+  ArrowRight, Pause, Play,
   LifeBuoy,
 } from 'lucide-react';
-import { formatMoneyAmount } from '@/utils/userProfitShare';
-import { getPackageById, packageDisplayName } from '@/constants/packages';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { fetchAllUserTrades } from '@/utils/fetchAllUserTrades';
-import { plTextClass } from '@/utils/plColors';
 import { DashboardNotificationsBanner } from '@/components/notifications/DashboardNotificationsBanner';
 import { io } from 'socket.io-client';
 import {
   resolveEffectiveSlice,
   isTradeClosed,
   recomputeOpenUserLivePl,
+  buildSequentialUserFacingPlMap,
+  rowUserFacingPl,
+  parseMt5Price,
   type UserTradeRowLike,
 } from '@/utils/userTradePl';
+import { Mt5TradeHistoryList, type Mt5HistoryRow } from '@/components/trades/Mt5TradeHistoryList';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
-
-type PaymentTxn = {
-  id: number | string;
-  package_id: string;
-  package_name?: string;
-  status: string;
-  amount: number | string;
-  payment_method?: string;
-  tx_hash?: string;
-};
 
 /** Free embed supports OANDA gold spot; FXCM:XAUUSD is not available in widgets. */
 const XAUUSD_SYMBOL = "OANDA:XAUUSD";
@@ -84,21 +75,9 @@ const TradingViewChart = memo(() => {
   );
 });
 
-// Helper to assign icons based on the package name saved in the DB
-const getPackageIcon = (name: string) => {
-  const lowerName = name.toLowerCase();
-  if (lowerName.includes('india')) return <Plane size={24} />;
-  if (lowerName.includes('international')) return <Globe size={24} />;
-  return <Video size={24} />;
-};
-
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { currentUser, setSelectedPackage, updateUser, logout } = useApp();
-  
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { currentUser, updateUser, logout } = useApp();
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
   const [livePl, setLivePl] = useState(0);
@@ -120,6 +99,16 @@ const DashboardPage = () => {
   const depositBaselineRef = useRef(0);
   const allTradeRowsRef = useRef<UserTradeRowLike[]>([]);
   const liveRawByTicketRef = useRef<Record<string, number>>({});
+  const entryPriceByTicketRef = useRef<Record<string, number>>({});
+
+  const [historyRows, setHistoryRows] = useState<UserTradeRowLike[]>([]);
+  const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
+  const [depositBaseline, setDepositBaseline] = useState(0);
+  const [acctTotals, setAcctTotals] = useState<{
+    profit: number;
+    deposit: number;
+    withdrawal: number;
+  }>({ profit: 0, deposit: 0, withdrawal: 0 });
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
@@ -128,9 +117,40 @@ const DashboardPage = () => {
     walletBalance > 0.01 && openPositionCount > 0 && !isBusted ? livePl : 0;
   const equity =
     isBusted || walletBalance <= 0.01 ? 0 : Math.max(0, walletBalance + displayLivePl);
-  const withdrawableDisplay =
-    openPositionCount > 0 ? 0 : Math.max(0, isBusted && !softBust ? 0 : walletBalance);
-  const displayPendingClosedPl = pendingClosedPl;
+
+  const facingMap = useMemo(
+    () =>
+      buildSequentialUserFacingPlMap(
+        historyRows,
+        walletBalance,
+        depositBaseline,
+        liveRawByTicket,
+      ),
+    [historyRows, walletBalance, depositBaseline, liveRawByTicket],
+  );
+
+  const getRowPl = useCallback(
+    (r: UserTradeRowLike) =>
+      rowUserFacingPl(r, liveRawByTicket[String(r.ticket_id ?? '')], undefined, facingMap),
+    [liveRawByTicket, facingMap],
+  );
+
+  const activeTradeRows = useMemo(
+    () => historyRows.filter((r) => !isTradeClosed(r)),
+    [historyRows],
+  );
+
+  const accountSummary = useMemo(
+    () => ({
+      profit: acctTotals.profit,
+      credit: 0,
+      deposit: acctTotals.deposit,
+      withdrawal: acctTotals.withdrawal,
+      balance: walletBalance,
+      equity,
+    }),
+    [acctTotals, walletBalance, equity],
+  );
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
     return recomputeOpenUserLivePl(
@@ -203,14 +223,25 @@ const DashboardPage = () => {
         for (const t of tradesData.trades) {
           const ticket = String(t.ticket_id ?? '');
           const liveRaw = ticket ? liveRawByTicketRef.current[ticket] : undefined;
+          const tradeWithSnapshot = t as UserTradeRowLike & {
+            stop_snapshot_gross_pl_usd?: unknown;
+            stop_snapshot_at?: unknown;
+          };
+          const hasStopSnapshot =
+            tradeWithSnapshot.stop_snapshot_gross_pl_usd != null ||
+            tradeWithSnapshot.stop_snapshot_at != null;
           const row =
-            liveRaw != null && Number.isFinite(liveRaw)
+            !hasStopSnapshot && liveRaw != null && Number.isFinite(liveRaw)
               ? { ...t, mt5_total_profit: liveRaw }
               : t;
           allRows.push(row as UserTradeRowLike);
           if (isTradeClosed(row)) continue;
           openCount += 1;
           if (!ticket) continue;
+          const entryPx = parseMt5Price((row as UserTradeRowLike).price);
+          if (entryPx != null && entryPriceByTicketRef.current[ticket] == null) {
+            entryPriceByTicketRef.current[ticket] = entryPx;
+          }
           const slice = resolveEffectiveSlice(row as UserTradeRowLike);
           nextSlice[ticket] = {
             v_i: slice.v_i,
@@ -222,6 +253,9 @@ const DashboardPage = () => {
       }
       allTradeRowsRef.current = allRows;
       liveTicketRef.current = nextSlice;
+      setHistoryRows(allRows);
+      setLiveRawByTicket({ ...liveRawByTicketRef.current });
+      setDepositBaseline(depositBaselineRef.current);
       setOpenPositionCount(openCount);
       const wBal = Number(
         summaryAfter?.wallet_balance ??
@@ -235,6 +269,13 @@ const DashboardPage = () => {
       const effectiveSummary =
         summaryAfter?.success === true ? summaryAfter : summaryData;
 
+      if (effectiveSummary?.success) {
+        setAcctTotals({
+          profit: Number(effectiveSummary.realised_net ?? 0),
+          deposit: Number(effectiveSummary.total_deposited_usd ?? 0),
+          withdrawal: -Math.abs(Number(effectiveSummary.total_withdrawn_usd ?? 0)),
+        });
+      }
       if (effectiveSummary?.success) {
         const busted = effectiveSummary.busted === true;
         const isSoft = effectiveSummary.soft_bust === true;
@@ -303,7 +344,7 @@ const DashboardPage = () => {
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
     const ok = window.confirm(
-      'Stop trading? Open positions will be closed at the current P/L and your full equity will move into your wallet. You will not receive new trades until you restart.',
+      'Stop trading? Your current share of each open position will be frozen from the live MT5 feed. Your wallet will update only when those trades close on the master account.',
     );
     if (!ok) return;
     setTradingActionLoading(true);
@@ -317,6 +358,7 @@ const DashboardPage = () => {
         setTradingActionError(data.error || 'Could not stop trading');
         return;
       }
+      liveRawByTicketRef.current = {};
       await loadFinance();
     } catch {
       setTradingActionError('Server error while stopping trading');
@@ -350,8 +392,9 @@ const DashboardPage = () => {
     }
   };
 
-  const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number) => {
+  const applyLiveMt5Profit = useCallback((ticket: string, rawProfit: number, livePrice?: number | null) => {
     if (isBusted) return;
+    if (tradingStopReason === 'manual_stop') return;
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
     liveRawByTicketRef.current = { ...liveRawByTicketRef.current, [ticket]: rawProfit };
@@ -362,15 +405,18 @@ const DashboardPage = () => {
             mt5_total_profit: rawProfit,
             mt5_volume: ctx.V,
             allocated_volume: ctx.v_i,
+            ...(livePrice != null ? { price: livePrice } : {}),
           }
         : row,
     );
+    setHistoryRows(allTradeRowsRef.current);
+    setLiveRawByTicket({ ...liveRawByTicketRef.current });
     const sum = recomputeOpenPlSequential(walletBalance);
     setLivePl(sum);
     if (walletBalance + sum <= 0) {
       void loadFinance();
     }
-  }, [isBusted, walletBalance, loadFinance, recomputeOpenPlSequential]);
+  }, [isBusted, walletBalance, loadFinance, recomputeOpenPlSequential, tradingStopReason]);
 
   useEffect(() => {
     if (!currentUser?.userId || currentUser.role === 'admin') return;
@@ -400,27 +446,7 @@ const DashboardPage = () => {
   useEffect(() => {
     if (!currentUser?.userId) {
       navigate('/signup');
-      return;
     }
-
-    const fetchTransactions = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/user/payments/${currentUser.userId}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setTransactions(data.data);
-        } else {
-          setError('Failed to load your packages.');
-        }
-      } catch (err) {
-        setError('Server connection error.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTransactions();
   }, [currentUser, navigate]);
 
   useEffect(() => {
@@ -431,11 +457,11 @@ const DashboardPage = () => {
     loadFinance();
     const interval = setInterval(loadFinance, 10000);
 
-    const onLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+    const onLive = (payload: { ticket?: unknown; profit?: unknown; price?: unknown }) => {
       const ticket = String(payload.ticket ?? '');
       const raw = Number(payload.profit);
       if (!ticket || !Number.isFinite(raw)) return;
-      applyLiveMt5Profit(ticket, raw);
+      applyLiveMt5Profit(ticket, raw, parseMt5Price(payload.price));
     };
     socket.on('mt5live', onLive);
     socket.on('mt5data', onLive);
@@ -476,22 +502,6 @@ const DashboardPage = () => {
     navigate('/login');
   };
 
-  const handleContinueJourney = (txn: PaymentTxn) => {
-    const pkg = getPackageById(txn.package_id);
-    if (!pkg) {
-      navigate('/packages');
-      return;
-    }
-    setSelectedPackage({
-      id: pkg.id,
-      name: pkg.name,
-      price: Number(txn.amount) || pkg.price,
-      icon: pkg.icon.name,
-      purchasedAt: new Date().toISOString(),
-    });
-    navigate('/payment', { state: { resumePayment: true } });
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -513,6 +523,12 @@ const DashboardPage = () => {
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
+            <button
+              onClick={() => navigate('/user/recharge')}
+              className="flex-1 md:flex-none px-5 py-2.5 bg-[#FFD700] text-black rounded-xl border border-yellow-300 hover:bg-[#E6C200] transition-colors flex items-center justify-center gap-2 font-bold text-sm"
+            >
+              <Plus size={18} /> Add Fund
+            </button>
             <button 
               onClick={handleLogout} 
               className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
@@ -521,6 +537,29 @@ const DashboardPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Live chart at the top of the user panel */}
+        {currentUser?.role !== 'admin' && (
+          <section>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="text-neutral-900" size={24} />
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
+                  <p className="text-xs text-slate-500">
+                    Gold spot (XAU/USD) · OANDA feed
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
+                XAUUSD
+              </span>
+            </div>
+            <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
+              <TradingViewChart />
+            </div>
+          </section>
+        )}
 
         {currentUser?.role !== 'admin' && isBusted && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
@@ -570,6 +609,44 @@ const DashboardPage = () => {
           </div>
         )}
 
+        {currentUser?.role !== 'admin' && !isBusted && (
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm shadow-sm md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold text-slate-900">
+                {tradingActive ? 'Copy trading is running' : 'Copy trading is paused'}
+              </p>
+              <p className="mt-1 text-slate-500">
+                {tradingActive
+                  ? 'Stop trading freezes your current open-position P/L from the live MT5 feed and blocks new trades.'
+                  : tradingStopReason === 'manual_stop'
+                    ? 'Your open-position P/L is frozen. Start trading again to receive new copy trades.'
+                    : 'Start trading after your wallet and package are active.'}
+              </p>
+            </div>
+            {tradingActive ? (
+              <button
+                type="button"
+                onClick={handleStopTrading}
+                disabled={tradingActionLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {tradingActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause size={16} />}
+                Stop Trade
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestartTrading}
+                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-4 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {tradingActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play size={16} />}
+                Start Trade
+              </button>
+            )}
+          </div>
+        )}
+
         {currentUser?.role !== 'admin' && supportUnreadTickets > 0 && (
           <button
             type="button"
@@ -600,219 +677,21 @@ const DashboardPage = () => {
           </button>
         )}
 
+        {/* Active trades (MT5-style) + account summary */}
         {currentUser?.role !== 'admin' && (
-          <section className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
-              <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <Wallet className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Account balance</span>
-              </div>
-              {loadingFinance && !wallet ? (
-                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
-              ) : (
-                <p className="text-2xl font-extrabold tabular-nums text-slate-900">
-                  {formatMoneyAmount(walletBalance, currency)}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-slate-500">
-                Money left in your account after all closed trades are settled. This is not your
-                original deposit.
-              </p>
-            <button 
-                  onClick={() => navigate('/user/recharge')}
-                  className="flex items-center gap-1 bg-[#ecd888] mt-4 hover:bg-[#FFD700] text-gray-800 hover:text-black border border-yellow-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                >
-                  <Plus size={14} /> Add Fund
-                </button>
-            </div>
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-neutral-900/8">
-              <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <TrendingUp className="h-5 w-5 text-emerald-600" />
-                <span className="text-xs font-bold uppercase tracking-wide">Open trade P/L</span>
-              </div>
-              {loadingFinance ? (
-                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
-              ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${plTextClass(displayLivePl)}`}>
-                  {displayLivePl > 0 ? '+' : ''}{formatMoneyAmount(displayLivePl, currency)}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-slate-500">
-                {walletBalance <= 0.01
-                  ? 'Balance is $0 — no open P/L and no new trades until you recharge'
-                  : isBusted
-                    ? 'Trading stopped — add funds to continue'
-                    : openPositionCount > 0
-                      ? `${openPositionCount} open · estimate only until close`
-                      : 'No open trades'}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50/80 to-white p-6 shadow-sm shadow-neutral-900/8">
-              <div className="mb-2 flex items-center gap-2 text-slate-500">
-                <CircleDollarSign className="h-5 w-5 text-neutral-900" />
-                <span className="text-xs font-bold uppercase tracking-wide">Equity</span>
-              </div>
-              {loadingFinance ? (
-                <Loader2 className="h-8 w-8 animate-spin text-yellow-800" />
-              ) : (
-                <p className={`text-2xl font-extrabold tabular-nums ${equity >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
-                  {formatMoneyAmount(equity, currency)}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-slate-500">
-                {isBusted || walletBalance <= 0.01 ? (
-                  <>Balance + open P/L = $0 — recharge to trade again</>
-                ) : !subscriptionActive ? (
-                  <>
-                    {formatMoneyAmount(walletBalance, currency)} in account — package expired, no new
-                    trades
-                  </>
-                ) : !tradingActive && openPositionCount === 0 ? (
-                  <>
-                    {formatMoneyAmount(walletBalance, currency)} in account — trading paused
-                    {withdrawableDisplay > 0
-                      ? ` · withdrawable ${formatMoneyAmount(withdrawableDisplay, currency)}`
-                      : ''}
-                  </>
-                ) : (
-                  <>
-                    {formatMoneyAmount(walletBalance, currency)} + open P/L{' '}
-                    {formatMoneyAmount(displayLivePl, currency)} ={' '}
-                    {formatMoneyAmount(equity, currency)}
-                    {withdrawableDisplay !== equity && openPositionCount === 0 && (
-                      <>
-                        {' '}
-                        · withdrawable {formatMoneyAmount(withdrawableDisplay, currency)}
-                      </>
-                    )}
-                  </>
-                )}
-              </p>
-              {!isBusted && walletBalance > 0.01 && openPositionCount > 0 && (
-                <p className="mt-1 text-[11px] text-amber-800">
-                  Account balance stays {formatMoneyAmount(walletBalance, currency)} until the open
-                  trade closes; then profit or loss is applied to your wallet.
-                </p>
-              )}
-            </div>
+          <section>
+            <h2 className="mb-4 text-xl font-bold text-slate-800">Active trades</h2>
+            <Mt5TradeHistoryList
+              trades={activeTradeRows as Mt5HistoryRow[]}
+              getRowPl={getRowPl}
+              loading={loadingFinance && historyRows.length === 0}
+              currency={currency}
+              entryByTicket={entryPriceByTicketRef.current}
+              emptyMessage="No active trades"
+              accountSummary={accountSummary}
+            />
           </section>
         )}
-
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="text-neutral-900" size={24} />
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
-                <p className="text-xs text-slate-500">
-                  Gold spot (XAU/USD) · OANDA feed
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
-              XAUUSD
-            </span>
-          </div>
-          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
-            <TradingViewChart />
-          </div>
-        </section>
-
-        {/* Packages Section */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-800">Your Active Packages</h2>
-            <button 
-              onClick={() => navigate('/packages')}
-              className="text-neutral-900 text-sm font-bold hover:text-neutral-800 flex items-center gap-1"
-            >
-              <Plus size={16} /> Add New 
-            </button>
-          </div>
-
-          {isLoading ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-              <Loader2 className="animate-spin text-yellow-800 mb-4" size={32} />
-              <p className="text-slate-500 font-medium">Loading your portfolio...</p>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 text-center font-medium">
-              {error}
-            </div>
-          ) : transactions.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                <Globe size={32} />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">No Packages Yet</h3>
-              <p className="text-slate-500 mb-6 max-w-sm mx-auto">You haven't purchased any trading packages yet.</p>
-              <button 
-                onClick={() => navigate('/packages')} 
-                className="px-8 py-3.5 bg-[#FFD700] text-black rounded-xl font-bold shadow-lg shadow-black/20 hover:bg-[#E6C200] transition-all hover:-translate-y-0.5"
-              >
-                Browse Packages
-              </button>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(transactions as PaymentTxn[])
-              .filter((txn) => txn.package_id !== "recharge") 
-              .map((txn, i) => {
-                const pkgMeta = getPackageById(txn.package_id);
-                const isPending = txn.status !== 'success';
-                const title = packageDisplayName(txn.package_id, txn.package_name);
-
-                return (
-                <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-yellow-50 text-neutral-900 rounded-xl flex items-center justify-center border border-yellow-200">
-                      {pkgMeta ? <pkgMeta.icon size={24} /> : getPackageIcon(title)}
-                    </div>
-                    {txn.status === 'success' ? (
-                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-[#FFF9E6] text-yellow-700 border border-yellow-200">
-                        <CheckCircle2 size={14} /> Active
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-                        <Clock size={14} /> Pending
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{title}</h3>
-                    <p className="text-slate-400 text-xs font-mono mb-4">
-                      {isPending
-                        ? 'Payment not completed'
-                        : `TXN: ${txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "—"}`}
-                    </p>
-                    <div className="flex items-end justify-between mt-auto">
-                      <p className="text-3xl font-extrabold text-slate-900">
-                        ${Number(txn.amount).toFixed(0)}
-                        <span className="ml-1 text-sm font-semibold text-slate-500">USDT</span>
-                      </p>
-                    </div>
-                    {isPending && (
-                      <button
-                        type="button"
-                        onClick={() => handleContinueJourney(txn)}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#E6C200]"
-                      >
-                        Proceed to payment
-                        <ArrowRight size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-              })}
-            </div>
-          )}
-        </section>
       </div>
     </div>
   );

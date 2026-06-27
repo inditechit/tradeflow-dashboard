@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarRange, RefreshCw } from "lucide-react";
 import { io } from "socket.io-client";
-import {
-  formatIsoDateTime,
-  tradeInDateRange,
-} from "@/utils/mt5TradeDates";
+import { tradeInDateRange } from "@/utils/mt5TradeDates";
 import { plTextClass } from "@/utils/plColors";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
@@ -12,6 +9,7 @@ import { API_BASE, SOCKET_URL } from "@/config/api";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   fmtMt5Price,
+  formatMt5SideLabel,
   isTradeClosed,
   resolveEffectiveSlice,
   resolveMt5BuySellPrices,
@@ -97,6 +95,22 @@ function fmtUsd(n: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function fmtLots(v: number): string {
+  if (!Number.isFinite(v) || v <= 0) return "—";
+  return v >= 0.01 ? v.toFixed(2) : v.toFixed(4);
+}
+
+function fmtMt5DateTime(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const ms = Date.parse(String(raw).replace(" ", "T"));
+  if (!Number.isFinite(ms)) return "—";
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(
+    d.getHours(),
+  )}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 const OpenTrades = () => {
@@ -509,110 +523,94 @@ const OpenTrades = () => {
       </div>
 
       {tab === "open-pl" ? (
-        <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Ticket</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Symbol</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Users</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Share %</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Open price</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Close / live</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Master P/L</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Copy P/L</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Opened</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Closed</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {assignLoading ? (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                      <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
-                      Loading copy assignments…
-                    </td>
-                  </tr>
-                ) : pageItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                      {copyPlGroups.length === 0
-                        ? "No copy assignments"
-                        : "No tickets match your filters"}
-                    </td>
-                  </tr>
-                ) : (
-                  (pageItems as TicketGroup[]).map((g) => {
-                    const priceRow: UserTradeRowLike = {
-                      ticket_id: g.ticket,
-                      symbol: g.symbol,
-                      price: g.price,
-                      mt5_type: g.type,
-                      mt5_volume: g.volume,
-                      mt5_total_profit: g.masterPl,
-                      mt5_status: g.status,
-                      close_time: g.closeTime,
-                    };
-                    const { buyPrice, sellPrice, sellIsLive } =
-                      resolveMt5BuySellPrices(priceRow);
-                    return (
-                      <tr
-                        key={g.ticket}
-                        className="hover:bg-yellow-50/50 cursor-pointer"
-                        onClick={() => setDialogTicket(g.ticket)}
-                      >
-                        <td className="px-4 py-3 text-sm font-semibold text-yellow-900 underline-offset-2 hover:underline">
-                          {g.ticket}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-semibold text-neutral-900">{g.symbol}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                              g.isOpen
-                                ? "bg-[#FFF9E6] text-neutral-900"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {g.status}
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
+          <div className="min-h-[260px] divide-y divide-slate-100">
+            {assignLoading ? (
+              <div className="p-10 text-center text-slate-500">
+                <RefreshCw className="mx-auto mb-2 animate-spin text-yellow-800" />
+                Loading copy assignments…
+              </div>
+            ) : pageItems.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                {copyPlGroups.length === 0
+                  ? "No copy assignments"
+                  : "No tickets match your filters"}
+              </div>
+            ) : (
+              (pageItems as TicketGroup[]).map((g) => {
+                const priceRow: UserTradeRowLike = {
+                  ticket_id: g.ticket,
+                  symbol: g.symbol,
+                  price: g.price,
+                  mt5_type: g.type,
+                  mt5_volume: g.volume,
+                  mt5_total_profit: g.masterPl,
+                  mt5_status: g.status,
+                  close_time: g.closeTime,
+                };
+                const { buyPrice, sellPrice, buyIsLive, sellIsLive } =
+                  resolveMt5BuySellPrices(priceRow);
+                const side = formatMt5SideLabel(g.type);
+                const isSell = side === "Sell";
+                const isBuy = !isSell;
+                const entry = isBuy ? buyPrice : sellPrice;
+                const exit = isBuy ? sellPrice : buyPrice;
+                const exitLive = isBuy ? sellIsLive : buyIsLive;
+                const stamp = fmtMt5DateTime(g.isOpen ? g.openTime : g.closeTime);
+                const sideCls = isSell ? "text-red-600" : "text-sky-600";
+
+                return (
+                  <div
+                    key={g.ticket}
+                    onClick={() => setDialogTicket(g.ticket)}
+                    className="flex cursor-pointer items-start justify-between gap-3 px-4 py-3 transition hover:bg-yellow-50/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 text-[15px] font-bold text-slate-900">
+                        <span className="truncate">{g.symbol}</span>
+                        {side !== "—" && (
+                          <span className={`font-semibold ${sideCls}`}>
+                            , {side.toLowerCase()} {fmtLots(g.volume)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{g.assigns.length}</td>
-                        <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
-                          {g.totalSharePct > 0 ? `${g.totalSharePct.toFixed(2)}%` : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
-                          {buyPrice != null ? fmtMt5Price(buyPrice, g.symbol) : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
-                          {sellPrice != null ? (
-                            <>
-                              {sellIsLive ? "~" : ""}
-                              {fmtMt5Price(sellPrice, g.symbol)}
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className={`px-4 py-3 text-sm font-bold tabular-nums ${plTextClass(g.masterPl)}`}>
-                          {fmtUsd(g.masterPl)}
-                        </td>
-                        <td className={`px-4 py-3 text-sm font-bold tabular-nums ${plTextClass(g.userPlSum)}`}>
-                          {g.isOpen ? `~${fmtUsd(g.userPlSum)}` : fmtUsd(g.userPlSum)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
-                          {formatIsoDateTime(g.openTime)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
-                          {g.isOpen ? "—" : formatIsoDateTime(g.closeTime)}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm tabular-nums text-slate-500">
+                        {entry != null ? fmtMt5Price(entry, g.symbol) : "—"}
+                        <span className="mx-1 text-slate-400">→</span>
+                        {g.isOpen && exitLive && exit != null ? "~" : ""}
+                        {exit != null ? fmtMt5Price(exit, g.symbol) : "—"}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
+                        <span className="text-yellow-900">#{g.ticket}</span>
+                        <span>· {g.assigns.length} user{g.assigns.length === 1 ? "" : "s"}</span>
+                        {g.totalSharePct > 0 && <span>· {g.totalSharePct.toFixed(2)}% pool</span>}
+                        <span>· Master {fmtUsd(g.masterPl)}</span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
+                      <div className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(g.userPlSum)}`}>
+                        {g.isOpen ? "~" : ""}
+                        {g.userPlSum >= 0 ? "+" : ""}
+                        {fmtUsd(g.userPlSum)}
+                      </div>
+                      <div className="mt-0.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            g.isOpen
+                              ? "bg-sky-50 text-sky-700"
+                              : "border border-slate-200 bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {g.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
           <ListPaginationBar
             page={page}
@@ -624,125 +622,98 @@ const OpenTrades = () => {
           />
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Ticket</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Account</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Symbol</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Type</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Volume</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Open price</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Close price</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Profit</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Open time</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Close time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                      <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
-                      Loading trades...
-                    </td>
-                  </tr>
-                ) : pageItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
-                      {trades.length === 0 ? "No trades" : "No trades match your filters"}
-                    </td>
-                  </tr>
-                ) : (
-                  (pageItems as Mt5Trade[]).map((trade, index) => {
-                    const row: UserTradeRowLike = {
-                      ticket_id: trade.ticket,
-                      symbol: trade.symbol,
-                      price: trade.price,
-                      mt5_type: trade.type,
-                      mt5_volume: trade.volume,
-                      mt5_total_profit: trade.profit,
-                      mt5_status: trade.status,
-                      close_time: trade.close_time,
-                    };
-                    const { buyPrice, sellPrice, buyIsLive, sellIsLive } =
-                      resolveMt5BuySellPrices(row);
-                    const ticket = String(trade.ticket ?? index);
-                    const assignCount = assignsByTicket.get(ticket)?.length ?? 0;
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
+          <div className="min-h-[260px] divide-y divide-slate-100">
+            {loading ? (
+              <div className="p-10 text-center text-slate-500">
+                <RefreshCw className="mx-auto mb-2 animate-spin text-yellow-800" />
+                Loading trades...
+              </div>
+            ) : pageItems.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                {trades.length === 0 ? "No trades" : "No trades match your filters"}
+              </div>
+            ) : (
+              (pageItems as Mt5Trade[]).map((trade, index) => {
+                const row: UserTradeRowLike = {
+                  ticket_id: trade.ticket,
+                  symbol: trade.symbol,
+                  price: trade.price,
+                  mt5_type: trade.type,
+                  mt5_volume: trade.volume,
+                  mt5_total_profit: trade.profit,
+                  mt5_status: trade.status,
+                  close_time: trade.close_time,
+                };
+                const { buyPrice, sellPrice, buyIsLive, sellIsLive } =
+                  resolveMt5BuySellPrices(row);
+                const side = formatMt5SideLabel(trade.type);
+                const isSell = side === "Sell";
+                const isBuy = !isSell;
+                const entry = isBuy ? buyPrice : sellPrice;
+                const exit = isBuy ? sellPrice : buyPrice;
+                const exitLive = isBuy ? sellIsLive : buyIsLive;
+                const ticket = String(trade.ticket ?? index);
+                const assignCount = assignsByTicket.get(ticket)?.length ?? 0;
+                const isOpen = String(trade.status ?? "").toUpperCase() === "OPEN";
+                const stamp = fmtMt5DateTime(isOpen ? trade.open_time : trade.close_time);
+                const profit = Number(trade.profit);
+                const sideCls = isSell ? "text-red-600" : "text-sky-600";
 
-                    return (
-                      <tr
-                        key={`${trade.ticket}-${index}`}
-                        className={`hover:bg-yellow-50/50 ${assignCount > 0 ? "cursor-pointer" : ""}`}
-                        onClick={() => {
-                          if (assignCount > 0) setDialogTicket(ticket);
-                        }}
-                      >
-                        <td className="px-6 py-4 text-sm font-medium text-slate-800">
-                          {assignCount > 0 ? (
-                            <span className="text-yellow-900 underline-offset-2 hover:underline">
-                              {trade.ticket}
-                            </span>
-                          ) : (
-                            trade.ticket
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{trade.account}</td>
-                        <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{trade.symbol}</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-bold ${
-                              isBuyType(trade.type)
-                                ? "bg-[#FFF9E6] text-yellow-700"
-                                : "bg-red-50 text-red-600"
-                            }`}
-                          >
-                            {trade.type}
+                return (
+                  <div
+                    key={`${trade.ticket}-${index}`}
+                    className={`flex items-start justify-between gap-3 px-4 py-3 transition hover:bg-yellow-50/40 ${
+                      assignCount > 0 ? "cursor-pointer" : ""
+                    }`}
+                    onClick={() => {
+                      if (assignCount > 0) setDialogTicket(ticket);
+                    }}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 text-[15px] font-bold text-slate-900">
+                        <span className="truncate">{trade.symbol}</span>
+                        {side !== "—" && (
+                          <span className={`font-semibold ${sideCls}`}>
+                            , {side.toLowerCase()} {fmtLots(Number(trade.volume))}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{trade.volume}</td>
-                        <td className="px-6 py-4 text-sm tabular-nums text-slate-600">
-                          {buyPrice != null ? fmtMt5Price(buyPrice, trade.symbol) : "—"}
-                        </td>
-                        <td className="px-6 py-4 text-sm tabular-nums text-slate-600">
-                          {sellPrice != null ? (
-                            <>
-                              {sellIsLive ? "~" : ""}
-                              {fmtMt5Price(sellPrice, trade.symbol)}
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className={`px-6 py-4 text-sm font-bold tabular-nums ${plTextClass(Number(trade.profit))}`}>
-                          {trade.profit}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              trade.status === "OPEN"
-                                ? "bg-[#FFF9E6] text-neutral-900"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {trade.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-xs text-slate-600 whitespace-nowrap">
-                          {formatIsoDateTime(trade.open_time)}
-                        </td>
-                        <td className="px-6 py-4 text-xs text-slate-600 whitespace-nowrap">
-                          {formatIsoDateTime(trade.close_time)}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm tabular-nums text-slate-500">
+                        {entry != null ? fmtMt5Price(entry, trade.symbol) : "—"}
+                        <span className="mx-1 text-slate-400">→</span>
+                        {!isOpen ? "" : exitLive && exit != null ? "~" : ""}
+                        {exit != null ? fmtMt5Price(exit, trade.symbol) : "—"}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
+                        <span className={assignCount > 0 ? "text-yellow-900" : ""}>#{trade.ticket}</span>
+                        {trade.account && <span>· {trade.account}</span>}
+                        {assignCount > 0 && <span>· {assignCount} user{assignCount === 1 ? "" : "s"}</span>}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
+                      <div className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(profit)}`}>
+                        {Number.isFinite(profit) && profit >= 0 ? "+" : ""}
+                        {Number.isFinite(profit) ? fmtUsd(profit) : "—"}
+                      </div>
+                      <div className="mt-0.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            isOpen
+                              ? "bg-sky-50 text-sky-700"
+                              : "border border-slate-200 bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {trade.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
           <ListPaginationBar
             page={page}
