@@ -5,7 +5,6 @@ import {
   RefreshCw,
   UserPlus,
   MoreHorizontal,
-  MapPin,
   History,
   Phone,
 } from 'lucide-react';
@@ -38,7 +37,6 @@ import {
   lastSeenLabel,
   parseCoord,
   renderRiskBadges,
-  userHasMapLink,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
 import { useClientPagination } from "@/hooks/useClientPagination";
@@ -46,8 +44,26 @@ import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
 import { EmployeeGate } from "@/components/auth/EmployeeGate";
 import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
+import { markAdminUsersSeen } from "@/utils/adminSidebarSeen";
 
 const USER_PAGE_SIZE = 50;
+
+/** Whole days remaining until a package end date (null if no/invalid date). */
+function daysLeftUntil(value: unknown): number | null {
+  if (!value) return null;
+  const end = new Date(String(value)).getTime();
+  if (Number.isNaN(end)) return null;
+  const diffMs = end - Date.now();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+/** Tailwind classes for the days-left pill based on urgency. */
+function daysLeftBadgeClass(days: number): string {
+  if (days <= 0) return "border-red-200 bg-red-100 text-red-700";
+  if (days <= 3) return "border-red-200 bg-red-50 text-red-700";
+  if (days <= 7) return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -139,6 +155,10 @@ const AdminPage = () => {
       if (!silent) setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    markAdminUsersSeen();
+  }, []);
 
   useEffect(() => {
     fetchLocations();
@@ -452,7 +472,6 @@ const AdminPage = () => {
         "col:users:actions",
         "col:users:mobile",
         "col:users:telegram",
-        "col:users:location",
       ].filter((k) => can(k)).length,
     [can],
   );
@@ -842,11 +861,6 @@ const AdminPage = () => {
                   Telegram
                 </th>
                 )}
-                {can("col:users:location") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Location
-                </th>
-                )}
               </tr>
             </thead>
 
@@ -876,21 +890,59 @@ const AdminPage = () => {
                     <span className="font-semibold text-slate-900">{loc.name}</span>
                     )}
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
-                    <div className="mt-1 text-[11px] font-medium text-slate-600">
-                      {loc.active_package_id
-                        ? packageDisplayName(String(loc.active_package_id))
-                        : "No active plan"}
-                    </div>
+                    {loc.active_package_id ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-medium text-slate-600">
+                          {packageDisplayName(String(loc.active_package_id))}
+                        </span>
+                        {(() => {
+                          const days = daysLeftUntil(loc.package_expires_at);
+                          if (days == null) return null;
+                          return (
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                daysLeftBadgeClass(days),
+                              )}
+                              title={`Package ends ${formatAdminDate(loc.package_expires_at)}`}
+                            >
+                              {days <= 0 ? "Expired" : `${days}d left`}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 text-[11px] font-medium text-slate-400">
+                        No active plan
+                      </div>
+                    )}
                   </td>
                   )}
 
                   {can("col:users:labels") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <UserLabelsDisplay
-                      user={loc}
-                      compact
-                      onClick={() => openDetail(loc)}
-                    />
+                    {(() => {
+                      const { label, tags } = parseUserLabels(loc);
+                      if (!label && tags.length === 0) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => openDetail(loc)}
+                            className="text-[11px] font-medium text-slate-300 transition hover:text-indigo-500"
+                            title="Add label or tags"
+                          >
+                            + add
+                          </button>
+                        );
+                      }
+                      return (
+                        <UserLabelsDisplay
+                          user={loc}
+                          compact
+                          onClick={() => openDetail(loc)}
+                        />
+                      );
+                    })()}
                   </td>
                   )}
 
@@ -903,7 +955,7 @@ const AdminPage = () => {
                           "inline-block h-2.5 w-2.5 rounded-full",
                           Number(loc.is_online) === 1
                             ? "bg-emerald-500 ring-2 ring-emerald-200"
-                            : "bg-slate-300",
+                            : "bg-red-500 ring-2 ring-red-200",
                         )}
                       />
                       <span
@@ -1087,40 +1139,6 @@ const AdminPage = () => {
                       </span>
                     ) : (
                       <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  )}
-
-                  {can("col:users:location") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    {userHasMapLink(loc) ? (
-                      <button
-                        type="button"
-                        onClick={() => openUserLocationOnMap(loc)}
-                        className="group w-full max-w-[240px] rounded-lg border border-yellow-300 bg-white px-3 py-2 text-left shadow-sm transition hover:border-yellow-400 hover:bg-yellow-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
-                        title="Open Google Maps"
-                      >
-                        <div className="flex gap-2">
-                          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-900" />
-                          <div className="min-w-0 flex-1">
-                            {loc.address ? (
-                              <div className="max-h-20 overflow-y-auto text-xs leading-snug text-slate-800">
-                                {loc.address}
-                              </div>
-                            ) : (
-                              <div className="font-mono text-[11px] text-slate-600">
-                                {parseCoord(loc.latitude)?.toFixed(5)},{" "}
-                                {parseCoord(loc.longitude)?.toFixed(5)}
-                              </div>
-                            )}
-                            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-neutral-900">
-                              Open map
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-400">No location</span>
                     )}
                   </td>
                   )}

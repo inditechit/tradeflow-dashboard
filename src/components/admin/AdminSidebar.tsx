@@ -25,24 +25,29 @@ import {
   UserCog,
   AlertTriangle,
   ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
+import { useAdminSidebarBadges } from "@/hooks/useAdminSidebarBadges";
 import { tabKeyForPath } from "@/config/employeePermissionCatalog";
+import type { AdminSidebarBadgeKey } from "@/utils/adminSidebarSeen";
 
 type AdminSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
 };
 
-type IconType = React.ComponentType<{ size?: number; className?: string }>;
+type IconType = LucideIcon;
 
 type MenuItem = {
   name: string;
   icon: IconType;
   path: string;
   showLive?: boolean;
+  badgeKey?: AdminSidebarBadgeKey;
+  highlightKey?: AdminSidebarBadgeKey;
   adminOnly?: boolean;
 };
 
@@ -59,7 +64,14 @@ const MENU: MenuEntry[] = [
     label: "Users",
     icon: Users,
     items: [
-      { name: "All users", icon: Users, path: "/admin/users", showLive: true },
+      {
+        name: "All users",
+        icon: Users,
+        path: "/admin/users",
+        showLive: true,
+        badgeKey: "new_users",
+        highlightKey: "new_users",
+      },
       { name: "User map", icon: MapIcon, path: "/admin/user-map" },
     ],
   },
@@ -69,9 +81,25 @@ const MENU: MenuEntry[] = [
     icon: Wallet,
     items: [
       { name: "Transactions", icon: ArrowLeftRight, path: "/admin/transactions" },
-      { name: "Wallet recharges", icon: Wallet, path: "/admin/recharge" },
-      { name: "Unmatched payments", icon: AlertTriangle, path: "/admin/unmatched-payments" },
-      { name: "Withdrawals", icon: ArrowDownToLine, path: "/admin/withdrawals" },
+      {
+        name: "Wallet recharges",
+        icon: Wallet,
+        path: "/admin/recharge",
+        badgeKey: "pending_recharges",
+      },
+      {
+        name: "Unmatched payments",
+        icon: AlertTriangle,
+        path: "/admin/unmatched-payments",
+        badgeKey: "unmatched_payments",
+        highlightKey: "unmatched_payments",
+      },
+      {
+        name: "Withdrawals",
+        icon: ArrowDownToLine,
+        path: "/admin/withdrawals",
+        badgeKey: "pending_withdrawals",
+      },
       { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
       { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
     ],
@@ -96,7 +124,6 @@ const MENU: MenuEntry[] = [
       { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
       { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
       { name: "Invoices", icon: FileText, path: "/admin/invoices" },
-      // { name: "Wallet rebuild doc", icon: FileText, path: "/admin/wallet-rebuild-doc" },
     ],
   },
   {
@@ -104,8 +131,19 @@ const MENU: MenuEntry[] = [
     label: "Support & alerts",
     icon: Headphones,
     items: [
-      { name: "Support tickets", icon: Headphones, path: "/admin/support-tickets" },
-      { name: "Admin alerts", icon: BellRing, path: "/admin/alerts" },
+      {
+        name: "Support tickets",
+        icon: Headphones,
+        path: "/admin/support-tickets",
+        badgeKey: "support_needs_reply",
+        highlightKey: "support_needs_reply",
+      },
+      {
+        name: "Admin alerts",
+        icon: BellRing,
+        path: "/admin/alerts",
+        badgeKey: "unread_alerts",
+      },
       { name: "Notifications", icon: Bell, path: "/admin/notifications" },
     ],
   },
@@ -121,8 +159,24 @@ const MENU: MenuEntry[] = [
   { kind: "item", name: "Profile", icon: User, path: "/admin/profile" },
 ];
 
+function badgeCount(item: MenuItem, badges: Record<AdminSidebarBadgeKey, number>) {
+  if (!item.badgeKey) return 0;
+  return Number(badges[item.badgeKey] ?? 0);
+}
+
+function groupBadgeTotal(items: MenuItem[], badges: Record<AdminSidebarBadgeKey, number>) {
+  return items.reduce((sum, item) => sum + badgeCount(item, badges), 0);
+}
+
+function groupHasHighlight(items: MenuItem[], badges: Record<AdminSidebarBadgeKey, number>) {
+  return items.some(
+    (item) => item.highlightKey && Number(badges[item.highlightKey] ?? 0) > 0,
+  );
+}
+
 const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
   const [liveCount, setLiveCount] = useState<number | null>(null);
+  const { badges, refresh: refreshBadges } = useAdminSidebarBadges();
   const { isAdmin, can } = useEmployeeAccess();
   const location = useLocation();
 
@@ -146,6 +200,11 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
       window.clearInterval(id);
     };
   }, []);
+
+  // Refresh badges when navigating (e.g. after visiting users page).
+  useEffect(() => {
+    void refreshBadges();
+  }, [location.pathname, refreshBadges]);
 
   const canSee = (item: MenuItem) => {
     if (item.adminOnly && !isAdmin) return false;
@@ -192,17 +251,54 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     show && liveCount != null && liveCount > 0 ? (
       <span
         className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-        title="Users seen in the last 90 seconds"
+        title="Users online now"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         {liveCount}
       </span>
     ) : null;
 
+  const countBadge = (count: number, title?: string) =>
+    count > 0 ? (
+      <span
+        className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-bold text-white"
+        title={title}
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+    ) : null;
+
+  const highlightDot = (active: boolean, title?: string) =>
+    active ? (
+      <span
+        className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-2 ring-amber-200"
+        title={title ?? "Needs attention"}
+      />
+    ) : null;
+
+  const renderItemBadges = (item: MenuItem) => {
+    const count = badgeCount(item, badges);
+    const highlighted =
+      item.highlightKey != null && Number(badges[item.highlightKey] ?? 0) > 0;
+    return (
+      <>
+        {highlighted ? highlightDot(true, `${count} new`) : null}
+        {countBadge(count)}
+        {liveBadge(item.showLive)}
+      </>
+    );
+  };
+
   const itemClasses = ({ isActive }: { isActive: boolean }) =>
     cn(
       "flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all touch-manipulation",
       isActive ? "bg-[#FFD700] text-black" : "text-slate-600 hover:bg-white/80 active:bg-white",
+    );
+
+  const groupHeaderClasses = (hasHighlight: boolean) =>
+    cn(
+      "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:bg-white/80",
+      hasHighlight ? "text-slate-900 ring-1 ring-amber-200/80 bg-amber-50/40" : "text-slate-700",
     );
 
   return (
@@ -248,25 +344,34 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                   <NavLink key={entry.path} to={entry.path} onClick={onClose} className={itemClasses}>
                     <Icon size={18} className="shrink-0" />
                     <span className="flex-1">{entry.name}</span>
-                    {liveBadge(entry.showLive)}
+                    {renderItemBadges(entry)}
                   </NavLink>
                 );
               }
 
               const Icon = entry.icon;
               const open = openGroups[entry.label] ?? false;
+              const groupTotal = groupBadgeTotal(entry.items, badges);
+              const groupHighlight = groupHasHighlight(entry.items, badges);
               const groupHasLive = entry.items.some((i) => i.showLive);
+
               return (
                 <div key={entry.label} className="flex flex-col">
                   <button
                     type="button"
                     onClick={() => toggleGroup(entry.label)}
-                    className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-white/80"
+                    className={groupHeaderClasses(groupHighlight && !open)}
                     aria-expanded={open}
                   >
                     <Icon size={18} className="shrink-0" />
                     <span className="flex-1 text-left">{entry.label}</span>
-                    {!open && liveBadge(groupHasLive)}
+                    {!open && (
+                      <span className="flex items-center gap-1.5">
+                        {groupHighlight ? highlightDot(true) : null}
+                        {countBadge(groupTotal)}
+                        {liveBadge(groupHasLive)}
+                      </span>
+                    )}
                     <ChevronDown
                       size={16}
                       className={cn("shrink-0 transition-transform", open && "rotate-180")}
@@ -285,7 +390,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                           >
                             <ItemIcon size={18} className="shrink-0" />
                             <span className="flex-1">{item.name}</span>
-                            {liveBadge(item.showLive)}
+                            {renderItemBadges(item)}
                           </NavLink>
                         );
                       })}
