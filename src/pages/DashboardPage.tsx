@@ -620,7 +620,7 @@ const DashboardPage = () => {
               >
                 buy a new package
               </button>
-              . Open positions still settle to your wallet when they close on the master account.
+              . Any open positions are settled to your wallet at the time your package expires.
             </p>
           </div>
         )}
