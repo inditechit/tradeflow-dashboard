@@ -39,6 +39,22 @@ function isBuyType(type?: string) {
   return type === "DEAL_TYPE_BUY" || type === "ORDER_TYPE_BUY";
 }
 
+/**
+ * A ticket is "closed" only when the MASTER trade is closed (MT5 status/close_time).
+ * Do NOT use per-user `wallet_settled_at` here — a single user's package-expiry
+ * settlement must not mark the whole ticket closed for everyone else.
+ */
+function isMasterTradeClosed(r: AdminOpenAssignRow): boolean {
+  const st = String(r.mt5_status ?? "").toUpperCase();
+  if (st.includes("CLOSE")) return true;
+  const ct = r.close_time;
+  return (
+    ct != null &&
+    String(ct).trim() !== "" &&
+    String(ct) !== "0000-00-00 00:00:00"
+  );
+}
+
 type CopyScopeFilter = "all" | "open" | "closed";
 
 type TicketGroup = {
@@ -215,7 +231,7 @@ const OpenTrades = () => {
     const groups: TicketGroup[] = [];
     for (const [ticket, rows] of assignsByTicket) {
       const sample = rows[0];
-      const closed = isTradeClosed(sample);
+      const closed = isMasterTradeClosed(sample);
       const liveMaster = !closed ? liveProfitByTicket[ticket] : undefined;
       const masterPl =
         liveMaster != null && Number.isFinite(liveMaster)
@@ -224,8 +240,12 @@ const OpenTrades = () => {
       let userPlSum = 0;
       let userGrossSum = 0;
       for (const r of rows) {
-        userGrossSum += rowGrossPl(r, closed ? undefined : liveProfitByTicket);
-        userPlSum += rowCopyPlForGroup(r, ticket, closed ? undefined : liveProfitByTicket);
+        // Per-row: a user already settled (e.g. package expiry) shows their settled
+        // value; only still-open rows track live master P/L.
+        const rowSettled = isTradeClosed(r);
+        const rowLive = rowSettled ? undefined : liveProfitByTicket[ticket];
+        userGrossSum += rowGrossPl(r, rowLive);
+        userPlSum += rowCopyPlForGroup(r, ticket, rowSettled ? undefined : liveProfitByTicket);
       }
       groups.push({
         ticket,
