@@ -15,6 +15,8 @@ import {
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
+import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
 
 export type TicketAssignDialogProps = {
   open: boolean;
@@ -23,6 +25,7 @@ export type TicketAssignDialogProps = {
   symbol?: string;
   rows: AdminOpenAssignRow[];
   liveProfitByTicket?: Record<string, number>;
+  onRequestManualAssign?: (ticketId: string) => void;
 };
 
 function fmtUsd(n: number) {
@@ -62,6 +65,7 @@ export function TicketAssignDialog({
   symbol,
   rows,
   liveProfitByTicket,
+  onRequestManualAssign,
 }: TicketAssignDialogProps) {
   const ticket = ticketId ?? "";
   const sample = rows[0];
@@ -157,6 +161,21 @@ export function TicketAssignDialog({
             </tbody>
           </table>
         </div>
+
+        {onRequestManualAssign && ticket && (
+          <div className="flex justify-end border-t border-slate-100 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 border-yellow-200 bg-yellow-50 text-yellow-900 hover:bg-yellow-100"
+              onClick={() => onRequestManualAssign(ticket)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Assign user to this ticket
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

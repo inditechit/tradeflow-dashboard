@@ -18,6 +18,9 @@ import {
 } from "@/utils/userTradePl";
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
 import { TicketAssignDialog } from "@/components/admin/TicketAssignDialog";
+import { AdminManualTicketAssignDialog } from "@/components/admin/AdminManualTicketAssignDialog";
+import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
 
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 const PAGE_SIZE = 50;
@@ -142,6 +145,8 @@ const OpenTrades = () => {
   const [socketLive, setSocketLive] = useState(false);
 
   const [dialogTicket, setDialogTicket] = useState<string | null>(null);
+  const [manualAssignOpen, setManualAssignOpen] = useState(false);
+  const [manualAssignTicket, setManualAssignTicket] = useState<string | null>(null);
 
   const [symbolFilter, setSymbolFilter] = useState("");
   const [ticketFilter, setTicketFilter] = useState("");
@@ -405,15 +410,29 @@ const OpenTrades = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={refreshAll}
-          disabled={isLoading}
-          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-          {isLoading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 border-yellow-200 bg-yellow-50 text-yellow-900 hover:bg-yellow-100"
+            onClick={() => {
+              setManualAssignTicket(null);
+              setManualAssignOpen(true);
+            }}
+          >
+            <UserPlus className="h-4 w-4" />
+            Manual assign
+          </Button>
+          <button
+            type="button"
+            onClick={refreshAll}
+            disabled={isLoading}
+            className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
+            {isLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as "master" | "open-pl")} className="mb-6">
@@ -683,11 +702,13 @@ const OpenTrades = () => {
                 return (
                   <div
                     key={`${trade.ticket}-${index}`}
-                    className={`flex items-start justify-between gap-3 px-4 py-3 transition hover:bg-yellow-50/40 ${
-                      assignCount > 0 ? "cursor-pointer" : ""
-                    }`}
+                    className="flex items-start justify-between gap-3 px-4 py-3 transition hover:bg-yellow-50/40 cursor-pointer"
                     onClick={() => {
                       if (assignCount > 0) setDialogTicket(ticket);
+                      else {
+                        setManualAssignTicket(ticket);
+                        setManualAssignOpen(true);
+                      }
                     }}
                   >
                     <div className="min-w-0">
@@ -718,6 +739,20 @@ const OpenTrades = () => {
                         {Number.isFinite(profit) && profit >= 0 ? "+" : ""}
                         {Number.isFinite(profit) ? fmtUsd(profit) : "—"}
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7 gap-1 px-2 text-[10px] font-semibold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setManualAssignTicket(ticket);
+                          setManualAssignOpen(true);
+                        }}
+                      >
+                        <UserPlus className="h-3 w-3" />
+                        Assign
+                      </Button>
                       <div className="mt-0.5">
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -755,6 +790,21 @@ const OpenTrades = () => {
         symbol={dialogSymbol}
         rows={dialogRows}
         liveProfitByTicket={liveProfitByTicket}
+        onRequestManualAssign={(ticket) => {
+          setManualAssignTicket(ticket);
+          setManualAssignOpen(true);
+        }}
+      />
+
+      <AdminManualTicketAssignDialog
+        open={manualAssignOpen}
+        onOpenChange={setManualAssignOpen}
+        initialTicket={manualAssignTicket}
+        trades={trades}
+        onAssigned={() => {
+          void fetchAssignments();
+          void fetchTrades();
+        }}
       />
     </div>
   );
