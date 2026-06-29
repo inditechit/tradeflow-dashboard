@@ -49,6 +49,8 @@ type Props = {
   accountSummary?: Mt5AccountSummary;
   /** Admin: show user/admin profit split and frozen user %. */
   showProfitShare?: boolean;
+  /** Admin: show assign fee debited from user wallet per trade. */
+  showTradeFee?: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -112,6 +114,7 @@ export function Mt5TradeHistoryList({
   pageSize = 50,
   accountSummary,
   showProfitShare = false,
+  showTradeFee = false,
 }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -169,6 +172,16 @@ export function Mt5TradeHistoryList({
       adminSum: Math.round(adminSum * 100) / 100,
     };
   }, [filtered, showProfitShare]);
+
+  const periodFeeTotal = useMemo(() => {
+    if (!showTradeFee) return 0;
+    let fees = 0;
+    for (const r of filtered) {
+      const fee = resolveEffectiveSlice(r).fee;
+      if (fee > 0) fees += fee;
+    }
+    return Math.round(fees * 100) / 100;
+  }, [filtered, showTradeFee]);
 
   const activeLabel = PERIOD_TABS.find((t) => t.key === period)?.label ?? "All";
 
@@ -242,6 +255,7 @@ export function Mt5TradeHistoryList({
             const entry = isBuy ? buyPrice : sellPrice;
             const exit = isBuy ? sellPrice : buyPrice;
             const slice = resolveEffectiveSlice(r);
+            const tradeFee = showTradeFee ? Math.max(0, slice.fee) : 0;
             const vol = slice.v_i > 0 ? slice.v_i : Number(r.allocated_volume || 0);
             const open = isOpenTrade(r);
             const pl = Number(getRowPl(r)) || 0;
@@ -309,6 +323,11 @@ export function Mt5TradeHistoryList({
                         User {split.userShare >= 0 ? "+" : ""}
                         {fmtMoney(split.userShare, currency)}
                       </div>
+                      {showTradeFee && (
+                        <div className="mt-0.5 text-xs tabular-nums text-slate-500">
+                          Fee {fmtMoney(tradeFee, currency)}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div
@@ -319,6 +338,11 @@ export function Mt5TradeHistoryList({
                       {open ? "~" : ""}
                       {isProfit ? "+" : ""}
                       {fmtMoney(pl, currency)}
+                    </div>
+                  )}
+                  {!showProfitShare && showTradeFee && (
+                    <div className="mt-0.5 text-xs tabular-nums text-slate-500">
+                      Fee {fmtMoney(tradeFee, currency)}
                     </div>
                   )}
                   <div className="mt-0.5">
@@ -415,14 +439,26 @@ export function Mt5TradeHistoryList({
                   User {periodShareTotals.userSum >= 0 ? "+" : ""}
                   {fmtMoney(periodShareTotals.userSum, currency)}
                 </span>
+                {showTradeFee && (
+                  <span className="text-xs font-semibold tabular-nums text-slate-600">
+                    Total fees {fmtMoney(periodFeeTotal, currency)}
+                  </span>
+                )}
               </>
             ) : (
-              <span
-                className={`text-sm font-bold tabular-nums ${plTextClass(periodNetPl)}`}
-              >
-                Total P/L {periodNetPl >= 0 ? "+" : ""}
-                {fmtMoney(periodNetPl, currency)}
-              </span>
+              <>
+                <span
+                  className={`text-sm font-bold tabular-nums ${plTextClass(periodNetPl)}`}
+                >
+                  Total P/L {periodNetPl >= 0 ? "+" : ""}
+                  {fmtMoney(periodNetPl, currency)}
+                </span>
+                {showTradeFee && (
+                  <span className="text-xs font-semibold tabular-nums text-slate-600">
+                    Total fees {fmtMoney(periodFeeTotal, currency)}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
