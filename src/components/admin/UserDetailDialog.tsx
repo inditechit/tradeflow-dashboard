@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CalendarPlus, History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2, UserCog } from "lucide-react";
+import { CalendarPlus, History, MapPin, Mic, Pencil, User, Wallet, X, Tag, Plus, Loader2, UserCog, RotateCcw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,7 @@ type UserDetailDialogProps = {
   onLabelsUpdated?: () => void;
   onExtendPackage?: (user: Record<string, unknown>) => void;
   onConvertedToEmployee?: () => void;
+  onTradingReopened?: () => void;
 };
 
 const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
@@ -63,6 +64,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   onLabelsUpdated,
   onExtendPackage,
   onConvertedToEmployee,
+  onTradingReopened,
 }) => {
   const { toast } = useToast();
   const { can, isAdmin } = useEmployeeAccess();
@@ -77,6 +79,8 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   const [labels, setLabels] = useState<UserLabelEntry>({ label: "", tags: [] });
   const [newTag, setNewTag] = useState("");
   const [savingLabels, setSavingLabels] = useState(false);
+  const [manualStopCount, setManualStopCount] = useState(0);
+  const [reopeningTrades, setReopeningTrades] = useState(false);
   const labelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -84,6 +88,29 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
     setLabels(parseUserLabels(user));
     setNewTag("");
   }, [user, open]);
+
+  useEffect(() => {
+    if (!open || !user?.id || !isAdmin) {
+      setManualStopCount(0);
+      return;
+    }
+    const uid = Number(user.id);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${uid}/manual-stop-settlements`);
+        const data = await res.json();
+        if (!cancelled && data.success) {
+          setManualStopCount(Number(data.count ?? 0));
+        }
+      } catch {
+        if (!cancelled) setManualStopCount(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id, isAdmin]);
 
   if (!user && !employeeAccessOpen) return null;
 
@@ -129,6 +156,48 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
       });
     } finally {
       setConverting(false);
+    }
+  };
+
+  const handleReopenManualStopTrades = async () => {
+    if (!userId || !user) return;
+    const label = String(user.name || `User #${userId}`);
+    if (
+      !window.confirm(
+        `Reopen trades for "${label}" that were settled when they hit Stop?\n\n` +
+          `• Master still open → trade becomes live again at their pool %\n` +
+          `• Master already closed → they are settled at final master P/L × pool %\n` +
+          `• Early stop wallet credit is reversed first\n\n` +
+          (manualStopCount > 0
+            ? `${manualStopCount} allocation(s) will be processed.`
+            : "No manual-stop settlements were found — run anyway?"),
+      )
+    ) {
+      return;
+    }
+    setReopeningTrades(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/reopen-manual-stop-trades`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeTrading: true }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Reopen failed");
+      toast({
+        title: "Trades reopened",
+        description: String(data.message || "Manual-stop settlements were reversed."),
+      });
+      setManualStopCount(0);
+      onTradingReopened?.();
+    } catch (err) {
+      toast({
+        title: "Could not reopen trades",
+        description: err instanceof Error ? err.message : "Reopen failed",
+        variant: "destructive",
+      });
+    } finally {
+      setReopeningTrades(false);
     }
   };
 
@@ -406,6 +475,25 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                 >
                   <CalendarPlus className="h-4 w-4" />
                   Extend package
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={reopeningTrades}
+                  className="gap-1.5 border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100"
+                  onClick={() => void handleReopenManualStopTrades()}
+                  title="Undo mistaken Stop trade — reopen at original pool share"
+                >
+                  {reopeningTrades ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4" />
+                  )}
+                  Reopen stopped trades
+                  {manualStopCount > 0 ? ` (${manualStopCount})` : ""}
                 </Button>
               )}
               {isAdmin && (

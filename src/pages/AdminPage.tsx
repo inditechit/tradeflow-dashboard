@@ -1189,6 +1189,7 @@ const AdminPage = () => {
           });
           setIsExtendOpen(true);
         }}
+        onTradingReopened={() => void fetchLocations({ silent: true })}
       />
 
       <ExtendSubscriptionModal
