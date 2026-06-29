@@ -194,7 +194,7 @@ const WithdrawPage = () => {
       });
       return;
     }
-    const maxOut = Math.max(0, finance.walletBalance);
+    const maxOut = Math.max(0, finance.withdrawable);
     if (!canWithdraw) {
       toast({
         title: "Open trades active",
@@ -206,7 +206,7 @@ const WithdrawPage = () => {
     if (amt > maxOut) {
       toast({
         title: "Insufficient balance",
-        description: `Amount exceeds your wallet balance (max $${maxOut.toFixed(2)} incl. $${WITHDRAW_FEE} fee).`,
+        description: `Amount exceeds your withdrawable balance (max $${maxOut.toFixed(2)} incl. $${WITHDRAW_FEE} fee).`,
         variant: "destructive",
       });
       return;
@@ -401,7 +401,7 @@ const WithdrawPage = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-slate-700">
               <Wallet className="h-5 w-5 text-neutral-900" />
-              <span className="text-sm font-medium">Account balance</span>
+              <span className="text-sm font-medium">Account balance (equity)</span>
             </div>
             <p className="text-xl font-bold tabular-nums text-slate-900">
               {loading || finance.loading
@@ -409,8 +409,18 @@ const WithdrawPage = () => {
                 : `USD ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
+          {!loading && !finance.loading && finance.adminPendingShare > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm font-medium text-slate-600">
+                Performance fee{finance.userSharePct ? ` (admin ${100 - finance.userSharePct}% of profit)` : ""}
+              </span>
+              <p className="text-sm font-semibold tabular-nums text-slate-500">
+                − USD {finance.adminPendingShare.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm font-medium text-slate-700">Withdrawable (USDT)</span>
+            <span className="text-sm font-medium text-slate-700">Your withdrawable (USDT)</span>
             <p
               className={`text-2xl font-bold tabular-nums ${
                 withdrawableEquity > 0 ? "text-emerald-800" : "text-slate-700"
@@ -433,9 +443,10 @@ const WithdrawPage = () => {
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Withdrawable = wallet balance only (settled deposits + closed trade P/L). While a trade is open,
-            equity changes but wallet does not until close. Admin share applies on profit above your deposit
-            (baseline rules).
+            You keep 100% of your deposited base plus your share of profit above it. The performance fee
+            (admin share) applies only to profit above your base and is settled automatically when you
+            withdraw, your plan expires, or you stop trading. While a trade is open, equity changes but your
+            wallet does not until it closes.
           </p>
         </div>
 

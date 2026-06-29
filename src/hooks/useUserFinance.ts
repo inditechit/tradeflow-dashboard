@@ -13,6 +13,16 @@ export type UserFinanceState = {
   softBust: boolean;
   openPositions: number;
   canWithdraw: boolean;
+  /** Admin performance-fee share still pending on SETTLED profit above base. */
+  adminPendingShare: number;
+  /** Profit above base that is subject to sharing (settled). */
+  shareableProfit: number;
+  /** User's profit-share percentage (e.g. 40, 50). */
+  userSharePct: number;
+  /** Live admin fee preview incl. open-trade P/L (display only, not withdrawable yet). */
+  adminPendingShareLive: number;
+  /** Live user share of equity incl. open-trade P/L (display only). */
+  userEquityShare: number;
 };
 
 const empty: UserFinanceState = {
@@ -27,6 +37,11 @@ const empty: UserFinanceState = {
   softBust: false,
   openPositions: 0,
   canWithdraw: false,
+  adminPendingShare: 0,
+  shareableProfit: 0,
+  userSharePct: 0,
+  adminPendingShareLive: 0,
+  userEquityShare: 0,
 };
 
 /** Withdrawable = wallet only when no open trades; equity = wallet + live P/L (display). */
@@ -53,9 +68,13 @@ export function useUserFinance(userId: number | undefined) {
       );
       const openPositions = Number(sData?.open_positions ?? 0);
       const canWithdraw = sData?.can_withdraw === true && openPositions === 0;
-      const withdrawable = canWithdraw
-        ? Math.max(0, walletBalance)
-        : 0;
+      const adminPendingShare = Math.max(0, Number(sData?.admin_pending_share_usd ?? 0));
+      // User's own share = wallet minus the admin's pending performance fee.
+      const userWithdrawable = Math.max(
+        0,
+        Number(sData?.user_withdrawable_usd ?? walletBalance - adminPendingShare),
+      );
+      const withdrawable = canWithdraw ? userWithdrawable : 0;
 
       setState({
         loading: false,
@@ -69,6 +88,14 @@ export function useUserFinance(userId: number | undefined) {
         softBust: sData?.soft_bust === true && openPositions > 0,
         openPositions,
         canWithdraw,
+        adminPendingShare,
+        shareableProfit: Math.max(0, Number(sData?.shareable_profit_usd ?? 0)),
+        userSharePct: Number(sData?.user_share_pct ?? 0),
+        adminPendingShareLive: Math.max(0, Number(sData?.admin_pending_share_live_usd ?? adminPendingShare)),
+        userEquityShare: Math.max(
+          0,
+          Number(sData?.user_equity_share_usd ?? walletBalance + Number(sData?.live_pl ?? 0) - adminPendingShare),
+        ),
       });
     } catch {
       setState({ ...empty, loading: false });

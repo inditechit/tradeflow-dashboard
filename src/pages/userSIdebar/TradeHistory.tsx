@@ -104,8 +104,8 @@ const TradeHistory = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
           <p className="mt-1 max-w-2xl text-xs text-slate-500">
-            Your share of every assigned trade. Open rows are estimates until the trade
-            closes.
+            Your P/L on every assigned trade (full profit/loss credited to your wallet). Open rows are
+            estimates until the trade closes. The performance fee applies at the wallet level on withdrawal.
           </p>
         </div>
 

@@ -238,12 +238,13 @@ export function resolveEffectiveSlice(r: UserTradeRowLike) {
 }
 
 export function applyUserRules(rawPl: number, fee: number, pct: number): number {
+  // WALLET-LEVEL SHARING: per-trade P/L is shown in FULL (no admin/user split).
+  // The admin performance fee is applied at the wallet level on withdrawal /
+  // expiry / stop-trading, not per trade. `pct` is kept for signature compatibility.
+  void pct;
   if (!Number.isFinite(rawPl)) return 0;
   const feeUsd = Math.max(0, Number(fee) || 0);
-  if (rawPl <= 0) return rawPl - feeUsd;
-  const net = rawPl - feeUsd;
-  if (net <= 0) return net;
-  return net * (pct / 100);
+  return rawPl - feeUsd;
 }
 
 /** Matches backend settlement — full proportional gross; fee only at assign. */
@@ -285,8 +286,9 @@ export function estimateUserSharePl(
   }
 
   if (net > 0) {
-    const p = Math.min(100, Math.max(0, Number(pct) || 0));
-    sim = round2(sim + (net * p) / 100);
+    // Wallet-level sharing: credit full profit to the wallet (no per-trade split).
+    void pct;
+    sim = round2(sim + net);
   }
 
   return round2(sim - wallet);

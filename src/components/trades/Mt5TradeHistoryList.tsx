@@ -33,6 +33,12 @@ export type Mt5AccountSummary = {
   withdrawal: number;
   balance: number;
   equity?: number;
+  /** Wallet-level split preview (incl. open P/L): admin performance fee pending. */
+  adminFee?: number;
+  /** Wallet-level split preview: user's share of equity. */
+  userShare?: number;
+  /** User's profit-share percentage (e.g. 40, 50). */
+  userSharePct?: number;
 };
 
 type Props = {
@@ -412,6 +418,29 @@ export function Mt5TradeHistoryList({
                   {fmtMoney(accountSummary.equity, currency)}
                 </dd>
               </div>
+            )}
+            {accountSummary.adminFee != null && accountSummary.adminFee > 0.01 && (
+              <>
+                <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
+                  <dt className="text-sm font-medium text-slate-600">
+                    Performance fee
+                    {accountSummary.userSharePct
+                      ? ` (admin ${100 - accountSummary.userSharePct}%)`
+                      : ""}
+                  </dt>
+                  <dd className="text-sm font-semibold tabular-nums text-slate-500">
+                    − {fmtMoney(accountSummary.adminFee, currency)}
+                  </dd>
+                </div>
+                {accountSummary.userShare != null && (
+                  <div className="flex items-center justify-between">
+                    <dt className="text-sm font-bold text-emerald-800">Your share</dt>
+                    <dd className="text-sm font-bold tabular-nums text-emerald-800">
+                      {fmtMoney(accountSummary.userShare, currency)}
+                    </dd>
+                  </div>
+                )}
+              </>
             )}
           </dl>
         </div>

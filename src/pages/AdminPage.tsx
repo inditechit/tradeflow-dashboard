@@ -902,6 +902,13 @@ const AdminPage = () => {
                 const withdrawableVal =
                   fin?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
                 const openPos = Number(loc.open_positions ?? 0);
+                const adminFeeLiveRow = Number(
+                  loc.admin_pending_share_live_usd ?? loc.admin_pending_share_usd ?? 0,
+                );
+                const userShareRow = Number(
+                  loc.user_equity_share_usd ?? equityVal - adminFeeLiveRow,
+                );
+                const userSharePctRow = Number(loc.user_share_pct ?? 0);
 
                 return (
                 <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
@@ -1058,6 +1065,28 @@ const AdminPage = () => {
                         maximumFractionDigits: 2,
                       })}
                     </span>
+                    {adminFeeLiveRow > 0.01 && (
+                      <div className="mt-1 space-y-0.5 text-[11px] leading-tight">
+                        <div className="text-slate-500" title="Admin performance fee pending (incl. open P/L)">
+                          Admin fee{userSharePctRow ? ` (${100 - userSharePctRow}%)` : ""}:{" "}
+                          <span className="font-semibold tabular-nums">
+                            {adminFeeLiveRow.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                        <div className="text-emerald-700" title="User's share of equity (incl. open P/L)">
+                          User:{" "}
+                          <span className="font-semibold tabular-nums">
+                            {userShareRow.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </td>
                   )}
 

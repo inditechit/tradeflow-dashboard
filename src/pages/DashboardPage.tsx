@@ -95,6 +95,9 @@ const DashboardPage = () => {
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
+  const [adminFeeLive, setAdminFeeLive] = useState(0);
+  const [userShareLive, setUserShareLive] = useState(0);
+  const [userSharePct, setUserSharePct] = useState(0);
   const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
   const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
@@ -150,8 +153,11 @@ const DashboardPage = () => {
       withdrawal: acctTotals.withdrawal,
       balance: walletBalance,
       equity,
+      adminFee: adminFeeLive,
+      userShare: userShareLive > 0 ? userShareLive : Math.max(0, equity - adminFeeLive),
+      userSharePct,
     }),
-    [acctTotals, walletBalance, equity],
+    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct],
   );
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
@@ -330,11 +336,16 @@ const DashboardPage = () => {
             Number(effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? summaryWallet : 0),
           );
         }
+        setAdminFeeLive(Math.max(0, Number(effectiveSummary.admin_pending_share_live_usd ?? 0)));
+        setUserShareLive(Math.max(0, Number(effectiveSummary.user_equity_share_usd ?? 0)));
+        setUserSharePct(Number(effectiveSummary.user_share_pct ?? 0));
       } else {
         setIsBusted(false);
         setPendingClosedPl(0);
         setLivePl(openPlSum);
         setWithdrawableFromApi(walletBalance + openPlSum);
+        setAdminFeeLive(0);
+        setUserShareLive(0);
       }
     } catch (err) {
       console.error('Finance load error:', err);
