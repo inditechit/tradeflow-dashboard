@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   RefreshCw,
   UserPlus,
@@ -67,6 +67,7 @@ function daysLeftBadgeClass(days: number): string {
 
 const AdminPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [locations, setLocations] = useState<any[]>([]);
   const [totals, setTotals] = useState<{
@@ -113,6 +114,21 @@ const AdminPage = () => {
   const [isExtendOpen, setIsExtendOpen] = useState(false);
 
   const { toast } = useToast();
+
+  // Arriving from the "new user registered" call notification: auto-activate the
+  // join-date (newest first) sort so the just-registered user shows at the top,
+  // then strip the hint params so a manual sort change isn't overridden later.
+  useEffect(() => {
+    const sortHint = searchParams.get("sort");
+    if (sortHint === "joined_new" || sortHint === "joined_old") {
+      setUserSort(sortHint);
+      const next = new URLSearchParams(searchParams);
+      next.delete("sort");
+      next.delete("from");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchOpenAssignments = useCallback(async () => {
     try {

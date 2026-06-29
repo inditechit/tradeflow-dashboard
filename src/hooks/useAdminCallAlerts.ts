@@ -212,7 +212,7 @@ export function useAdminCallAlerts(pollMs = 12_000) {
             type: "new_user",
             title: "New user registered",
             subtitle: `${badges.new_users} new user(s) since last visit`,
-            link: "/admin/users",
+            link: "/admin/users?sort=joined_new&from=notification",
           },
           { new_users: Number(badges.new_users) },
         );
