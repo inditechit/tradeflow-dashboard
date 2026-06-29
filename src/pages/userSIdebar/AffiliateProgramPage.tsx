@@ -3,6 +3,9 @@ import axios from "axios";
 import { ArrowRightLeft, Copy, Tag, UserPlus, Users, Wallet } from "lucide-react";
 import { plTextClass } from "@/utils/plColors";
 import { API_BASE } from "@/config/api";
+import { useVerifiedSession } from "@/hooks/useVerifiedSession";
+import { packageDisplayName } from "@/constants/packages";
+import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
 type AffiliateCoupon = {
   id: number;
@@ -23,18 +26,33 @@ type ReferralConnection = {
   first_package_at: string | null;
   paid_package_count: number;
   has_purchased: boolean;
+  is_online?: boolean;
+  wallet_balance?: number;
+  active_package_id?: string | null;
+  package_expires_at?: string | null;
+  plan_days_left?: number | null;
 };
 
+type ReferralFilter = "all" | "purchased";
+
 function referralDisplayName(r: ReferralConnection) {
-  if (r.telegram?.trim()) return r.telegram.trim();
   if (r.name?.trim()) return r.name.trim();
+  if (r.telegram?.trim()) return r.telegram.trim();
   return `User #${r.id}`;
+}
+
+function planDaysLabel(days: number | null | undefined) {
+  if (days == null) return "—";
+  if (days <= 0) return "Expired";
+  return `${days}d left`;
 }
 
 const AffiliateProgramPage = () => {
   const raw = typeof window !== "undefined" ? localStorage.getItem("mt5_user") : null;
   const userData = raw ? JSON.parse(raw) : null;
   const userId = userData?.userId;
+  const { role } = useVerifiedSession();
+  const isStaffViewer = role === "employee" || role === "admin";
 
   const [summary, setSummary] = useState<{
     totalEarnedUsd: number;
@@ -48,6 +66,9 @@ const AffiliateProgramPage = () => {
   } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
   const [referrals, setReferrals] = useState<ReferralConnection[]>([]);
+  const [referralStats, setReferralStats] = useState({ totalAll: 0, purchasedCount: 0 });
+  const [referralFilter, setReferralFilter] = useState<ReferralFilter>("all");
+  const [referralsExtended, setReferralsExtended] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [copied, setCopied] = useState(false);
@@ -64,10 +85,12 @@ const AffiliateProgramPage = () => {
     if (!userId) return;
     setError("");
     try {
+      const refQs = new URLSearchParams({ limit: "100" });
+      if (referralFilter === "purchased") refQs.set("purchased_only", "1");
       const [sRes, cRes, rRes] = await Promise.all([
         axios.get(`${API_BASE}/user/affiliate/summary/${userId}`),
         axios.get(`${API_BASE}/user/affiliate/commissions/${userId}?limit=100`),
-        axios.get(`${API_BASE}/user/affiliate/referrals/${userId}?limit=100`),
+        axios.get(`${API_BASE}/user/affiliate/referrals/${userId}?${refQs.toString()}`),
       ]);
       if (sRes.data.success) {
         setSummary({
@@ -82,12 +105,19 @@ const AffiliateProgramPage = () => {
         });
       }
       if (cRes.data.success) setRows(cRes.data.data ?? []);
-      if (rRes.data.success) setReferrals(rRes.data.referrals ?? []);
+      if (rRes.data.success) {
+        setReferrals(rRes.data.referrals ?? []);
+        setReferralStats({
+          totalAll: Number(rRes.data.total_all ?? rRes.data.referrals?.length ?? 0),
+          purchasedCount: Number(rRes.data.purchased_count ?? 0),
+        });
+        setReferralsExtended(Boolean(rRes.data.extended));
+      }
     } catch (e: unknown) {
       const msg = axios.isAxiosError(e) ? e.response?.data?.error || e.message : "Failed to load";
       setError(String(msg));
     }
-  }, [userId]);
+  }, [userId, referralFilter]);
 
   useEffect(() => {
     load();
@@ -266,53 +296,174 @@ const AffiliateProgramPage = () => {
       ) : null}
 
       <div className="border rounded-xl overflow-hidden shadow-sm mb-10">
-        <div className="px-4 py-3 bg-slate-50 border-b font-semibold flex items-center gap-2">
-          <UserPlus size={18} />
-          People who joined with your link
+        <div className="px-4 py-3 bg-slate-50 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="font-semibold flex items-center gap-2">
+            <UserPlus size={18} />
+            People who joined with your link
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setReferralFilter("all")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                referralFilter === "all"
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              All ({referralStats.totalAll})
+            </button>
+            <button
+              type="button"
+              onClick={() => setReferralFilter("purchased")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                referralFilter === "purchased"
+                  ? "bg-emerald-700 text-white"
+                  : "border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              }`}
+            >
+              Purchased pack ({referralStats.purchasedCount})
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-white border-b text-left text-gray-600">
-                <th className="p-3 font-medium">User</th>
-                <th className="p-3 font-medium">Joined</th>
-                <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium">First package</th>
-              </tr>
-            </thead>
-            <tbody>
-              {referrals.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-6 text-center text-gray-500">
-                    No one has signed up with your link yet. Share your referral link above.
-                  </td>
+          {isStaffViewer && referralsExtended ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white border-b text-left text-gray-600">
+                  <th className="p-3 font-medium">Name</th>
+                  <th className="p-3 font-medium">Joined</th>
+                  <th className="p-3 font-medium">Telegram</th>
+                  <th className="p-3 font-medium">Package</th>
+                  <th className="p-3 font-medium">Wallet</th>
+                  <th className="p-3 font-medium">Online</th>
+                  <th className="p-3 font-medium">Plan expires</th>
+                  <th className="p-3 font-medium">Status</th>
                 </tr>
-              ) : (
-                referrals.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-100">
-                    <td className="p-3 font-medium text-slate-900">{referralDisplayName(r)}</td>
-                    <td className="p-3 whitespace-nowrap text-gray-600">
-                      {r.joined_at ? new Date(r.joined_at).toLocaleString() : "—"}
-                    </td>
-                    <td className="p-3">
-                      {r.has_purchased ? (
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                          Purchased package
-                        </span>
-                      ) : (
-                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                          Joined
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3 whitespace-nowrap text-gray-600">
-                      {r.first_package_at ? new Date(r.first_package_at).toLocaleString() : "—"}
+              </thead>
+              <tbody>
+                {referrals.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-gray-500">
+                      {referralFilter === "purchased"
+                        ? "No referrals with a purchased package yet."
+                        : "No one has signed up with your link yet. Share your referral link above."}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  referrals.map((r) => (
+                    <tr key={r.id} className="border-b border-gray-100">
+                      <td className="p-3">
+                        <div className="font-medium text-slate-900">{referralDisplayName(r)}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">#{r.id}</div>
+                      </td>
+                      <td className="p-3 whitespace-nowrap text-gray-600">
+                        {r.joined_at ? formatIsoDateTime(r.joined_at) : "—"}
+                      </td>
+                      <td className="p-3 text-gray-700">
+                        {r.telegram ? `@${r.telegram.replace(/^@/, "")}` : "—"}
+                      </td>
+                      <td className="p-3 text-gray-700">
+                        {r.active_package_id
+                          ? packageDisplayName(r.active_package_id)
+                          : "—"}
+                      </td>
+                      <td className="p-3 font-semibold tabular-nums text-slate-900">
+                        ${Number(r.wallet_balance ?? 0).toFixed(2)}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                            r.is_online ? "text-emerald-700" : "text-slate-500"
+                          }`}
+                        >
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              r.is_online ? "bg-emerald-500" : "bg-slate-300"
+                            }`}
+                          />
+                          {r.is_online ? "Online" : "Offline"}
+                        </span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        {r.active_package_id ? (
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              (r.plan_days_left ?? 0) <= 0
+                                ? "bg-red-50 text-red-700"
+                                : (r.plan_days_left ?? 0) <= 7
+                                  ? "bg-amber-50 text-amber-800"
+                                  : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {planDaysLabel(r.plan_days_left)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {r.has_purchased ? (
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                            Purchased
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                            Joined only
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white border-b text-left text-gray-600">
+                  <th className="p-3 font-medium">User</th>
+                  <th className="p-3 font-medium">Joined</th>
+                  <th className="p-3 font-medium">Status</th>
+                  <th className="p-3 font-medium">First package</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referrals.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-gray-500">
+                      {referralFilter === "purchased"
+                        ? "No referrals with a purchased package yet."
+                        : "No one has signed up with your link yet. Share your referral link above."}
+                    </td>
+                  </tr>
+                ) : (
+                  referrals.map((r) => (
+                    <tr key={r.id} className="border-b border-gray-100">
+                      <td className="p-3 font-medium text-slate-900">{referralDisplayName(r)}</td>
+                      <td className="p-3 whitespace-nowrap text-gray-600">
+                        {r.joined_at ? new Date(r.joined_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3">
+                        {r.has_purchased ? (
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                            Purchased package
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                            Joined
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 whitespace-nowrap text-gray-600">
+                        {r.first_package_at ? new Date(r.first_package_at).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
