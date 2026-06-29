@@ -21,9 +21,9 @@ import {
   buildSequentialUserFacingPlMap,
   sumUserFacingPlTotals,
   sortTradesChronological,
+  proportionalRawPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
-import { resolveRowAdminUserPl, buildTradeSettlementModeMap, settlementModeBadgeClass } from "@/utils/adminLiveFinance";
 import { plTextClass } from "@/utils/plColors";
 
 type UserTradeRow = UserTradeRowLike & {
@@ -64,6 +64,10 @@ const AdminUserTradesPage = () => {
   const [depositBaseline, setDepositBaseline] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
+  const [equity, setEquity] = useState(0);
+  const [adminFeeLive, setAdminFeeLive] = useState(0);
+  const [userShareLive, setUserShareLive] = useState(0);
+  const [userSharePct, setUserSharePct] = useState(0);
   const [feePerLotUsd, setFeePerLotUsd] = useState(30);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -80,13 +84,18 @@ const AdminUserTradesPage = () => {
       const profileData = await profileRes.json();
       const summaryData = await summaryRes.json();
       if (summaryData?.success) {
-        setWalletBalance(Number(summaryData.wallet_balance ?? 0));
+        const wBal = Number(summaryData.wallet_balance ?? 0);
+        setWalletBalance(wBal);
         setDepositBaseline(
           Number(summaryData.deposit_baseline ?? summaryData.total_invested ?? 0),
         );
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
         setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
+        setEquity(Number(summaryData.equity ?? wBal));
+        setAdminFeeLive(Math.max(0, Number(summaryData.admin_pending_share_live_usd ?? 0)));
+        setUserShareLive(Math.max(0, Number(summaryData.user_equity_share_usd ?? 0)));
+        setUserSharePct(Number(summaryData.user_share_pct ?? 0));
       }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
@@ -133,36 +142,24 @@ const AdminUserTradesPage = () => {
     [rows, walletBalance, depositBaseline],
   );
 
-  const settlementModeMap = useMemo(
-    () => buildTradeSettlementModeMap(rows, depositBaseline, undefined, facingMap),
-    [rows, depositBaseline, facingMap],
-  );
-
   const tableTotals = useMemo(
     () => sumUserFacingPlTotals(sortedRows, facingMap),
     [sortedRows, facingMap],
   );
 
-  const shareTotals = useMemo(() => {
+  const grossTotals = useMemo(() => {
     let gross = 0;
-    let admin = 0;
-    let user = 0;
     for (const r of sortedRows) {
-      const split = resolveRowAdminUserPl(r, String(r.ticket_id ?? ""));
-      gross += split.gross;
-      admin += split.adminShare;
-      user += split.userShare;
+      gross += proportionalRawPl(r);
     }
-    return {
-      gross: Math.round(gross * 100) / 100,
-      admin: Math.round(admin * 100) / 100,
-      user: Math.round(user * 100) / 100,
-    };
+    return Math.round(gross * 100) / 100;
   }, [sortedRows]);
 
   if (!userId) {
     return <Navigate to="/admin/users" replace />;
   }
+
+  const COL_COUNT = 12;
 
   return (
     <div className="mx-auto max-w-[110rem] px-0 py-4 sm:px-2 md:px-6 md:py-8">
@@ -201,23 +198,31 @@ const AdminUserTradesPage = () => {
         </Button>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Gross P/L</div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(shareTotals.gross)}`}>
-            {fmtUsd(shareTotals.gross)}
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Gross P/L (trades)</div>
+          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(grossTotals)}`}>
+            {fmtUsd(grossTotals)}
           </div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Admin P/L</div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(shareTotals.admin)}`}>
-            {fmtUsd(shareTotals.admin)}
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Equity</div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
+            {fmtUsd(equity)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Admin fee{userSharePct ? ` (${100 - userSharePct}%)` : ""}
+          </div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-500">
+            {adminFeeLive > 0 ? `− ${fmtUsd(adminFeeLive)}` : fmtUsd(0)}
           </div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-wide text-slate-500">User share</div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(shareTotals.user)}`}>
-            {fmtUsd(shareTotals.user)}
+          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(userShareLive)}`}>
+            {fmtUsd(userShareLive)}
           </div>
         </div>
       </div>
@@ -247,11 +252,10 @@ const AdminUserTradesPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
         <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
-          <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
+          <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Gross = full proportional master P/L · Admin / User split by the frozen profit-share %.
-            Mode shows whether profit went to loss recovery (fill baseline) or normal split.
-            User P/L is what hits the wallet (after fee + baseline rules).
+            Each trade credits 100% of its proportional P/L to the wallet. The admin/user performance
+            fee is calculated at the wallet level (see summary above) — not per trade.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -268,31 +272,26 @@ const AdminUserTradesPage = () => {
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Sell price</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Gross P/L</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Mode</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Share %</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Admin P/L</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">User P/L</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Wallet P/L</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-6 py-12 text-center text-slate-500">
-                    No assigned trades — run day-0 rebuild if this user had wallet balance but zero
-                    rows.
+                  <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                    No assigned trades.
                   </td>
                 </tr>
               ) : (
                 pageItems.map((r) => {
-                  const ticket = String(r.ticket_id ?? "");
                   const open = isOpenTrade(r);
                   const slice = resolveEffectiveSlice({
                     ...r,
@@ -305,11 +304,8 @@ const AdminUserTradesPage = () => {
                   const { buyPrice, sellPrice, buyIsLive, sellIsLive } =
                     resolveMt5BuySellPrices(r);
                   const side = formatMt5SideLabel(r.mt5_type);
-                  const split = resolveRowAdminUserPl(r, ticket);
-                  const userPl = rowUserFacingPl(r, undefined, undefined, facingMap);
-                  const adminPct = Math.round((100 - split.userSharePct) * 100) / 100;
-                  const assignId = Number(r.assignment_id ?? 0);
-                  const settleMode = assignId ? settlementModeMap.get(assignId) : undefined;
+                  const gross = proportionalRawPl(r);
+                  const walletPl = rowUserFacingPl(r, undefined, undefined, facingMap);
                   const rowKey = String(r.assignment_id ?? r.ticket_id);
 
                   return (
@@ -349,41 +345,13 @@ const AdminUserTradesPage = () => {
                       <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
                         {fee <= 0 ? "—" : fmtUsd(fee)}
                       </td>
-                      <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(split.gross)}`}>
+                      <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(gross)}`}>
                         {open ? "~" : ""}
-                        {fmtUsd(split.gross)}
+                        {fmtUsd(gross)}
                       </td>
-                      <td className="px-3 py-3 text-sm">
-                        {settleMode ? (
-                          <div>
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${settlementModeBadgeClass(settleMode.mode)}`}
-                            >
-                              {settleMode.estimate ? "~" : ""}
-                              {settleMode.label}
-                            </span>
-                            <div className="mt-1 text-[10px] leading-snug text-slate-500">
-                              {settleMode.mode === "loss" && "User bears full loss"}
-                              {settleMode.mode === "recovery" && "100% to user (baseline fill)"}
-                              {settleMode.mode === "normal" && "Profit split applies"}
-                              {settleMode.mode === "mixed" &&
-                                `Rec ${fmtUsd(settleMode.recoveryGrossUsd)} · Norm ${fmtUsd(settleMode.normalGrossUsd)}`}
-                            </div>
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-xs tabular-nums text-slate-600">
-                        {split.userSharePct}% / {adminPct}%
-                      </td>
-                      <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(split.adminShare)}`}>
-                        {open || split.estimate ? "~" : ""}
-                        {fmtUsd(split.adminShare)}
-                      </td>
-                      <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(userPl)}`}>
+                      <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(walletPl)}`}>
                         {open ? "~" : ""}
-                        {fmtUsd(userPl)}
+                        {fmtUsd(walletPl)}
                       </td>
                       <td className="px-3 py-3 text-sm">
                         <span
@@ -403,15 +371,19 @@ const AdminUserTradesPage = () => {
             </tbody>
             {sortedRows.length > 0 && (
               <TradeSummaryFooter
-                colSpan={12}
+                colSpan={9}
                 trailingColSpan={2}
                 tableTotals={tableTotals}
                 capital={{
                   totalDeposited,
                   totalWithdrawn,
                   walletBalance,
+                  equity,
+                  adminPendingShare: adminFeeLive,
+                  userEquityShare: userShareLive,
+                  userSharePct,
                 }}
-                profitLabel="user share"
+                profitLabel="full wallet credit"
                 fmtUsd={fmtUsd}
                 plTextClass={plTextClass}
               />
