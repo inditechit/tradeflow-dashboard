@@ -53,8 +53,19 @@ function daysLeftUntil(value: unknown): number | null {
   if (!value) return null;
   const end = new Date(String(value)).getTime();
   if (Number.isNaN(end)) return null;
-  const diffMs = end - Date.now();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function userPackageExpired(loc: { active_package_id?: unknown; package_expired?: unknown; last_package_end_at?: unknown }): boolean {
+  if (loc.package_expired === true || loc.package_expired === 1 || loc.package_expired === "1") {
+    return true;
+  }
+  const activePkg = String(loc.active_package_id ?? "").trim();
+  if (activePkg) return false;
+  const lastEnd = loc.last_package_end_at;
+  if (!lastEnd) return false;
+  const endMs = new Date(String(lastEnd)).getTime();
+  return Number.isFinite(endMs) && endMs <= Date.now();
 }
 
 /** Tailwind classes for the days-left pill based on urgency. */
@@ -414,6 +425,7 @@ const AdminPage = () => {
       const matchPackage =
         filterPackage === "all" ||
         (filterPackage === "none" && !activePkg) ||
+        (filterPackage === "expired" && userPackageExpired(loc)) ||
         activePkg === filterPackage;
 
       return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage;
@@ -660,7 +672,8 @@ const AdminPage = () => {
           >
             <option value="all">All packages</option>
             <option value="none">No active plan</option>
-            {SUBSCRIPTION_PACKAGES.filter((p) => !p.isTrial).map((pkg) => (
+            <option value="expired">Expired plan</option>
+            {SUBSCRIPTION_PACKAGES.map((pkg) => (
               <option key={pkg.id} value={pkg.id}>
                 {pkg.name}
               </option>
