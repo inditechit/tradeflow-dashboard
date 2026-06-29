@@ -22,6 +22,12 @@ import {
 } from "@/components/ui/dialog";
 import { API_BASE } from "@/config/api";
 
+const WITHDRAW_FEE = 5;
+
+function maxPayoutFromWallet(walletUsd: number) {
+  return Math.max(0, Math.round((walletUsd - WITHDRAW_FEE) * 100) / 100);
+}
+
 type BulkUserRow = {
   user_id: number;
   name: string | null;
@@ -99,8 +105,8 @@ const AdminBulkWithdrawPage = () => {
         for (const u of data.users as BulkUserRow[]) {
           const existing = prev[u.user_id];
           const defaultAmt =
-            u.eligible && u.withdrawable > 0
-              ? u.withdrawable.toFixed(2)
+            u.eligible && u.withdrawable > WITHDRAW_FEE
+              ? maxPayoutFromWallet(u.withdrawable).toFixed(2)
               : "";
           next[u.user_id] = {
             selected: existing?.selected ?? false,
@@ -153,7 +159,7 @@ const AdminBulkWithdrawPage = () => {
           selected: checked,
           amount:
             prev[u.user_id]?.amount ||
-            (u.withdrawable > 0 ? u.withdrawable.toFixed(2) : ""),
+            (u.withdrawable > WITHDRAW_FEE ? maxPayoutFromWallet(u.withdrawable).toFixed(2) : ""),
         };
       }
       return next;
@@ -167,7 +173,7 @@ const AdminBulkWithdrawPage = () => {
         if (!next[u.user_id]?.selected || !u.eligible) continue;
         next[u.user_id] = {
           ...next[u.user_id],
-          amount: u.withdrawable.toFixed(2),
+          amount: maxPayoutFromWallet(u.withdrawable).toFixed(2),
         };
       }
       return next;
@@ -238,8 +244,8 @@ const AdminBulkWithdrawPage = () => {
             Bulk withdraw
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Users with wallet balance only, sorted highest to lowest. Set amounts and queue
-            requests or send USDT in bulk.
+            Users with wallet balance only, sorted highest to lowest. Payout amounts are USDT sent;
+            each withdrawal also debits a ${WITHDRAW_FEE} fee from the user wallet.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Approve queued requests on{" "}
@@ -362,7 +368,7 @@ const AdminBulkWithdrawPage = () => {
                   Withdrawable
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
-                  Withdraw amount
+                  Payout (USDT)
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Status
@@ -389,7 +395,7 @@ const AdminBulkWithdrawPage = () => {
                                 selected: v === true,
                                 amount:
                                   prev[u.user_id]?.amount ||
-                                  (u.withdrawable > 0 ? u.withdrawable.toFixed(2) : ""),
+                                  (u.withdrawable > WITHDRAW_FEE ? maxPayoutFromWallet(u.withdrawable).toFixed(2) : ""),
                               },
                             }));
                           }}

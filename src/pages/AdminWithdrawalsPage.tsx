@@ -73,6 +73,8 @@ const AdminWithdrawalsPage = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 100;
+const WITHDRAW_FEE = 5;
+const MIN_PAYOUT = 10;
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createUserId, setCreateUserId] = useState<number | null>(null);
@@ -222,11 +224,14 @@ const confirmApprove = async () => {
       });
       const data = await res.json();
       if (data.success) {
+        const payout = Number(data.payoutAmount ?? data.amount ?? amt);
+        const fee = Number(data.feeUsd ?? WITHDRAW_FEE);
+        const total = Number(data.totalDebit ?? payout + fee);
         toast({
           title: "Withdrawal completed",
           description: data.txHash
-            ? `Sent $${amt.toFixed(2)} · TX ${String(data.txHash).slice(0, 12)}…`
-            : `Processed $${amt.toFixed(2)}`,
+            ? `Sent $${payout.toFixed(2)} (+ $${fee.toFixed(2)} fee, $${total.toFixed(2)} from wallet) · TX ${String(data.txHash).slice(0, 12)}…`
+            : `Processed $${payout.toFixed(2)} (+ $${fee.toFixed(2)} fee)`,
         });
         setCreateOpen(false);
         setCreateUserId(null);
@@ -477,8 +482,8 @@ const confirmApprove = async () => {
           <DialogHeader>
             <DialogTitle className="text-black">Pay user (admin withdrawal)</DialogTitle>
             <DialogDescription className="text-slate-600">
-              Select a user, enter the USD amount, and send USDT to their saved TRC20 address. Their
-              in-app wallet is debited after the transfer is verified.
+              Enter the USDT payout amount sent to the user&apos;s TRC20 address. A ${WITHDRAW_FEE}{" "}
+              processing fee is debited from their wallet in addition to the payout.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-1">
@@ -493,17 +498,39 @@ const confirmApprove = async () => {
             </div>
             <div>
               <Label htmlFor="admin-wd-amt" className="text-slate-800">
-                Amount (USD)
+                Payout amount (USDT sent)
               </Label>
               <Input
                 id="admin-wd-amt"
                 type="number"
-                min={1}
+                min={MIN_PAYOUT}
                 step="0.01"
                 value={createAmount}
                 onChange={(e) => setCreateAmount(e.target.value)}
                 className="mt-1 border-slate-200"
               />
+              {Number(createAmount) > 0 ? (
+                <p className="mt-2 text-sm text-slate-600">
+                  User receives{" "}
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    ${Number(createAmount).toFixed(2)}
+                  </span>
+                  {" · "}
+                  Fee{" "}
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    ${WITHDRAW_FEE.toFixed(2)}
+                  </span>
+                  {" · "}
+                  Total from wallet{" "}
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    ${(Number(createAmount) + WITHDRAW_FEE).toFixed(2)}
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">
+                  Minimum payout ${MIN_PAYOUT}. Wallet is debited payout + ${WITHDRAW_FEE} fee.
+                </p>
+              )}
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
               <input
