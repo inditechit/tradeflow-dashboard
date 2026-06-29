@@ -30,6 +30,7 @@ type WithdrawalRow = {
   id: number;
   user_id: number;
   amount_usd: string | number;
+  fee_usd?: string | number | null;
   trc20_address: string;
   status: string;
   rejection_reason: string | null;
@@ -351,7 +352,9 @@ const confirmApprove = async () => {
               <tr className="border-b border-slate-200 bg-slate-50/95">
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">ID</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">User</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Amount</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Payout</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Fee</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Total</th>
                 <th className="px-4 py-3 text-xs font-bold tracking-wide text-slate-600 sm:px-6">trc20 address</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Status</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Created</th>
@@ -362,7 +365,11 @@ const confirmApprove = async () => {
             </thead>
             <tbody>
               {!loading &&
-                rows.map((r) => (
+                rows.map((r) => {
+                  const payout = Number(r.amount_usd);
+                  const fee = Number(r.fee_usd ?? 0);
+                  const total = Math.round((payout + fee) * 100) / 100;
+                  return (
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm text-slate-700 sm:px-6">{r.id}</td>
                     <td className="px-4 py-3 sm:px-6">
@@ -371,12 +378,18 @@ const confirmApprove = async () => {
                       <div className="break-all text-xs text-slate-600">{r.user_email}</div>
                     </td>
                     <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
-                      ${Number(r.amount_usd).toFixed(2)}
+                      ${payout.toFixed(2)}
                       {r.admin_initiated ? (
                         <span className="ml-2 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
                           Admin
                         </span>
                       ) : null}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-slate-600 sm:px-6">
+                      {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
+                      ${total.toFixed(2)}
                     </td>
                     <td className="max-w-[220px] px-4 py-3 sm:px-6">
                       <span className="break-all font-mono text-xs text-slate-800">{r.trc20_address}</span>
@@ -435,7 +448,8 @@ const confirmApprove = async () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
             </tbody>
           </table>
         </div>

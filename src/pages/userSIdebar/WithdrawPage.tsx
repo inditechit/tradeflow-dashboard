@@ -21,11 +21,14 @@ import {
 } from "@/components/ui/dialog";
 
 const MIN_WITHDRAW = 10;
+const WITHDRAW_FEE = 5;
+const MIN_TOTAL_WITHDRAW = MIN_WITHDRAW + WITHDRAW_FEE;
 const WITHDRAW_PAGE_SIZE = 50;
 
 type WithdrawRow = {
   id: number;
   amount_usd: string | number;
+  fee_usd?: string | number | null;
   trc20_address: string;
   status: string;
   rejection_reason: string | null;
@@ -174,10 +177,10 @@ const WithdrawPage = () => {
       return;
     }
     const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt < MIN_WITHDRAW) {
+    if (!Number.isFinite(amt) || amt < MIN_TOTAL_WITHDRAW) {
       toast({
         title: "Invalid amount",
-        description: `Minimum withdrawal is ${MIN_WITHDRAW} USD.`,
+        description: `Minimum withdrawal is $${MIN_WITHDRAW} after the $${WITHDRAW_FEE} fee (enter at least $${MIN_TOTAL_WITHDRAW} total).`,
         variant: "destructive",
       });
       return;
@@ -203,7 +206,7 @@ const WithdrawPage = () => {
     if (amt > maxOut) {
       toast({
         title: "Insufficient balance",
-        description: "Amount exceeds your wallet balance. Lower the amount.",
+        description: `Amount exceeds your wallet balance (max $${maxOut.toFixed(2)} incl. $${WITHDRAW_FEE} fee).`,
         variant: "destructive",
       });
       return;
@@ -281,7 +284,7 @@ const WithdrawPage = () => {
   const handleResendOtp = async () => {
     if (!userId) return;
     const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt < MIN_WITHDRAW) return;
+    if (!Number.isFinite(amt) || amt < MIN_TOTAL_WITHDRAW) return;
     setOtpSending(true);
     try {
       const data = await requestWithdrawOtp(amt);
@@ -337,6 +340,11 @@ const WithdrawPage = () => {
 
   const hasAddress = Boolean(payoutSaved);
   const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0;
+  const amountNum = Number(amount);
+  const payoutPreview =
+    Number.isFinite(amountNum) && amountNum > WITHDRAW_FEE
+      ? Math.round((amountNum - WITHDRAW_FEE) * 100) / 100
+      : 0;
   const unlockLabel = fundLock.unlockAt
     ? new Date(fundLock.unlockAt).toLocaleString(undefined, {
         dateStyle: "medium",
@@ -435,19 +443,37 @@ const WithdrawPage = () => {
           {/* 1) Amount first */}
           <div className="space-y-2">
             <Label htmlFor="wd-amt" className="text-black">
-              Amount (USD)
+              Total from wallet (USD)
             </Label>
             <Input
               id="wd-amt"
               type="number"
-              min={MIN_WITHDRAW}
+              min={MIN_TOTAL_WITHDRAW}
               step="0.01"
-              placeholder={`Min ${MIN_WITHDRAW}`}
+              placeholder={`Min $${MIN_TOTAL_WITHDRAW}`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="max-w-xs border-slate-200 bg-white text-slate-900"
               disabled={loading || otpSending || otpConfirming || withdrawBlocked}
             />
+            <p className="text-xs text-slate-500">
+              <strong>${WITHDRAW_FEE} processing fee</strong> per withdrawal. You receive the remainder in USDT
+              (trc20).
+            </p>
+            {amountNum > WITHDRAW_FEE ? (
+              <p className="text-sm text-slate-700">
+                You receive:{" "}
+                <span className="font-semibold tabular-nums text-slate-900">
+                  ${payoutPreview.toFixed(2)}
+                </span>
+                {" · "}
+                Fee:{" "}
+                <span className="font-semibold tabular-nums text-slate-900">${WITHDRAW_FEE.toFixed(2)}</span>
+                {" · "}
+                Total deducted:{" "}
+                <span className="font-semibold tabular-nums text-slate-900">${amountNum.toFixed(2)}</span>
+              </p>
+            ) : null}
           </div>
 
           {!loading && !hasAddress && (
@@ -569,7 +595,8 @@ const WithdrawPage = () => {
               disabled={otpConfirming}
             />
             <p className="text-xs text-slate-500">
-              Withdrawing ${Number(amount || 0).toFixed(2)} USD to your saved trc20 address.
+              Withdrawing ${Number(amount || 0).toFixed(2)} total (${payoutPreview.toFixed(2)} payout + $
+              {WITHDRAW_FEE.toFixed(2)} fee) to your saved trc20 address.
             </p>
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
@@ -615,20 +642,32 @@ const WithdrawPage = () => {
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                   <th className="pb-2 pr-4">When</th>
-                  <th className="pb-2 pr-4">Amount</th>
+                  <th className="pb-2 pr-4">You receive</th>
+                  <th className="pb-2 pr-4">Fee</th>
+                  <th className="pb-2 pr-4">Total</th>
                   <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2 pr-4">Tx / note</th>
                   <th className="pb-2">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const payout = Number(r.amount_usd);
+                  const fee = Number(r.fee_usd ?? 0);
+                  const total = Math.round((payout + fee) * 100) / 100;
+                  return (
                   <tr key={r.id} className="border-b border-slate-100">
                     <td className="py-3 pr-4 whitespace-nowrap text-slate-600">
                       {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                     </td>
                     <td className="py-3 pr-4 font-semibold tabular-nums text-slate-900">
-                      ${Number(r.amount_usd).toFixed(2)}
+                      ${payout.toFixed(2)}
+                    </td>
+                    <td className="py-3 pr-4 tabular-nums text-slate-600">
+                      {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="py-3 pr-4 font-semibold tabular-nums text-slate-900">
+                      ${total.toFixed(2)}
                     </td>
                     <td className="py-3 pr-4">
                       <span
@@ -687,7 +726,8 @@ const WithdrawPage = () => {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             <ListPaginationBar
