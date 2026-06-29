@@ -10,6 +10,7 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
+import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
 import { startOfDayMs, endOfDayMs } from "@/utils/mt5TradeDates";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
@@ -46,6 +47,8 @@ type Props = {
   pageSize?: number;
   /** When set, renders the MT5-style account totals instead of the period total. */
   accountSummary?: Mt5AccountSummary;
+  /** Admin: show user/admin profit split and frozen user %. */
+  showProfitShare?: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -108,6 +111,7 @@ export function Mt5TradeHistoryList({
   emptyMessage = "No trades yet",
   pageSize = 50,
   accountSummary,
+  showProfitShare = false,
 }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -149,6 +153,22 @@ export function Mt5TradeHistoryList({
     () => filtered.reduce((sum, r) => sum + (Number(getRowPl(r)) || 0), 0),
     [filtered, getRowPl],
   );
+
+  const periodShareTotals = useMemo(() => {
+    if (!showProfitShare) return null;
+    let userSum = 0;
+    let adminSum = 0;
+    for (const r of filtered) {
+      const ticket = String(r.ticket_id ?? "");
+      const split = resolveRowAdminUserPl(r, ticket);
+      userSum += split.userShare;
+      adminSum += split.adminShare;
+    }
+    return {
+      userSum: Math.round(userSum * 100) / 100,
+      adminSum: Math.round(adminSum * 100) / 100,
+    };
+  }, [filtered, showProfitShare]);
 
   const activeLabel = PERIOD_TABS.find((t) => t.key === period)?.label ?? "All";
 
@@ -226,6 +246,9 @@ export function Mt5TradeHistoryList({
             const open = isOpenTrade(r);
             const pl = Number(getRowPl(r)) || 0;
             const isProfit = pl >= 0;
+            const split = showProfitShare
+              ? resolveRowAdminUserPl(r, ticket)
+              : null;
             const stamp = fmtMt5DateTime(
               open
                 ? r.open_time ?? r.assignment_created_at
@@ -253,20 +276,51 @@ export function Mt5TradeHistoryList({
                     {open && exit != null ? "~" : ""}
                     {exit != null ? fmtMt5Price(exit, r.symbol) : "—"}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">#{ticket}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
+                    <span>#{ticket}</span>
+                    {showProfitShare && split && (
+                      <span>
+                        · {split.userSharePct}% user /{" "}
+                        {Math.round((100 - split.userSharePct) * 100) / 100}% admin
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="shrink-0 text-right">
                   <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
-                  <div
-                    className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(
-                      isProfit ? 1 : -1,
-                    )}`}
-                  >
-                    {open ? "~" : ""}
-                    {isProfit ? "+" : ""}
-                    {fmtMoney(pl, currency)}
-                  </div>
+                  {showProfitShare && split ? (
+                    <>
+                      <div
+                        className={`mt-1 text-sm font-bold tabular-nums ${plTextClass(
+                          split.adminShare,
+                        )}`}
+                      >
+                        {open || split.estimate ? "~" : ""}
+                        Admin {split.adminShare >= 0 ? "+" : ""}
+                        {fmtMoney(split.adminShare, currency)}
+                      </div>
+                      <div
+                        className={`mt-0.5 text-sm font-semibold tabular-nums ${plTextClass(
+                          split.userShare,
+                        )}`}
+                      >
+                        {open || split.estimate ? "~" : ""}
+                        User {split.userShare >= 0 ? "+" : ""}
+                        {fmtMoney(split.userShare, currency)}
+                      </div>
+                    </>
+                  ) : (
+                    <div
+                      className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(
+                        isProfit ? 1 : -1,
+                      )}`}
+                    >
+                      {open ? "~" : ""}
+                      {isProfit ? "+" : ""}
+                      {fmtMoney(pl, currency)}
+                    </div>
+                  )}
                   <div className="mt-0.5">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -338,16 +392,39 @@ export function Mt5TradeHistoryList({
           </dl>
         </div>
       ) : filtered.length > 0 ? (
-        <div className="flex items-center justify-between gap-4 border-t border-slate-100 bg-slate-50 px-4 py-3">
+        <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {total} trade{total === 1 ? "" : "s"} · {activeLabel}
           </span>
-          <span
-            className={`text-sm font-bold tabular-nums ${plTextClass(periodNetPl)}`}
-          >
-            Total P/L {periodNetPl >= 0 ? "+" : ""}
-            {fmtMoney(periodNetPl, currency)}
-          </span>
+          <div className="flex flex-col items-end gap-1 sm:items-end">
+            {showProfitShare && periodShareTotals ? (
+              <>
+                <span
+                  className={`text-sm font-bold tabular-nums ${plTextClass(
+                    periodShareTotals.adminSum,
+                  )}`}
+                >
+                  Admin {periodShareTotals.adminSum >= 0 ? "+" : ""}
+                  {fmtMoney(periodShareTotals.adminSum, currency)}
+                </span>
+                <span
+                  className={`text-sm font-semibold tabular-nums ${plTextClass(
+                    periodShareTotals.userSum,
+                  )}`}
+                >
+                  User {periodShareTotals.userSum >= 0 ? "+" : ""}
+                  {fmtMoney(periodShareTotals.userSum, currency)}
+                </span>
+              </>
+            ) : (
+              <span
+                className={`text-sm font-bold tabular-nums ${plTextClass(periodNetPl)}`}
+              >
+                Total P/L {periodNetPl >= 0 ? "+" : ""}
+                {fmtMoney(periodNetPl, currency)}
+              </span>
+            )}
+          </div>
         </div>
       ) : null}
 

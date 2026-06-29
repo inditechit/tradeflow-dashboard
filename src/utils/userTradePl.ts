@@ -42,6 +42,8 @@ export type UserTradeRowLike = {
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
+  user_profit_share_pct?: unknown;
+  admin_share_usd?: unknown;
   /** Admin: user had no assign row on this ticket */
   user_absent?: boolean;
   absence_reason?: string | null;

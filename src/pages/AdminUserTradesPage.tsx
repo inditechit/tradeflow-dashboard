@@ -123,6 +123,7 @@ const AdminUserTradesPage = () => {
         getRowPl={getRowPl}
         loading={loading}
         currency={currency}
+        showProfitShare
         emptyMessage="No assigned trades — run day-0 rebuild if this user had wallet balance but zero rows."
       />
     </div>
