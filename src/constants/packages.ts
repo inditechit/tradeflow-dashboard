@@ -146,6 +146,19 @@ export const PAID_WITHDRAW_NOTICE = WITHDRAW_USP.short;
 /** Landing / contact — opens user's email client (no backend). */
 export const CONTACT_EMAIL = "teaminditech1@gmail.com";
 
+/** In-app support — opens Gmail compose (no backend). */
+export const SUPPORT_EMAIL = "support@copytradeengine.com";
+
+export function gmailComposeUrl(
+  to: string,
+  opts?: { subject?: string; body?: string },
+): string {
+  const params = new URLSearchParams({ view: "cm", fs: "1", to });
+  if (opts?.subject) params.set("su", opts.subject);
+  if (opts?.body) params.set("body", opts.body);
+  return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
 export function getPackageById(id: string) {
   return SUBSCRIPTION_PACKAGES.find((p) => p.id === id);
 }

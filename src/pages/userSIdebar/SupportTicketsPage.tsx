@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LifeBuoy, Loader2, MailOpen, MessageCirclePlus, Send } from "lucide-react";
+import { LifeBuoy, Loader2, Mail, MailOpen, MessageCirclePlus, Send } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { gmailComposeUrl, SUPPORT_EMAIL } from "@/constants/packages";
 
 const TICKET_PAGE_SIZE = 50;
 
@@ -270,13 +271,41 @@ const SupportTicketsPage = () => {
   const selectedTicket = tickets.find((x) => x.id === selectedId);
   const selectedTicketUnread = selectedTicket ? ticketHasUnread(selectedTicket) : false;
 
+  const openSupportEmail = () => {
+    const subject = "Support request";
+    const body = [
+      currentUser?.name ? `Name: ${currentUser.name}` : null,
+      currentUser?.userId ? `User ID: ${currentUser.userId}` : null,
+      "",
+      "Describe your issue:",
+      "",
+    ]
+      .filter((line) => line !== null)
+      .join("\n");
+    window.open(gmailComposeUrl(SUPPORT_EMAIL, { subject, body }), "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-col gap-1 border-b border-slate-200 pb-4">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-          <LifeBuoy className="h-7 w-7 text-neutral-800" />
-          Support
-        </h1>
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+            <LifeBuoy className="h-7 w-7 text-neutral-800" />
+            Support
+          </h1>
+          <p className="text-sm text-slate-600">
+            Open a ticket below or email us — we reply on both channels.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0 border-slate-300 bg-white hover:bg-slate-50"
+          onClick={openSupportEmail}
+        >
+          <Mail className="mr-2 h-4 w-4" />
+          Email support
+        </Button>
       </div>
 
       <div className="grid min-h-[520px] gap-4 md:grid-cols-[minmax(0,280px)_1fr] md:gap-6">
