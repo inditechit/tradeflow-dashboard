@@ -10,11 +10,11 @@ import {
   isTradeClosed,
   resolveEffectiveSlice,
   resolveMt5BuySellPrices,
-  rowGrossPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
+import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
 
@@ -48,14 +48,6 @@ function sharePct(r: AdminOpenAssignRow): number | null {
   const { effectiveShare } = resolveEffectiveSlice(r);
   if (!(effectiveShare > 0)) return null;
   return Math.round(effectiveShare * 10000) / 100;
-}
-
-function rowCopyPl(r: AdminOpenAssignRow, ticket: string, live?: Record<string, number>): number {
-  if (isTradeClosed(r)) {
-    const fin = Number(r.final_profit_loss ?? NaN);
-    if (Number.isFinite(fin)) return fin;
-  }
-  return rowGrossPl(r, live?.[ticket]);
 }
 
 export function TicketAssignDialog({
@@ -113,7 +105,9 @@ export function TicketAssignDialog({
                 <th className="px-3 py-2.5 font-bold">Volume</th>
                 <th className="px-3 py-2.5 font-bold">Assigned</th>
                 <th className="px-3 py-2.5 font-bold">Gross P/L</th>
-                <th className="px-3 py-2.5 font-bold">Wallet P/L</th>
+                <th className="px-3 py-2.5 font-bold">Admin P/L</th>
+                <th className="px-3 py-2.5 font-bold">User share</th>
+                <th className="px-3 py-2.5 font-bold">Split</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -123,8 +117,8 @@ export function TicketAssignDialog({
                 const { v_i } = resolveEffectiveSlice(r);
                 const pct = sharePct(r);
                 const closed = isTradeClosed(r);
-                const gross = rowGrossPl(r, liveProfitByTicket?.[ticket]);
-                const walletPl = rowCopyPl(r, ticket, liveProfitByTicket);
+                const split = resolveRowAdminUserPl(r, ticket, liveProfitByTicket);
+                const { gross, userShare, adminShare, estimate, userSharePct } = split;
                 return (
                   <tr key={String(r.assignment_id ?? `${uid}-${ticket}`)} className="hover:bg-slate-50/80">
                     <td className="px-3 py-2.5">
@@ -151,9 +145,17 @@ export function TicketAssignDialog({
                       {closed ? fmtUsd(gross) : `~${fmtUsd(gross)}`}
                     </td>
                     <td
-                      className={`px-3 py-2.5 font-semibold tabular-nums ${plTextClass(walletPl)}`}
+                      className={`px-3 py-2.5 font-semibold tabular-nums ${plTextClass(adminShare)}`}
                     >
-                      {closed ? fmtUsd(walletPl) : "—"}
+                      {closed && !estimate ? fmtUsd(adminShare) : `~${fmtUsd(adminShare)}`}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 font-semibold tabular-nums ${plTextClass(userShare)}`}
+                    >
+                      {closed && !estimate ? fmtUsd(userShare) : `~${fmtUsd(userShare)}`}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs tabular-nums text-slate-600">
+                      {userSharePct}/{Math.round((100 - userSharePct) * 100) / 100}
                     </td>
                   </tr>
                 );

@@ -17,6 +17,7 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
+import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
 import { TicketAssignDialog } from "@/components/admin/TicketAssignDialog";
 import { AdminManualTicketAssignDialog } from "@/components/admin/AdminManualTicketAssignDialog";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,8 @@ type TicketGroup = {
   assigns: AdminOpenAssignRow[];
   userPlSum: number;
   userGrossSum: number;
+  adminPlSum: number;
+  userShareSum: number;
   totalSharePct: number;
 };
 
@@ -244,13 +247,16 @@ const OpenTrades = () => {
           : Number(sample.mt5_total_profit ?? 0);
       let userPlSum = 0;
       let userGrossSum = 0;
+      let adminPlSum = 0;
+      let userShareSum = 0;
       for (const r of rows) {
-        // Per-row: a user already settled (e.g. package expiry) shows their settled
-        // value; only still-open rows track live master P/L.
         const rowSettled = isTradeClosed(r);
         const rowLive = rowSettled ? undefined : liveProfitByTicket[ticket];
         userGrossSum += rowGrossPl(r, rowLive);
         userPlSum += rowCopyPlForGroup(r, ticket, rowSettled ? undefined : liveProfitByTicket);
+        const split = resolveRowAdminUserPl(r, ticket, rowLive);
+        adminPlSum += split.adminShare;
+        userShareSum += split.userShare;
       }
       groups.push({
         ticket,
@@ -266,6 +272,8 @@ const OpenTrades = () => {
         assigns: rows,
         userPlSum: Math.round(userPlSum * 100) / 100,
         userGrossSum: Math.round(userGrossSum * 100) / 100,
+        adminPlSum: Math.round(adminPlSum * 100) / 100,
+        userShareSum: Math.round(userShareSum * 100) / 100,
         totalSharePct: totalSharePct(rows),
       });
     }
@@ -629,10 +637,15 @@ const OpenTrades = () => {
 
                     <div className="shrink-0 text-right">
                       <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
-                      <div className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(g.userPlSum)}`}>
+                      <div className={`mt-1 text-sm font-bold tabular-nums ${plTextClass(g.adminPlSum)}`}>
                         {g.isOpen ? "~" : ""}
-                        {g.userPlSum >= 0 ? "+" : ""}
-                        {fmtUsd(g.userPlSum)}
+                        Admin {g.adminPlSum >= 0 ? "+" : ""}
+                        {fmtUsd(g.adminPlSum)}
+                      </div>
+                      <div className={`mt-0.5 text-sm font-semibold tabular-nums ${plTextClass(g.userShareSum)}`}>
+                        {g.isOpen ? "~" : ""}
+                        User {g.userShareSum >= 0 ? "+" : ""}
+                        {fmtUsd(g.userShareSum)}
                       </div>
                       <div className="mt-0.5">
                         <span

@@ -1,6 +1,7 @@
 import {
   isTradeClosed,
   recomputeOpenUserLivePl,
+  rowGrossPl,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 
@@ -58,7 +59,58 @@ export type AdminOpenAssignRow = UserTradeRowLike & {
   assignment_id?: unknown;
   assignment_created_at?: unknown;
   price?: unknown;
+  admin_share_usd?: unknown;
+  user_profit_share_pct?: unknown;
 };
+
+/** Estimate user vs admin split on proportional gross P/L (open trades). */
+export function estimateGrossProfitSplit(grossPl: number, userSharePct = 50) {
+  const gross = Math.round((Number(grossPl) || 0) * 100) / 100;
+  const pct = Math.min(100, Math.max(0, Number(userSharePct) || 50));
+  if (gross <= 0) {
+    return {
+      userShare: gross,
+      adminShare: 0,
+      userSharePct: pct,
+      adminSharePct: Math.round((100 - pct) * 100) / 100,
+    };
+  }
+  const userShare = Math.round(gross * (pct / 100) * 100) / 100;
+  const adminShare = Math.round((gross - userShare) * 100) / 100;
+  return {
+    userShare,
+    adminShare,
+    userSharePct: pct,
+    adminSharePct: Math.round((100 - pct) * 100) / 100,
+  };
+}
+
+/** Resolved user + admin P/L for one assignment row (settled or live estimate). */
+export function resolveRowAdminUserPl(
+  r: AdminOpenAssignRow,
+  ticket: string,
+  live?: Record<string, number>,
+) {
+  const gross = rowGrossPl(r, live?.[ticket]);
+  const userSharePct = Number(r.user_profit_share_pct ?? r.user_pct ?? r.snapshot_pct ?? 50) || 50;
+
+  if (isTradeClosed(r)) {
+    const userShare = Number(r.final_profit_loss ?? NaN);
+    const adminShare = Number(r.admin_share_usd ?? NaN);
+    if (Number.isFinite(userShare) && Number.isFinite(adminShare)) {
+      return { gross, userShare, adminShare, estimate: false, userSharePct };
+    }
+  }
+
+  const split = estimateGrossProfitSplit(gross, userSharePct);
+  return {
+    gross,
+    userShare: split.userShare,
+    adminShare: split.adminShare,
+    estimate: true,
+    userSharePct: split.userSharePct,
+  };
+}
 
 export function groupOpenRowsByUser(
   assignments: AdminOpenAssignRow[],
