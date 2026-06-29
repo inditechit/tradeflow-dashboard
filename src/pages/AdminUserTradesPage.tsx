@@ -23,7 +23,7 @@ import {
   sortTradesChronological,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
-import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
+import { resolveRowAdminUserPl, buildTradeSettlementModeMap, settlementModeBadgeClass } from "@/utils/adminLiveFinance";
 import { plTextClass } from "@/utils/plColors";
 
 type UserTradeRow = UserTradeRowLike & {
@@ -131,6 +131,11 @@ const AdminUserTradesPage = () => {
   const facingMap = useMemo(
     () => buildSequentialUserFacingPlMap(rows, walletBalance, depositBaseline),
     [rows, walletBalance, depositBaseline],
+  );
+
+  const settlementModeMap = useMemo(
+    () => buildTradeSettlementModeMap(rows, depositBaseline, undefined, facingMap),
+    [rows, depositBaseline, facingMap],
   );
 
   const tableTotals = useMemo(
@@ -245,6 +250,7 @@ const AdminUserTradesPage = () => {
           <h2 className="text-base font-semibold text-slate-800">Per-trade breakdown</h2>
           <p className="mt-1 text-xs text-slate-500">
             Gross = full proportional master P/L · Admin / User split by the frozen profit-share %.
+            Mode shows whether profit went to loss recovery (fill baseline) or normal split.
             User P/L is what hits the wallet (after fee + baseline rules).
           </p>
         </div>
@@ -262,6 +268,7 @@ const AdminUserTradesPage = () => {
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Sell price</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Gross P/L</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Mode</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Share %</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Admin P/L</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">User P/L</th>
@@ -271,14 +278,14 @@ const AdminUserTradesPage = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={15} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={15} className="px-6 py-12 text-center text-slate-500">
                     No assigned trades — run day-0 rebuild if this user had wallet balance but zero
                     rows.
                   </td>
@@ -301,6 +308,8 @@ const AdminUserTradesPage = () => {
                   const split = resolveRowAdminUserPl(r, ticket);
                   const userPl = rowUserFacingPl(r, undefined, undefined, facingMap);
                   const adminPct = Math.round((100 - split.userSharePct) * 100) / 100;
+                  const assignId = Number(r.assignment_id ?? 0);
+                  const settleMode = assignId ? settlementModeMap.get(assignId) : undefined;
                   const rowKey = String(r.assignment_id ?? r.ticket_id);
 
                   return (
@@ -344,6 +353,27 @@ const AdminUserTradesPage = () => {
                         {open ? "~" : ""}
                         {fmtUsd(split.gross)}
                       </td>
+                      <td className="px-3 py-3 text-sm">
+                        {settleMode ? (
+                          <div>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${settlementModeBadgeClass(settleMode.mode)}`}
+                            >
+                              {settleMode.estimate ? "~" : ""}
+                              {settleMode.label}
+                            </span>
+                            <div className="mt-1 text-[10px] leading-snug text-slate-500">
+                              {settleMode.mode === "loss" && "User bears full loss"}
+                              {settleMode.mode === "recovery" && "100% to user (baseline fill)"}
+                              {settleMode.mode === "normal" && "Profit split applies"}
+                              {settleMode.mode === "mixed" &&
+                                `Rec ${fmtUsd(settleMode.recoveryGrossUsd)} · Norm ${fmtUsd(settleMode.normalGrossUsd)}`}
+                            </div>
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className="px-3 py-3 text-xs tabular-nums text-slate-600">
                         {split.userSharePct}% / {adminPct}%
                       </td>
@@ -373,7 +403,7 @@ const AdminUserTradesPage = () => {
             </tbody>
             {sortedRows.length > 0 && (
               <TradeSummaryFooter
-                colSpan={11}
+                colSpan={12}
                 trailingColSpan={2}
                 tableTotals={tableTotals}
                 capital={{

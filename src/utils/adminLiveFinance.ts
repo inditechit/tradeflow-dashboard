@@ -1,7 +1,9 @@
 import {
   isTradeClosed,
+  proportionalRawPl,
   recomputeOpenUserLivePl,
   rowGrossPl,
+  sortTradesChronological,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 
@@ -179,4 +181,198 @@ export function sumSocketMt5OpenProfit(
     }
   }
   return Math.round(sum * 100) / 100;
+}
+
+function round2(n: number): number {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/** How profit on this trade was applied: loss, baseline recovery, or normal split. */
+export type TradeSettlementMode = "loss" | "recovery" | "normal" | "mixed";
+
+export type TradeSettlementModeDetail = {
+  mode: TradeSettlementMode;
+  label: string;
+  /** Gross P/L portion filling wallet up to deposit baseline (100% user). */
+  recoveryGrossUsd: number;
+  /** Gross P/L portion above baseline (split per frozen %). */
+  normalGrossUsd: number;
+  estimate: boolean;
+};
+
+function classifyFromGrossAndWallet(
+  gross: number,
+  walletBefore: number,
+  depositBaseline: number,
+  userSharePct: number,
+  settledAdminShare?: number,
+): TradeSettlementModeDetail {
+  const g = round2(gross);
+  const baseline = round2(depositBaseline);
+  const adminPct = (100 - userSharePct) / 100;
+
+  if (g <= 0) {
+    return {
+      mode: "loss",
+      label: "Loss",
+      recoveryGrossUsd: 0,
+      normalGrossUsd: 0,
+      estimate: false,
+    };
+  }
+
+  if (settledAdminShare != null && Number.isFinite(settledAdminShare)) {
+    const adminShare = round2(settledAdminShare);
+    if (adminShare <= 0) {
+      return {
+        mode: "recovery",
+        label: "Recovery",
+        recoveryGrossUsd: g,
+        normalGrossUsd: 0,
+        estimate: false,
+      };
+    }
+    if (adminPct <= 0) {
+      return {
+        mode: "normal",
+        label: "Normal",
+        recoveryGrossUsd: 0,
+        normalGrossUsd: g,
+        estimate: false,
+      };
+    }
+    const normalGrossUsd = round2(adminShare / adminPct);
+    const recoveryGrossUsd = round2(Math.max(0, g - normalGrossUsd));
+    if (recoveryGrossUsd > 0.01 && normalGrossUsd > 0.01) {
+      return {
+        mode: "mixed",
+        label: "Recovery + Normal",
+        recoveryGrossUsd,
+        normalGrossUsd,
+        estimate: false,
+      };
+    }
+    if (recoveryGrossUsd > 0.01) {
+      return {
+        mode: "recovery",
+        label: "Recovery",
+        recoveryGrossUsd,
+        normalGrossUsd: 0,
+        estimate: false,
+      };
+    }
+    return {
+      mode: "normal",
+      label: "Normal",
+      recoveryGrossUsd: 0,
+      normalGrossUsd: g,
+      estimate: false,
+    };
+  }
+
+  const wallet = round2(walletBefore);
+  const recoveryGap = round2(Math.max(0, baseline - wallet));
+  const recoveryGrossUsd = round2(Math.min(g, recoveryGap));
+  const normalGrossUsd = round2(g - recoveryGrossUsd);
+
+  if (recoveryGrossUsd > 0.01 && normalGrossUsd > 0.01) {
+    return {
+      mode: "mixed",
+      label: "Recovery + Normal",
+      recoveryGrossUsd,
+      normalGrossUsd,
+      estimate: true,
+    };
+  }
+  if (recoveryGrossUsd > 0.01) {
+    return {
+      mode: "recovery",
+      label: "Recovery",
+      recoveryGrossUsd,
+      normalGrossUsd: 0,
+      estimate: true,
+    };
+  }
+  return {
+    mode: "normal",
+    label: "Normal",
+    recoveryGrossUsd: 0,
+    normalGrossUsd: g,
+    estimate: true,
+  };
+}
+
+/** Per-assignment settlement mode (loss / recovery / normal / mixed). */
+export function buildTradeSettlementModeMap(
+  rows: UserTradeRowLike[],
+  depositBaseline: number,
+  liveProfitByTicket?: Record<string, number>,
+  facingMap?: Map<number, number>,
+): Map<number, TradeSettlementModeDetail> {
+  const map = new Map<number, TradeSettlementModeDetail>();
+  const baseline = Math.max(0, depositBaseline);
+  const ordered = sortTradesChronological(rows);
+
+  let openRawSum = 0;
+  for (const r of ordered) {
+    if (isTradeClosed(r)) continue;
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    openRawSum += proportionalRawPl(r, live);
+  }
+  openRawSum = round2(openRawSum);
+
+  let simWallet = round2(Math.max(0, depositBaseline));
+
+  for (const r of ordered) {
+    const assignId = Number(r.assignment_id ?? 0);
+    if (!assignId) continue;
+
+    const ticket = String(r.ticket_id ?? "");
+    const live = ticket ? liveProfitByTicket?.[ticket] : undefined;
+    const gross = rowGrossPl(r, live);
+    const userSharePct = Number(r.user_profit_share_pct ?? r.snapshot_pct ?? 50) || 50;
+    const settled = r.wallet_settled_at != null;
+    const closed = isTradeClosed(r);
+    const raw = proportionalRawPl(r, live);
+
+    let walletBefore = simWallet;
+    if (!settled && !closed) {
+      walletBefore = round2(simWallet + openRawSum - raw);
+    } else if (!settled && closed) {
+      walletBefore = round2(simWallet + openRawSum);
+    }
+
+    const adminShareUsd =
+      settled && r.admin_share_usd != null ? Number(r.admin_share_usd) : undefined;
+
+    map.set(
+      assignId,
+      classifyFromGrossAndWallet(gross, walletBefore, baseline, userSharePct, adminShareUsd),
+    );
+
+    if (settled) {
+      simWallet = round2(simWallet + Number(r.final_profit_loss ?? 0));
+    } else if (closed) {
+      const pl = facingMap?.get(assignId) ?? Number(r.final_profit_loss ?? 0);
+      simWallet = round2(simWallet + pl);
+    }
+  }
+
+  return map;
+}
+
+export function settlementModeBadgeClass(mode: TradeSettlementMode): string {
+  switch (mode) {
+    case "loss":
+      return "bg-red-50 text-red-700";
+    case "recovery":
+      return "bg-amber-50 text-amber-800";
+    case "normal":
+      return "bg-emerald-50 text-emerald-700";
+    case "mixed":
+      return "bg-violet-50 text-violet-700";
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
 }
