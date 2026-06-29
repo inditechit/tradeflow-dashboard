@@ -4,6 +4,7 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AdminCallNotificationProvider } from "@/components/admin/AdminCallNotificationLayer";
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -38,6 +39,7 @@ const AdminLayout = () => {
 
   return (
     <ThemeProvider>
+    <AdminCallNotificationProvider>
     <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
       <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
@@ -52,6 +54,7 @@ const AdminLayout = () => {
         </main>
       </div>
     </div>
+    </AdminCallNotificationProvider>
     </ThemeProvider>
   );
 };

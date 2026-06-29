@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, User, Menu, Moon, Sun } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
+import { AdminCallSettingsButton, useAdminCallContext } from "@/components/admin/AdminCallNotificationLayer";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
@@ -41,6 +42,7 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
   const { currentUser, logout } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
+  const { openSettings: openCallSettings, ringing: callRinging } = useAdminCallContext();
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const finance = useUserFinance(variant === "user" ? currentUser?.userId : undefined);
@@ -142,7 +144,10 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
         {variant === "user" ? (
           <NotificationBell userId={currentUser.userId} />
         ) : (
-          <AdminAlertBell />
+          <>
+            <AdminCallSettingsButton onClick={openCallSettings} ringing={callRinging} />
+            <AdminAlertBell />
+          </>
         )}
 
       <DropdownMenu>
