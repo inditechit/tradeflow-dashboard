@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   History,
   Phone,
+  Download,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,6 +43,7 @@ import {
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
+import { exportUsersToExcel } from "@/utils/exportUsersExcel";
 import { EmployeeGate } from "@/components/auth/EmployeeGate";
 import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
 import { markAdminUsersSeen } from "@/utils/adminSidebarSeen";
@@ -104,7 +106,7 @@ const AdminPage = () => {
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
 
   const { currentUser } = useApp();
-  const { can } = useEmployeeAccess();
+  const { can, isAdmin } = useEmployeeAccess();
   const isVoiceAdmin = can("action:users:voice");
   const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
@@ -469,6 +471,33 @@ const AdminPage = () => {
     }
   }, [userSort]);
 
+  const handleExportExcel = () => {
+    if (!isAdmin) return;
+    if (!filteredLocations.length) {
+      toast({
+        title: "Nothing to export",
+        description: "No users match the current filters.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      exportUsersToExcel(filteredLocations, financeOverlay, {
+        filenamePrefix: hasActiveFilters ? "tradeflow-users-filtered" : "tradeflow-users",
+      });
+      toast({
+        title: "Excel downloaded",
+        description: `${filteredLocations.length.toLocaleString()} user(s) exported.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Export failed",
+        description: err instanceof Error ? err.message : "Could not create Excel file.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const {
     page: userPage,
     setPage: setUserPage,
@@ -551,6 +580,18 @@ const AdminPage = () => {
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+          {isAdmin && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isLoading || !filteredLocations.length}
+              className="gap-2 rounded-xl border-slate-300 text-slate-800 hover:bg-slate-50"
+            >
+              <Download size={18} />
+              Export Excel
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"

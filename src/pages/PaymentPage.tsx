@@ -51,6 +51,22 @@ const PaymentPage = () => {
     couponPreview?.final_amount ?? Number(selectedPackage?.price ?? 0);
 
   useEffect(() => {
+    const uid = currentUser?.userId;
+    if (!uid) return;
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/block-access/${uid}`);
+        const data = await res.json();
+        if (data.access?.can_purchase_package === false) {
+          navigate("/packages", { replace: true });
+        }
+      } catch {
+        /* backend will reject purchase anyway */
+      }
+    })();
+  }, [currentUser?.userId, navigate]);
+
+  useEffect(() => {
     if (!selectedPackage || isTrial) return;
     const referralKey = getStoredReferralKey();
     const storedCoupon = selectedPackage.couponCode || getStoredCouponCode();

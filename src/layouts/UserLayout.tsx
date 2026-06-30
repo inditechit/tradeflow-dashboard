@@ -10,6 +10,7 @@ import { ProfileComplianceProvider } from "@/context/ProfileComplianceContext";
 import SubscriptionExpiredGuard from "@/components/subscription/SubscriptionExpiredGuard";
 import ComplianceRequiredGuard from "@/components/compliance/ComplianceRequiredGuard";
 import MaintenanceGuard from "@/components/maintenance/MaintenanceGuard";
+import BlockedUserGuard from "@/components/block/BlockedUserGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { API_BASE } from "@/config/api";
 
@@ -66,7 +67,9 @@ const UserLayout = () => {
                 <SubscriptionExpiredGuard>
                   <ComplianceRequiredGuard>
                     <MaintenanceGuard>
-                      <Outlet />
+                      <BlockedUserGuard>
+                        <Outlet />
+                      </BlockedUserGuard>
                     </MaintenanceGuard>
                   </ComplianceRequiredGuard>
                 </SubscriptionExpiredGuard>

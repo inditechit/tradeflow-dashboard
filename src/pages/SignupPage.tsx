@@ -9,6 +9,7 @@ import {
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
+import { getDeviceFingerprint } from "@/utils/deviceFingerprint";
 import { AuthPasswordField } from "@/components/ui/password-input";
 import {
   clearSignupDraft,
@@ -456,6 +457,7 @@ const SignupPage = () => {
     const storedRef = sessionStorage.getItem("referrer_key");
 
     try {
+      const deviceFingerprint = await getDeviceFingerprint();
       const payload = {
         ...form,
         photo: livePhotoBase64,
@@ -463,6 +465,7 @@ const SignupPage = () => {
         state: '',
         city: '',
         pincode: '',
+        deviceFingerprint,
         ...(storedRef ? { ref_key: storedRef } : {}),
       };
 
@@ -524,11 +527,13 @@ const SignupPage = () => {
     setIsSubmitting(true);
     try {
       const storedRef = sessionStorage.getItem("referrer_key");
+      const deviceFingerprint = await getDeviceFingerprint();
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           credential,
+          deviceFingerprint,
           ...(storedRef ? { ref_key: storedRef } : {}),
         }),
       });

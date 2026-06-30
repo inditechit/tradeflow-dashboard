@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Mail, Loader2, Shield } from "lucide-react"; // Changed AtSign to Mail
 import { AuthPasswordField } from "@/components/ui/password-input";
 import { GoogleLogin } from "@react-oauth/google";
@@ -9,6 +9,7 @@ import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
 import { firstAllowedEmployeePath } from "@/config/employeePermissionCatalog";
 import { resolveEmployeeLandingPath } from "@/utils/employeeExploreMode";
 import { captureReferralKeyFromUrl, getStoredReferralKey } from "@/hooks/usePackages";
+import { getDeviceFingerprint } from "@/utils/deviceFingerprint";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 // Added a unique `widgetId` prop to prevent conflicts when rendering multiple widgets
@@ -81,6 +82,7 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setCurrentUser, currentUser } = useApp();
   const { isReady, role } = useVerifiedSession();
 
@@ -110,6 +112,13 @@ const LoginPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if ((location.state as { blocked?: boolean } | null)?.blocked) {
+      setErrorMessage("This account has been permanently closed.");
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
+
   const update = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrorMessage("");
@@ -130,12 +139,13 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
+      const deviceFingerprint = await getDeviceFingerprint();
       const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form), // This now naturally sends { email, password }
+        body: JSON.stringify({ ...form, deviceFingerprint }),
       });
 
       const data = await response.json();
@@ -186,11 +196,13 @@ const LoginPage = () => {
     setIsSubmitting(true);
     try {
       const storedRef = getStoredReferralKey();
+      const deviceFingerprint = await getDeviceFingerprint();
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           credential,
+          deviceFingerprint,
           ...(storedRef ? { ref_key: storedRef } : {}),
         }),
       });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, User, MapPin, Shield, Camera, Wallet, KeyRound } from "lucide-react";
+import { Loader2, Save, User, MapPin, Shield, Camera, Wallet, KeyRound, ShieldBan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -61,6 +61,9 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const [pwdSubmitting, setPwdSubmitting] = useState(false);
   const [affiliateTierCycles, setAffiliateTierCycles] = useState(1);
   const [affiliateTierSaving, setAffiliateTierSaving] = useState(false);
+  const [blockAccess, setBlockAccess] = useState<Record<string, unknown> | null>(null);
+  const [blockReason, setBlockReason] = useState("Blocked by admin");
+  const [blockBusy, setBlockBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,6 +113,65 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
     };
     loadAffiliate();
   }, [showAdminExtras, targetUserId]);
+
+  useEffect(() => {
+    if (!showAdminExtras || !targetUserId) return;
+    const loadBlock = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${targetUserId}/block`);
+        const data = await res.json();
+        if (data.success) setBlockAccess(data.access ?? null);
+      } catch {
+        /* optional */
+      }
+    };
+    loadBlock();
+  }, [showAdminExtras, targetUserId]);
+
+  const blockUser = async () => {
+    if (!targetUserId) return;
+    setBlockBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${targetUserId}/block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminId: currentUser?.userId,
+          reason: blockReason,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast({ title: "Block failed", description: data.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "User blocked", description: "Trading continues until package expires; no new packages." });
+      setBlockAccess(data.access ?? { block_status: data.block_status ?? "blocked" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setBlockBusy(false);
+    }
+  };
+
+  const unblockUser = async () => {
+    if (!targetUserId) return;
+    setBlockBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${targetUserId}/unblock`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) {
+        toast({ title: "Unblock failed", description: data.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "User unblocked" });
+      setBlockAccess({ block_status: "none" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setBlockBusy(false);
+    }
+  };
 
   /** Deep-link from withdraw flow: /user/profile#trc20-payout */
   const scrollToTrc20 = useCallback(() => {
@@ -447,6 +509,76 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
                     {affiliateTierSaving ? "Saving…" : "Save cycles"}
                   </Button>
                 </div>
+              </div>
+            )}
+            {showAdminExtras && isAdmin && (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <ShieldBan className="h-3.5 w-3.5" aria-hidden />
+                  Account block
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Blocked users cannot buy new packages. Trading and settlement continue until their current
+                  package expires. After expiry they may withdraw remaining balance only; after final withdrawal
+                  the account is permanently blocked (email, mobile, device).
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  Status:{" "}
+                  <span
+                    className={
+                      String(blockAccess?.block_status ?? "none") === "permanent"
+                        ? "text-red-700"
+                        : String(blockAccess?.block_status ?? "none") === "withdraw_only" ||
+                            String(blockAccess?.block_status ?? "none") === "blocked"
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                    }
+                  >
+                    {String(blockAccess?.block_status ?? "none")}
+                    {String(blockAccess?.block_status ?? "none") === "blocked"
+                      ? " (trading active)"
+                      : ""}
+                  </span>
+                </p>
+                {String(blockAccess?.block_status ?? "none") === "none" ? (
+                  <div className="mt-3 space-y-2">
+                    <Label htmlFor="block-reason" className={fieldLabelClass}>
+                      Reason (internal)
+                    </Label>
+                    <Input
+                      id="block-reason"
+                      value={blockReason}
+                      onChange={(e) => setBlockReason(e.target.value)}
+                      className={fieldInputClass}
+                      disabled={blockBusy}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={blockBusy}
+                      onClick={blockUser}
+                    >
+                      {blockBusy ? "Blocking…" : "Block user"}
+                    </Button>
+                  </div>
+                ) : String(blockAccess?.block_status ?? "none") === "permanent" ? (
+                  <p className="mt-2 text-xs text-red-700">
+                    Permanently blocked. Unblock only if this was a mistake.
+                  </p>
+                ) : null}
+                {String(blockAccess?.block_status ?? "none") !== "none" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 border-slate-200"
+                    disabled={blockBusy}
+                    onClick={unblockUser}
+                  >
+                    {blockBusy ? "Working…" : "Unblock user"}
+                  </Button>
+                )}
               </div>
             )}
           </div>

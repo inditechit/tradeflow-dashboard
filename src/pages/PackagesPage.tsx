@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp, PurchasedPackage } from "@/context/AppContext";
 import { Sparkles, Check, X, AlertTriangle } from "lucide-react";
@@ -56,13 +56,45 @@ const PackagesPage = () => {
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [purchaseBlocked, setPurchaseBlocked] = useState<string | null>(null);
   const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages(
     currentUser?.userId,
   );
+
+  useEffect(() => {
+    const uid = currentUser?.userId;
+    if (!uid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user/block-access/${uid}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const access = data.access;
+        if (access && access.can_purchase_package === false) {
+          setPurchaseBlocked(
+            access.message ||
+              "Package purchase is not available for your account. Contact support if you believe this is an error.",
+          );
+        } else {
+          setPurchaseBlocked(null);
+        }
+      } catch {
+        if (!cancelled) setPurchaseBlocked(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.userId]);
   const trialPkg = packages.find((p) => p.isTrial);
   const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
 
   const handleSelectPackageClick = (pkg: SubscriptionPackage) => {
+    if (purchaseBlocked) {
+      alert(purchaseBlocked);
+      return;
+    }
     setPendingPackage(pkg);
     setTrialTermsAccepted(false);
     setIsRiskModalOpen(true);
@@ -140,6 +172,15 @@ const PackagesPage = () => {
         <p className="text-slate-500 text-sm md:text-base">
           Start with a free trial or choose a paid plan for full access.
         </p>
+        {purchaseBlocked && (
+          <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+            <p className="flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Package purchase unavailable
+            </p>
+            <p className="mt-1">{purchaseBlocked}</p>
+          </div>
+        )}
         <div className="mt-6 grid gap-3 text-left sm:grid-cols-2 max-w-3xl mx-auto">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950">
             <p className="font-bold text-emerald-900">Free trial</p>
