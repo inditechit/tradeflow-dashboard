@@ -1,4 +1,4 @@
-import { Phone, PhoneOff, Volume2 } from "lucide-react";
+import { Bell, X, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,18 +43,18 @@ export function AdminCallSoundSettings({
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Volume2 className="h-5 w-5 text-emerald-600" />
-            Call alert sounds
+            <Volume2 className="h-5 w-5 text-amber-600" />
+            Alert sounds
           </DialogTitle>
           <DialogDescription>
-            New admin events ring like an incoming phone call (loops until you answer or decline).
-            Pick your ringtone and which events should trigger it.
+            New admin events show a notification with a short alert sound.
+            Pick your sound and which events should trigger it.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
           <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <span className="text-sm font-medium text-slate-800">Enable call alerts</span>
+            <span className="text-sm font-medium text-slate-800">Enable alert sounds</span>
             <input
               type="checkbox"
               checked={prefs.enabled}
@@ -65,7 +65,7 @@ export function AdminCallSoundSettings({
 
           <div>
             <Label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
-              Ringtone (5 options)
+              Alert sound (5 options)
             </Label>
             <div className="space-y-2">
               {ADMIN_CALL_SOUNDS.map((s) => {
@@ -112,7 +112,7 @@ export function AdminCallSoundSettings({
 
           <div>
             <Label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
-              Ring for these events
+              Alert me for these events
             </Label>
             <div className="space-y-2">
               {(Object.keys(ADMIN_CALL_ALERT_LABELS) as AdminCallAlertType[]).map((type) => (
@@ -155,13 +155,13 @@ export function AdminCallSettingsButton({
       variant="ghost"
       size="icon"
       className={cn("relative shrink-0", ringing && "animate-pulse")}
-      aria-label="Call alert sound settings"
-      title="Call alert sounds"
+      aria-label="Alert sound settings"
+      title="Alert sounds"
       onClick={onClick}
     >
       <Volume2 className="h-5 w-5 text-slate-700" />
       {ringing ? (
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white" />
       ) : null}
     </Button>
   );
@@ -174,41 +174,50 @@ type IncomingCallOverlayProps = {
   onDecline: () => void;
 };
 
+/** Top-right alert notification (not a full-screen call). */
 export function IncomingCallOverlay({ title, subtitle, onAnswer, onDecline }: IncomingCallOverlayProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-b from-emerald-600 to-emerald-800 p-6 text-white shadow-2xl">
-        <div className="mb-5 flex flex-col items-center text-center">
-          <div className="relative mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white/15 ring-4 ring-white/20">
-            <Phone className="h-9 w-9 animate-pulse" />
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
-              !
-            </span>
+    <div className="fixed right-4 top-4 z-[100] w-[calc(100%-2rem)] max-w-sm sm:w-full">
+      <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="flex items-start gap-3 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <Bell className="h-5 w-5" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100">
-            Incoming call
-          </p>
-          <h2 className="mt-1 text-xl font-bold">{title}</h2>
-          <p className="mt-1 text-sm text-emerald-100">{subtitle}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Button
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+              New alert
+            </p>
+            <h2 className="mt-0.5 truncate text-sm font-bold text-slate-900">{title}</h2>
+            <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{subtitle}</p>
+          </div>
+          <button
             type="button"
-            variant="outline"
-            className="h-12 gap-2 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            aria-label="Dismiss"
+            className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
             onClick={onDecline}
           >
-            <PhoneOff className="h-5 w-5" />
-            Decline
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-slate-600 hover:bg-slate-100"
+            onClick={onDecline}
+          >
+            Dismiss
           </Button>
           <Button
             type="button"
-            className="h-12 gap-2 bg-white text-emerald-800 hover:bg-emerald-50"
+            size="sm"
+            className="h-8 gap-1.5 bg-amber-500 text-white hover:bg-amber-600"
             onClick={onAnswer}
           >
-            <Phone className="h-5 w-5" />
-            Answer
+            View
+            <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

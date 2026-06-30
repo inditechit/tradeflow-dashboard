@@ -59,6 +59,13 @@ export function AdminCallNotificationProvider({ children }: { children: ReactNod
     navigate(link);
   };
 
+  // Auto-dismiss the alert after a short while (toast-like), instead of ringing forever.
+  useEffect(() => {
+    if (!incoming) return;
+    const id = window.setTimeout(() => dismissCall(), 12_000);
+    return () => window.clearTimeout(id);
+  }, [incoming, dismissCall]);
+
   return (
     <AdminCallContext.Provider
       value={{ openSettings: () => setSettingsOpen(true), ringing: Boolean(incoming) }}
@@ -69,9 +76,9 @@ export function AdminCallNotificationProvider({ children }: { children: ReactNod
         <button
           type="button"
           onClick={() => void unlockAudio()}
-          className="fixed bottom-4 right-4 z-[90] rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-900 shadow-lg hover:bg-emerald-100"
+          className="fixed bottom-4 right-4 z-[90] rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-900 shadow-lg hover:bg-amber-100"
         >
-          Tap to enable call sounds
+          Tap to enable alert sounds
         </button>
       ) : null}
 

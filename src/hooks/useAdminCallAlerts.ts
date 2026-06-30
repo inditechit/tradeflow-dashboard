@@ -49,7 +49,8 @@ export function useAdminCallAlerts(pollMs = 12_000) {
   const startRing = useCallback(() => {
     if (!prefs.enabled || ringingRef.current) return;
     ringingRef.current = true;
-    void playerRef.current.startLoop(prefs.soundId, prefs.volume);
+    // Single alert ping (not a looping ringtone).
+    void playerRef.current.playOnce(prefs.soundId, prefs.volume);
   }, [prefs.enabled, prefs.soundId, prefs.volume]);
 
   const dismissCall = useCallback(() => {
@@ -176,7 +177,7 @@ export function useAdminCallAlerts(pollMs = 12_000) {
             type: "support",
             title: "Support ticket needs reply",
             subtitle: `${badges.support_needs_reply} ticket(s) waiting`,
-            link: "/admin/support",
+            link: "/admin/support-tickets",
           },
           { support_needs_reply: Number(badges.support_needs_reply) },
         );
@@ -195,7 +196,9 @@ export function useAdminCallAlerts(pollMs = 12_000) {
             type: "payment",
             title: "Payment needs attention",
             subtitle: `${badges.pending_recharges} pending recharge(s) · ${badges.unmatched_payments} unmatched`,
-            link: "/admin/payments",
+            link: Number(badges.pending_recharges) > wm.pending_recharges
+              ? "/admin/recharge"
+              : "/admin/unmatched-payments",
           },
           {
             pending_recharges: Number(badges.pending_recharges),

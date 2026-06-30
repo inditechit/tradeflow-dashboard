@@ -217,6 +217,14 @@ export class CallRingPlayer {
     }
   }
 
+  /** Play the chosen sound once — alert ping, not a looping call. */
+  async playOnce(soundId: AdminCallSoundId, volume: number) {
+    await this.unlock();
+    this.stopRequested = false;
+    const ctx = this.getContext();
+    await PLAYERS[soundId](ctx, volume);
+  }
+
   stop() {
     this.stopRequested = true;
     if (this.ctx && this.ctx.state === "running") {
