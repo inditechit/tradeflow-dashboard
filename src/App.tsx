@@ -69,6 +69,8 @@ import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsConditionsPage from "./pages/TermsConditionsPage";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +86,10 @@ const App = () => (
 
             {/* Landing */}
             <Route path="/" element={<LandingPage />} />
+
+            {/* Legal */}
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsConditionsPage />} />
 
             {/* Auth */}
             <Route path="/login" element={<LoginPage />} />
