@@ -131,7 +131,7 @@ const PackagesPage = () => {
       const payPrice = pendingPackage.hasDiscount
         ? pendingPackage.discountedPrice ?? pendingPackage.referralPrice ?? pendingPackage.price
         : pendingPackage.listPrice ?? pendingPackage.price;
-      const appliedCoupon = getStoredCouponCode();
+      const appliedCoupon = referralApplied ? null : getStoredCouponCode();
       const selected: PurchasedPackage = {
         id: pendingPackage.id,
         name: pendingPackage.name,
@@ -140,7 +140,7 @@ const PackagesPage = () => {
         listPrice: pendingPackage.listPrice ?? pendingPackage.price,
         referralPrice: pendingPackage.referralPrice,
         hasReferralDiscount: pendingPackage.hasDiscount && referralApplied,
-        couponCode: appliedCoupon || pendingPackage.couponCode || undefined,
+        couponCode: appliedCoupon || (referralApplied ? undefined : pendingPackage.couponCode) || undefined,
         isTrial: pendingPackage.isTrial,
         icon: pendingPackage.icon.name,
         purchasedAt: new Date().toISOString(),

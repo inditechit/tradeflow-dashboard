@@ -10,7 +10,11 @@ import { TRIAL_TERMS } from "@/constants/packages";
 import { notifySubscriptionRefresh } from "@/utils/subscriptionEvents";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 import { API_BASE } from "@/config/api";
-import { getStoredReferralKey, getStoredCouponCode } from "@/hooks/usePackages";
+import {
+  getStoredReferralKey,
+  getStoredCouponCode,
+  setStoredCouponCode,
+} from "@/hooks/usePackages";
 import { Wallet } from "lucide-react";
 
 const PaymentPage = () => {
@@ -66,17 +70,27 @@ const PaymentPage = () => {
     })();
   }, [currentUser?.userId, navigate]);
 
+  const isReferralCheckout = Boolean(
+    getStoredReferralKey() || selectedPackage?.hasReferralDiscount,
+  );
+
+  useEffect(() => {
+    if (getStoredReferralKey()) setStoredCouponCode(null);
+  }, []);
+
   useEffect(() => {
     if (!selectedPackage || isTrial) return;
     const referralKey = getStoredReferralKey();
     const storedCoupon = selectedPackage.couponCode || getStoredCouponCode();
+    const referralCheckout = Boolean(referralKey || selectedPackage.hasReferralDiscount);
+    if (!referralCheckout && !storedCoupon && !currentUser?.userId) return;
+
     void (async () => {
       try {
         const body: Record<string, string> = { packageId: selectedPackage.id };
         if (currentUser?.userId) body.userId = String(currentUser.userId);
         if (referralKey) body.r = referralKey;
         else if (storedCoupon) body.code = storedCoupon;
-        else if (!currentUser?.userId) return;
 
         const res = await fetch(`${API_BASE}/coupons/validate`, {
           method: "POST",
@@ -86,7 +100,7 @@ const PaymentPage = () => {
         const data = await res.json();
         if (data.success && Number(data.discount_amount) > 0) {
           setCouponPreview({
-            code: data.code || storedCoupon || "REFERRAL",
+            code: referralCheckout ? "REFERRAL" : (data.code || storedCoupon || ""),
             original_price_usd: Number(data.original_price_usd ?? selectedPackage.originalPrice ?? data.base_amount),
             list_price_usd: Number(data.list_price_usd ?? selectedPackage.listPrice ?? data.base_amount),
             base_amount: Number(data.base_amount),
@@ -131,14 +145,16 @@ const PaymentPage = () => {
       userId: currentUser!.userId,
       packageId: selectedPackage!.id,
     };
+    if (isReferralCheckout) {
+      const referralKey = getStoredReferralKey();
+      if (referralKey) body.ref_key = referralKey;
+      return body;
+    }
+    const storedCoupon = selectedPackage!.couponCode || getStoredCouponCode();
     if (couponPreview?.code && couponPreview.code !== "REFERRAL") {
       body.coupon_code = couponPreview.code;
-    } else {
-      const referralKey = getStoredReferralKey();
-      const storedCoupon = selectedPackage!.couponCode || getStoredCouponCode();
-      if (referralKey) body.ref_key = referralKey;
-      else if (storedCoupon) body.coupon_code = storedCoupon;
-      else if (couponPreview?.code) body.coupon_code = couponPreview.code;
+    } else if (storedCoupon) {
+      body.coupon_code = storedCoupon;
     }
     return body;
   };
@@ -419,10 +435,9 @@ const PaymentPage = () => {
                         ) : null}
                         {couponPreview ? (
                           <span className="block mt-1 text-emerald-700 text-xs font-medium">
-                            {couponPreview.code} applied — saved $
-                            {couponPreview.discount_amount.toFixed(0)} (
-                            {Math.round((couponPreview.discount_amount / couponPreview.list_price_usd) * 100)}%
-                            off)
+                            {couponPreview.code === "REFERRAL"
+                              ? `Referral pricing — saved $${couponPreview.discount_amount.toFixed(0)}`
+                              : `Coupon ${couponPreview.code} applied — saved $${couponPreview.discount_amount.toFixed(0)} (${Math.round((couponPreview.discount_amount / couponPreview.list_price_usd) * 100)}% off)`}
                           </span>
                         ) : null}
                         . Once the transaction is successfully completed, it will be processed instantly.
