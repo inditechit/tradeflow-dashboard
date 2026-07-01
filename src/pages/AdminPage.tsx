@@ -58,6 +58,10 @@ function daysLeftUntil(value: unknown): number | null {
   return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
+function isCopyTradingActive(loc: { trading_active?: unknown }): boolean {
+  return Number(loc.trading_active ?? 1) !== 0;
+}
+
 function userPackageExpired(loc: { active_package_id?: unknown; package_expired?: unknown; last_package_end_at?: unknown }): boolean {
   if (loc.package_expired === true || loc.package_expired === 1 || loc.package_expired === "1") {
     return true;
@@ -99,6 +103,7 @@ const AdminPage = () => {
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
   const [filterPackage, setFilterPackage] = useState<string>('all');
+  const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -430,7 +435,13 @@ const AdminPage = () => {
         (filterPackage === "expired" && userPackageExpired(loc)) ||
         activePkg === filterPackage;
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage;
+      const copyActive = isCopyTradingActive(loc);
+      const matchTrading =
+        filterTrading === "all" ||
+        (filterTrading === "active" && copyActive) ||
+        (filterTrading === "stopped" && !copyActive);
+
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage && matchTrading;
     });
 
     return filtered.sort((a, b) => {
@@ -442,7 +453,7 @@ const AdminPage = () => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return userSort === "wallet_high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag, userSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag, userSort]);
 
   const totalUserCount = locations.length;
   const filteredUserCount = filteredLocations.length;
@@ -454,8 +465,9 @@ const AdminPage = () => {
       filterOnline !== "all" ||
       filterWallet !== "all" ||
       filterPackage !== "all" ||
+      filterTrading !== "all" ||
       filterTag !== "all",
-    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag],
+    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag],
   );
 
   const sortLabel = useMemo(() => {
@@ -508,7 +520,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTag, userSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag, userSort, setUserPage]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -721,6 +733,20 @@ const AdminPage = () => {
             ))}
           </select>
         </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Copy trading
+          </label>
+          <select
+            value={filterTrading}
+            onChange={(e) => setFilterTrading(e.target.value as "all" | "active" | "stopped")}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All users</option>
+            <option value="active">Active copy trading</option>
+            <option value="stopped">Stopped copy trading</option>
+          </select>
+        </div>
         <EmployeeGate perm="filter:users:tag">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -780,6 +806,7 @@ const AdminPage = () => {
               setFilterOnline('all');
               setFilterWallet('all');
               setFilterPackage('all');
+              setFilterTrading('all');
               setFilterTag('all');
               setUserSort('wallet_high');
             }}
@@ -1044,6 +1071,14 @@ const AdminPage = () => {
                         {lastSeenLabel(loc.last_seen_at, loc.is_online)}
                       </span>
                     </div>
+                    <p
+                      className={cn(
+                        "mt-1 text-[11px] font-medium",
+                        isCopyTradingActive(loc) ? "text-emerald-600" : "text-amber-700",
+                      )}
+                    >
+                      Copy: {isCopyTradingActive(loc) ? "Active" : "Stopped"}
+                    </p>
                   </td>
                   )}
 
