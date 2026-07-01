@@ -46,6 +46,11 @@ export type UserTradeRowLike = {
   close_time?: unknown;
   user_profit_share_pct?: unknown;
   admin_share_usd?: unknown;
+  pool_total_usd?: unknown;
+  trade_exposure_usd?: unknown;
+  participation_factor?: unknown;
+  wallet_before_usd?: unknown;
+  master_profit_usd?: unknown;
   /** Admin: user had no assign row on this ticket */
   user_absent?: boolean;
   absence_reason?: string | null;
