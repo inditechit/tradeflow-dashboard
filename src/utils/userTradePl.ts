@@ -38,6 +38,8 @@ export type UserTradeRowLike = {
   user_facing_pl?: unknown;
   stop_snapshot_gross_pl_usd?: unknown;
   stop_snapshot_master_profit_usd?: unknown;
+  history_archived?: unknown;
+  balance_after_usd?: unknown;
   stop_snapshot_at?: unknown;
   price?: unknown;
   mt5_type?: unknown;

@@ -133,8 +133,19 @@ const Mytrades = () => {
   );
 
   const getRowPl = useMemo(
-    () => (r: UserTradeRow) =>
-      rowUserFacingPl(r, liveRawByTicket[String(r.ticket_id ?? "")], undefined, facingMap),
+    () => (r: UserTradeRow) => {
+      if ((r as UserTradeRowLike).history_archived) {
+        return Number(
+          r.final_profit_loss ?? r.user_facing_pl ?? r.user_wallet_pl ?? 0,
+        );
+      }
+      return rowUserFacingPl(
+        r,
+        liveRawByTicket[String(r.ticket_id ?? "")],
+        undefined,
+        facingMap,
+      );
+    },
     [liveRawByTicket, facingMap],
   );
 

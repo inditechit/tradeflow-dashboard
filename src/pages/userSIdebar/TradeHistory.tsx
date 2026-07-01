@@ -18,6 +18,8 @@ type UserTradeRow = UserTradeRowLike & {
   open_time?: string | null;
   close_time?: string | null;
   assignment_created_at?: string | null;
+  history_archived?: boolean;
+  balance_after_usd?: number | null;
 };
 
 const TradeHistory = () => {
@@ -29,6 +31,7 @@ const TradeHistory = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [depositBaseline, setDepositBaseline] = useState(0);
   const [currency, setCurrency] = useState("USD");
+  const [archivedCount, setArchivedCount] = useState(0);
 
   const fetchAssignedTickets = async () => {
     if (!currentUser?.userId) return;
@@ -58,6 +61,7 @@ const TradeHistory = () => {
         setCurrency(summaryData.currency || "USD");
       }
       setRows(data.trades as UserTradeRow[]);
+      setArchivedCount(Number(data.archived_trade_count ?? 0));
     } catch (err) {
       console.error("user/trades:", err);
       setRows([]);
@@ -83,8 +87,21 @@ const TradeHistory = () => {
   );
 
   const getRowPl = useMemo(
-    () => (r: UserTradeRow) => rowUserFacingPl(r, undefined, undefined, facingMap),
+    () => (r: UserTradeRow) => {
+      if (r.history_archived) {
+        return Number(r.final_profit_loss ?? r.user_facing_pl ?? r.user_wallet_pl ?? 0);
+      }
+      return rowUserFacingPl(r, undefined, undefined, facingMap);
+    },
     [facingMap],
+  );
+
+  const archivedNetPl = useMemo(
+    () =>
+      rows
+        .filter((r) => r.history_archived)
+        .reduce((sum, r) => sum + getRowPl(r), 0),
+    [rows, getRowPl],
   );
 
   return (
@@ -107,6 +124,18 @@ const TradeHistory = () => {
             Your P/L on every assigned trade (full profit/loss credited to your wallet). Open rows are
             estimates until the trade closes. The performance fee applies at the wallet level on withdrawal.
           </p>
+          {archivedCount > 0 && (
+            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Showing <span className="font-semibold">{archivedCount} archived</span> pre-correction trade
+              {archivedCount === 1 ? "" : "s"} plus current trades. Archived rows are read-only records used
+              to explain how your balance changed (net archived P/L:{" "}
+              <span className="font-semibold tabular-nums">
+                {archivedNetPl >= 0 ? "+" : ""}
+                ${archivedNetPl.toFixed(2)}
+              </span>
+              ). Wallet balance today reflects the corrected ledger.
+            </p>
+          )}
         </div>
 
         <button
@@ -124,6 +153,7 @@ const TradeHistory = () => {
         getRowPl={getRowPl}
         loading={loading}
         currency={currency}
+        showArchivedBalance
         emptyMessage="No assigned trades yet"
       />
     </div>

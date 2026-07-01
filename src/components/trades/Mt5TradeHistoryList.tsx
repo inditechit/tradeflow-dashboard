@@ -19,6 +19,8 @@ export type Mt5HistoryRow = UserTradeRowLike & {
   open_time?: string | null;
   close_time?: string | null;
   assignment_created_at?: string | null;
+  history_archived?: boolean;
+  balance_after_usd?: number | null;
 };
 
 type PeriodKey = "today" | "week" | "month" | "all" | "custom";
@@ -57,6 +59,8 @@ type Props = {
   showProfitShare?: boolean;
   /** Admin: show assign fee debited from user wallet per trade. */
   showTradeFee?: boolean;
+  /** User history: show wallet balance after archived settlements. */
+  showArchivedBalance?: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -121,6 +125,7 @@ export function Mt5TradeHistoryList({
   accountSummary,
   showProfitShare = false,
   showTradeFee = false,
+  showArchivedBalance = false,
 }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -274,6 +279,9 @@ export function Mt5TradeHistoryList({
                 ? r.open_time ?? r.assignment_created_at
                 : r.close_time ?? r.wallet_settled_at ?? r.open_time,
             );
+            const archived = Boolean(r.history_archived);
+            const balanceAfter =
+              r.balance_after_usd != null ? Number(r.balance_after_usd) : null;
             const sideCls = isSell ? "text-red-600" : "text-emerald-600";
 
             return (
@@ -298,6 +306,11 @@ export function Mt5TradeHistoryList({
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
                     <span>#{ticket}</span>
+                    {archived && (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-900">
+                        Archived
+                      </span>
+                    )}
                     {showProfitShare && split && (
                       <span>
                         · {split.userSharePct}% user /{" "}
@@ -362,6 +375,11 @@ export function Mt5TradeHistoryList({
                       {open ? (r.mt5_status ? String(r.mt5_status) : "Open") : "Closed"}
                     </span>
                   </div>
+                  {showArchivedBalance && archived && balanceAfter != null && (
+                    <div className="mt-1 text-[11px] tabular-nums text-slate-500">
+                      Wallet after: {fmtMoney(balanceAfter, currency)}
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -21,6 +21,8 @@ export type FetchAllUserTradesResult = {
   success: true;
   trades: UserTradeRowLike[];
   total: number;
+  current_trade_count?: number;
+  archived_trade_count?: number;
   cycle?: UserTradesCycle;
   fee_per_lot_usd?: number;
   trade_absences?: TradeAbsenceRow[];
@@ -56,6 +58,9 @@ export async function fetchAllUserTrades(
   let tradeAbsences: TradeAbsenceRow[] | undefined;
   let absenceCount: number | undefined;
 
+  let archivedTradeCount: number | undefined;
+  let currentTradeCount: number | undefined;
+
   while (true) {
     const qs = new URLSearchParams({
       since_last_recharge: sinceParam,
@@ -72,6 +77,12 @@ export async function fetchAllUserTrades(
     const batch = Array.isArray(data.trades) ? (data.trades as UserTradeRowLike[]) : [];
     allTrades.push(...batch);
     total = Number(data.total ?? allTrades.length);
+    if (data.archived_trade_count != null) {
+      archivedTradeCount = Number(data.archived_trade_count);
+    }
+    if (data.current_trade_count != null) {
+      currentTradeCount = Number(data.current_trade_count);
+    }
     if (data.cycle) cycle = data.cycle as UserTradesCycle;
     if (data.fee_per_lot_usd != null) feePerLot = Number(data.fee_per_lot_usd);
     if (page === 1 && Array.isArray(data.trade_absences)) {
@@ -87,6 +98,8 @@ export async function fetchAllUserTrades(
     success: true,
     trades: allTrades,
     total,
+    current_trade_count: currentTradeCount,
+    archived_trade_count: archivedTradeCount,
     cycle,
     fee_per_lot_usd: feePerLot,
     trade_absences: tradeAbsences,
