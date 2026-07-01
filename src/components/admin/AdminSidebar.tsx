@@ -113,7 +113,7 @@ const MENU: MenuEntry[] = [
       { name: "Packages", icon: Package, path: "/admin/packages" },
       { name: "Coupons", icon: Tag, path: "/admin/coupons" },
       { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
-      { name: "Refer a friend", icon: Share2, path: "/admin/referrals" },
+      { name: "View referrals", icon: Share2, path: "/admin/referrals" },
     ],
   },
   {
