@@ -443,10 +443,10 @@ const WithdrawPage = () => {
             </p>
           )}
           <p className="text-xs text-slate-500">
-            You keep 100% of your deposited base plus your share of profit above it. The performance fee
-            (admin share) applies only to profit above your base and is settled automatically when you
-            withdraw, your plan expires, or you stop trading. While a trade is open, equity changes but your
-            wallet does not until it closes.
+            Your deposit always belongs to you. Admin profit share and assign fees are settled when
+            each trade closes — not again at withdrawal. You can withdraw your full settled wallet
+            (minus the ${WITHDRAW_FEE} processing fee). While trades are open, equity preview may
+            show estimated fees on unrealized profit only.
           </p>
         </div>
 

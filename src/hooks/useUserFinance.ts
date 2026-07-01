@@ -69,10 +69,10 @@ export function useUserFinance(userId: number | undefined) {
       const openPositions = Number(sData?.open_positions ?? 0);
       const canWithdraw = sData?.can_withdraw === true && openPositions === 0;
       const adminPendingShare = Math.max(0, Number(sData?.admin_pending_share_usd ?? 0));
-      // User's own share = wallet minus the admin's pending performance fee.
+      // Per-trade model: settled wallet is fully withdrawable (admin share taken at trade close).
       const userWithdrawable = Math.max(
         0,
-        Number(sData?.user_withdrawable_usd ?? walletBalance - adminPendingShare),
+        Number(sData?.user_withdrawable_usd ?? walletBalance),
       );
       const withdrawable = canWithdraw ? userWithdrawable : 0;
 
