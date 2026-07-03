@@ -78,6 +78,10 @@ type TicketGroup = {
   adminPlSum: number;
   userShareSum: number;
   totalSharePct: number;
+  tradeExposureUsd: number | null;
+  userExposureSum: number;
+  adminExposureUsd: number | null;
+  adminRiskPl: number;
 };
 
 function rowCopyPlForGroup(
@@ -249,6 +253,7 @@ const OpenTrades = () => {
       let userGrossSum = 0;
       let adminPlSum = 0;
       let userShareSum = 0;
+      let userExposureSum = 0;
       for (const r of rows) {
         const rowSettled = isTradeClosed(r);
         const rowLive = rowSettled ? undefined : liveProfitByTicket[ticket];
@@ -257,7 +262,21 @@ const OpenTrades = () => {
         const split = resolveRowAdminUserPl(r, ticket, rowLive);
         adminPlSum += split.adminShare;
         userShareSum += split.userShare;
+        userExposureSum += Number(r.reserved_exposure_usd ?? 0);
       }
+      const tradeExposureUsd =
+        sample.trade_exposure_usd != null ? Number(sample.trade_exposure_usd) : null;
+      const adminExposureUsd =
+        sample.admin_exposure_usd != null ? Number(sample.admin_exposure_usd) : null;
+      const adminRiskPl =
+        sample.admin_absorbed_pl_usd != null
+          ? Number(sample.admin_absorbed_pl_usd)
+          : tradeExposureUsd != null &&
+              adminExposureUsd != null &&
+              adminExposureUsd > 0 &&
+              tradeExposureUsd > 0
+            ? (masterPl * adminExposureUsd) / tradeExposureUsd
+            : 0;
       groups.push({
         ticket,
         symbol: String(sample.symbol ?? "—"),
@@ -275,6 +294,10 @@ const OpenTrades = () => {
         adminPlSum: Math.round(adminPlSum * 100) / 100,
         userShareSum: Math.round(userShareSum * 100) / 100,
         totalSharePct: totalSharePct(rows),
+        tradeExposureUsd,
+        userExposureSum: Math.round(userExposureSum * 100) / 100,
+        adminExposureUsd,
+        adminRiskPl: Math.round(adminRiskPl * 100) / 100,
       });
     }
     groups.sort((a, b) => {
@@ -631,15 +654,37 @@ const OpenTrades = () => {
                         <span className="text-yellow-900">#{g.ticket}</span>
                         <span>· {g.assigns.length} user{g.assigns.length === 1 ? "" : "s"}</span>
                         {g.totalSharePct > 0 && <span>· {g.totalSharePct.toFixed(2)}% pool</span>}
+                        {g.tradeExposureUsd != null && g.tradeExposureUsd > 0 && (
+                          <span>
+                            · Exp {fmtUsd(g.tradeExposureUsd)}
+                            {g.userExposureSum > 0 && <> · users {fmtUsd(g.userExposureSum)}</>}
+                            {g.adminExposureUsd != null && g.adminExposureUsd > 0.01 && (
+                              <> · admin risk {fmtUsd(g.adminExposureUsd)}</>
+                            )}
+                          </span>
+                        )}
                         <span>· Master {fmtUsd(g.masterPl)}</span>
                       </div>
                     </div>
 
                     <div className="shrink-0 text-right">
                       <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
+                      {g.adminExposureUsd != null &&
+                        g.adminExposureUsd > 0.01 &&
+                        Math.abs(g.adminRiskPl) > 0.001 && (
+                          <div
+                            className={`mt-1 text-xs font-semibold tabular-nums ${plTextClass(
+                              g.adminRiskPl,
+                            )}`}
+                          >
+                            {g.isOpen ? "~" : ""}
+                            Admin risk P/L {g.adminRiskPl >= 0 ? "+" : ""}
+                            {fmtUsd(g.adminRiskPl)}
+                          </div>
+                        )}
                       <div className={`mt-1 text-sm font-bold tabular-nums ${plTextClass(g.adminPlSum)}`}>
                         {g.isOpen ? "~" : ""}
-                        Admin {g.adminPlSum >= 0 ? "+" : ""}
+                        Perf. fee {g.adminPlSum >= 0 ? "+" : ""}
                         {fmtUsd(g.adminPlSum)}
                       </div>
                       <div className={`mt-0.5 text-sm font-semibold tabular-nums ${plTextClass(g.userShareSum)}`}>

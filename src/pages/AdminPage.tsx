@@ -1091,6 +1091,22 @@ const AdminPage = () => {
                         maximumFractionDigits: 2,
                       })}
                     </div>
+                    {loc.deposit_baseline != null && (
+                      <div className="mt-0.5 text-[11px] tabular-nums text-slate-500">
+                        Baseline: {Number(loc.deposit_baseline).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    )}
+                    {Number(loc.recovery_remaining_usd ?? 0) > 0.01 && (
+                      <div className="mt-0.5 text-[11px] font-medium tabular-nums text-amber-700">
+                        Recover: {Number(loc.recovery_remaining_usd).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    )}
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}

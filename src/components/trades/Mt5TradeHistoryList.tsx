@@ -24,6 +24,9 @@ export type Mt5HistoryRow = UserTradeRowLike & {
   pool_total_usd?: number | null;
   trade_exposure_usd?: number | null;
   participation_factor?: number | null;
+  reserved_exposure_usd?: number | null;
+  admin_exposure_usd?: number | null;
+  admin_absorbed_pl_usd?: number | null;
   wallet_before_usd?: number | null;
 };
 
@@ -45,6 +48,8 @@ export type Mt5AccountSummary = {
   userShare?: number;
   /** User's profit-share percentage (e.g. 40, 50). */
   userSharePct?: number;
+  /** Amount user must recover before admin performance fee applies. */
+  recoveryRemaining?: number;
 };
 
 type Props = {
@@ -63,6 +68,8 @@ type Props = {
   showProfitShare?: boolean;
   /** Admin: show assign fee debited from user wallet per trade. */
   showTradeFee?: boolean;
+  /** Admin: show trade exposure split (user vs admin risk bucket). */
+  showExposureBreakdown?: boolean;
   /** User history: show wallet balance after archived settlements. */
   showArchivedBalance?: boolean;
 };
@@ -129,6 +136,7 @@ export function Mt5TradeHistoryList({
   accountSummary,
   showProfitShare = false,
   showTradeFee = false,
+  showExposureBreakdown = false,
   showArchivedBalance = false,
 }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("all");
@@ -296,6 +304,14 @@ export function Mt5TradeHistoryList({
               r.participation_factor != null
                 ? Number(r.participation_factor)
                 : null;
+            const tradeExposure =
+              r.trade_exposure_usd != null ? Number(r.trade_exposure_usd) : null;
+            const userExposure =
+              r.reserved_exposure_usd != null ? Number(r.reserved_exposure_usd) : null;
+            const adminExposure =
+              r.admin_exposure_usd != null ? Number(r.admin_exposure_usd) : null;
+            const adminRiskPl =
+              r.admin_absorbed_pl_usd != null ? Number(r.admin_absorbed_pl_usd) : null;
             const sideCls = isSell ? "text-red-600" : "text-emerald-600";
 
             return (
@@ -340,11 +356,37 @@ export function Mt5TradeHistoryList({
                         )}
                       </span>
                     )}
+                    {showExposureBreakdown && tradeExposure != null && tradeExposure > 0 && (
+                      <span className="text-slate-500">
+                        · Trade exp. {fmtMoney(tradeExposure, currency)}
+                        {userExposure != null && userExposure > 0 && (
+                          <> · user {fmtMoney(userExposure, currency)}</>
+                        )}
+                        {adminExposure != null && adminExposure > 0.01 && (
+                          <> · admin risk {fmtMoney(adminExposure, currency)}</>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="shrink-0 text-right">
                   <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
+                  {showExposureBreakdown &&
+                    adminExposure != null &&
+                    adminExposure > 0.01 &&
+                    adminRiskPl != null &&
+                    Math.abs(adminRiskPl) > 0.001 && (
+                      <div
+                        className={`mt-1 text-xs font-semibold tabular-nums ${plTextClass(
+                          adminRiskPl,
+                        )}`}
+                      >
+                        {open ? "~" : ""}
+                        Admin risk P/L {adminRiskPl >= 0 ? "+" : ""}
+                        {fmtMoney(adminRiskPl, currency)}
+                      </div>
+                    )}
                   {showProfitShare && split ? (
                     <>
                       <div
@@ -457,6 +499,15 @@ export function Mt5TradeHistoryList({
                 {fmtMoney(accountSummary.balance, currency)}
               </dd>
             </div>
+            {accountSummary.recoveryRemaining != null &&
+              accountSummary.recoveryRemaining > 0.01 && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-sm font-medium text-amber-800">Recovery remaining</dt>
+                  <dd className="text-sm font-semibold tabular-nums text-amber-800">
+                    {fmtMoney(accountSummary.recoveryRemaining, currency)}
+                  </dd>
+                </div>
+              )}
             {accountSummary.equity != null && (
               <div className="flex items-center justify-between">
                 <dt className="text-sm font-bold text-slate-800">Equity</dt>

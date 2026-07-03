@@ -63,6 +63,9 @@ export type AdminOpenAssignRow = UserTradeRowLike & {
   price?: unknown;
   admin_share_usd?: unknown;
   user_profit_share_pct?: unknown;
+  reserved_exposure_usd?: unknown;
+  admin_exposure_usd?: unknown;
+  admin_absorbed_pl_usd?: unknown;
 };
 
 /** Estimate user vs admin split on proportional gross P/L (open trades). */

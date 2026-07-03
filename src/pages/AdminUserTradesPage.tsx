@@ -31,6 +31,10 @@ type UserTradeRow = UserTradeRowLike & {
   open_time?: string | null;
   close_time?: string | null;
   assignment_created_at?: string | null;
+  reserved_exposure_usd?: number | null;
+  admin_exposure_usd?: number | null;
+  admin_absorbed_pl_usd?: number | null;
+  admin_share_usd?: number | null;
 };
 
 type StatusFilter = "all" | "open" | "closed";
@@ -159,7 +163,7 @@ const AdminUserTradesPage = () => {
     return <Navigate to="/admin/users" replace />;
   }
 
-  const COL_COUNT = 12;
+  const COL_COUNT = 15;
 
   return (
     <div className="mx-auto max-w-[110rem] px-0 py-4 sm:px-2 md:px-6 md:py-8">
@@ -254,8 +258,8 @@ const AdminUserTradesPage = () => {
         <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Each trade credits 100% of its proportional P/L to the wallet. The admin/user performance
-            fee is calculated at the wallet level (see summary above) — not per trade.
+            Per trade: gross P/L, wallet credit (after baseline recovery + performance fee), exposure
+            split, and admin risk on uncovered trade size.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -272,6 +276,10 @@ const AdminUserTradesPage = () => {
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Sell price</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Fee</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Gross P/L</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">User exp.</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Admin risk</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Risk P/L</th>
+                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Perf. fee</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Wallet P/L</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
@@ -306,6 +314,13 @@ const AdminUserTradesPage = () => {
                   const side = formatMt5SideLabel(r.mt5_type);
                   const gross = proportionalRawPl(r);
                   const walletPl = rowUserFacingPl(r, undefined, undefined, facingMap);
+                  const userExposure =
+                    r.reserved_exposure_usd != null ? Number(r.reserved_exposure_usd) : null;
+                  const adminExposure =
+                    r.admin_exposure_usd != null ? Number(r.admin_exposure_usd) : null;
+                  const adminRiskPl =
+                    r.admin_absorbed_pl_usd != null ? Number(r.admin_absorbed_pl_usd) : null;
+                  const perfFee = Number(r.admin_share_usd ?? 0);
                   const rowKey = String(r.assignment_id ?? r.ticket_id);
 
                   return (
@@ -348,6 +363,24 @@ const AdminUserTradesPage = () => {
                       <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(gross)}`}>
                         {open ? "~" : ""}
                         {fmtUsd(gross)}
+                      </td>
+                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                        {userExposure != null && userExposure > 0 ? fmtUsd(userExposure) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                        {adminExposure != null && adminExposure > 0.01 ? fmtUsd(adminExposure) : "—"}
+                      </td>
+                      <td
+                        className={`px-3 py-3 text-sm font-semibold tabular-nums ${
+                          adminRiskPl != null ? plTextClass(adminRiskPl) : "text-slate-400"
+                        }`}
+                      >
+                        {adminRiskPl != null && Math.abs(adminRiskPl) > 0.001
+                          ? `${open ? "~" : ""}${fmtUsd(adminRiskPl)}`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                        {!open && perfFee > 0.001 ? fmtUsd(perfFee) : open ? "~" : "—"}
                       </td>
                       <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(walletPl)}`}>
                         {open ? "~" : ""}

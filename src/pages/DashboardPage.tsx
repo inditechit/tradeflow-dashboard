@@ -109,6 +109,7 @@ const DashboardPage = () => {
   const [historyRows, setHistoryRows] = useState<UserTradeRowLike[]>([]);
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
   const [depositBaseline, setDepositBaseline] = useState(0);
+  const [recoveryRemaining, setRecoveryRemaining] = useState(0);
   const [acctTotals, setAcctTotals] = useState<{
     profit: number;
     deposit: number;
@@ -156,8 +157,9 @@ const DashboardPage = () => {
       adminFee: adminFeeLive,
       userShare: userShareLive > 0 ? userShareLive : Math.max(0, equity - adminFeeLive),
       userSharePct,
+      recoveryRemaining,
     }),
-    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct],
+    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct, recoveryRemaining],
   );
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
@@ -224,6 +226,11 @@ const DashboardPage = () => {
           summaryData?.total_invested ??
           0,
       );
+      const recoveryRemainingUsd = Number(
+        summaryAfter?.recovery_remaining_usd ??
+          summaryData?.recovery_remaining_usd ??
+          0,
+      );
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       let openCount = 0;
       const allRows: UserTradeRowLike[] = [];
@@ -264,6 +271,7 @@ const DashboardPage = () => {
       setHistoryRows(allRows);
       setLiveRawByTicket({ ...liveRawByTicketRef.current });
       setDepositBaseline(depositBaselineRef.current);
+      setRecoveryRemaining(Math.max(0, recoveryRemainingUsd));
       setOpenPositionCount(openCount);
       const wBal = Number(
         summaryAfter?.wallet_balance ??
