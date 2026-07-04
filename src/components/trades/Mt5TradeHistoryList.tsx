@@ -7,8 +7,10 @@ import {
   fmtMt5Price,
   isOpenTrade,
   isTradeClosed,
+  tradeEffectiveCloseAt,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
+import { UserStoppedTradeBadge } from "@/components/trades/UserStoppedTradeBadge";
 import { plTextClass } from "@/utils/plColors";
 import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
 import { startOfDayMs, endOfDayMs } from "@/utils/mt5TradeDates";
@@ -107,7 +109,7 @@ function fmtLots(v: number): string {
 function rowEventMs(r: Mt5HistoryRow): number | null {
   const closed = isTradeClosed(r);
   const raw = closed
-    ? r.close_time ?? r.open_time ?? r.assignment_created_at
+    ? tradeEffectiveCloseAt(r) ?? r.open_time ?? r.assignment_created_at
     : r.open_time ?? r.assignment_created_at;
   if (!raw) return null;
   const ms = Date.parse(String(raw).replace(" ", "T"));
@@ -289,7 +291,7 @@ export function Mt5TradeHistoryList({
             const stamp = fmtMt5DateTime(
               open
                 ? r.open_time ?? r.assignment_created_at
-                : r.close_time ?? r.wallet_settled_at ?? r.open_time,
+                : tradeEffectiveCloseAt(r) ?? r.open_time,
             );
             const archived = Boolean(r.history_archived);
             const balanceAfter =
@@ -341,6 +343,10 @@ export function Mt5TradeHistoryList({
                         Archived
                       </span>
                     )}
+                    <UserStoppedTradeBadge
+                      row={r}
+                      variant={showProfitShare ? "admin" : "user"}
+                    />
                     {showProfitShare && split && (
                       <span>
                         · {split.userSharePct}% user /{" "}

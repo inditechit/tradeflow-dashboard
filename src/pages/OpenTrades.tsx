@@ -11,6 +11,7 @@ import {
   fmtMt5Price,
   formatMt5SideLabel,
   isTradeClosed,
+  isUserStoppedTrade,
   resolveEffectiveSlice,
   resolveMt5BuySellPrices,
   rowGrossPl,
@@ -82,6 +83,7 @@ type TicketGroup = {
   userExposureSum: number;
   adminExposureUsd: number | null;
   adminRiskPl: number;
+  stoppedUserCount: number;
 };
 
 function rowCopyPlForGroup(
@@ -254,8 +256,10 @@ const OpenTrades = () => {
       let adminPlSum = 0;
       let userShareSum = 0;
       let userExposureSum = 0;
+      let stoppedUserCount = 0;
       for (const r of rows) {
         const rowSettled = isTradeClosed(r);
+        if (isUserStoppedTrade(r)) stoppedUserCount += 1;
         const rowLive = rowSettled ? undefined : liveProfitByTicket[ticket];
         userGrossSum += rowGrossPl(r, rowLive);
         userPlSum += rowCopyPlForGroup(r, ticket, rowSettled ? undefined : liveProfitByTicket);
@@ -298,6 +302,7 @@ const OpenTrades = () => {
         userExposureSum: Math.round(userExposureSum * 100) / 100,
         adminExposureUsd,
         adminRiskPl: Math.round(adminRiskPl * 100) / 100,
+        stoppedUserCount,
       });
     }
     groups.sort((a, b) => {
@@ -664,6 +669,11 @@ const OpenTrades = () => {
                           </span>
                         )}
                         <span>· Master {fmtUsd(g.masterPl)}</span>
+                        {g.stoppedUserCount > 0 && (
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-900">
+                            {g.stoppedUserCount} user{g.stoppedUserCount === 1 ? "" : "s"} stopped
+                          </span>
+                        )}
                       </div>
                     </div>
 

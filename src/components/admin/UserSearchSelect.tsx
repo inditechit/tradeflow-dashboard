@@ -31,6 +31,8 @@ type UserSearchSelectProps = {
   /** Show "clear" row at top of list */
   showClearOption?: boolean;
   clearOptionLabel?: string;
+  /** Load full user list on mount (not only when dropdown opens). */
+  preloadOnMount?: boolean;
 };
 
 export function UserSearchSelect({
@@ -42,6 +44,7 @@ export function UserSearchSelect({
   fetchUrl,
   showClearOption = true,
   clearOptionLabel = "No owner (global coupon)",
+  preloadOnMount = true,
 }: UserSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<AdminUserOption[]>([]);
@@ -71,6 +74,10 @@ export function UserSearchSelect({
       setLoading(false);
     }
   }, [loaded, fetchUrl]);
+
+  useEffect(() => {
+    if (preloadOnMount) void loadUsers();
+  }, [preloadOnMount, loadUsers]);
 
   useEffect(() => {
     if (open) void loadUsers();

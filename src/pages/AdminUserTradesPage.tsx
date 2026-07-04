@@ -17,7 +17,9 @@ import {
   resolveEffectiveSlice,
   isOpenTrade,
   isTradeClosed,
+  isUserStoppedTrade,
   rowUserFacingPl,
+  tradeEffectiveCloseAt,
   buildSequentialUserFacingPlMap,
   sumUserFacingPlTotals,
   sortTradesChronological,
@@ -25,6 +27,7 @@ import {
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
+import { UserStoppedTradeBadge } from "@/components/trades/UserStoppedTradeBadge";
 
 type UserTradeRow = UserTradeRowLike & {
   assignment_id?: number;
@@ -54,7 +57,7 @@ function tradeOpenedAt(r: UserTradeRow): string {
 
 function tradeClosedAt(r: UserTradeRow): string {
   if (!isTradeClosed(r)) return "—";
-  return formatIsoDateTime(r.close_time ?? r.wallet_settled_at ?? null);
+  return formatIsoDateTime(tradeEffectiveCloseAt(r));
 }
 
 const AdminUserTradesPage = () => {
@@ -387,15 +390,20 @@ const AdminUserTradesPage = () => {
                         {fmtUsd(walletPl)}
                       </td>
                       <td className="px-3 py-3 text-sm">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            open
-                              ? "bg-sky-50 text-sky-700"
-                              : "border border-slate-200 bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {open ? String(r.mt5_status ?? "Open") : "Closed"}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              open
+                                ? "bg-sky-50 text-sky-700"
+                                : "border border-slate-200 bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {open ? String(r.mt5_status ?? "Open") : "Closed"}
+                          </span>
+                          {isUserStoppedTrade(r) && (
+                            <UserStoppedTradeBadge row={r} variant="admin" showTime />
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

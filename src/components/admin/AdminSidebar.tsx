@@ -41,6 +41,8 @@ type AdminSidebarProps = {
 
 type IconType = LucideIcon;
 
+type BadgeTone = "default" | "green" | "blue";
+
 type MenuItem = {
   name: string;
   icon: IconType;
@@ -48,7 +50,14 @@ type MenuItem = {
   showLive?: boolean;
   badgeKey?: AdminSidebarBadgeKey;
   highlightKey?: AdminSidebarBadgeKey;
+  badgeTone?: BadgeTone;
   adminOnly?: boolean;
+};
+
+const BADGE_TONE_CLASSES: Record<BadgeTone, string> = {
+  default: "bg-red-500 text-white",
+  green: "bg-emerald-500 text-white",
+  blue: "bg-blue-500 text-white",
 };
 
 type MenuEntry =
@@ -86,6 +95,7 @@ const MENU: MenuEntry[] = [
         icon: Wallet,
         path: "/admin/recharge",
         badgeKey: "pending_recharges",
+        badgeTone: "green",
       },
       {
         name: "Unmatched payments",
@@ -99,6 +109,7 @@ const MENU: MenuEntry[] = [
         icon: ArrowDownToLine,
         path: "/admin/withdrawals",
         badgeKey: "pending_withdrawals",
+        badgeTone: "blue",
       },
       { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
       { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
@@ -139,12 +150,12 @@ const MENU: MenuEntry[] = [
         highlightKey: "support_needs_reply",
       },
       {
-        name: "Admin alerts",
+        name: "Start/Stop Alerts",
         icon: BellRing,
         path: "/admin/alerts",
         badgeKey: "unread_alerts",
       },
-      { name: "Notifications", icon: Bell, path: "/admin/notifications" },
+      { name: "Send Notifications", icon: Bell, path: "/admin/notifications" },
     ],
   },
   {
@@ -258,10 +269,13 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
       </span>
     ) : null;
 
-  const countBadge = (count: number, title?: string) =>
+  const countBadge = (count: number, title?: string, tone: BadgeTone = "default") =>
     count > 0 ? (
       <span
-        className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-bold text-white"
+        className={cn(
+          "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+          BADGE_TONE_CLASSES[tone],
+        )}
         title={title}
       >
         {count > 99 ? "99+" : count}
@@ -283,7 +297,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
     return (
       <>
         {highlighted ? highlightDot(true, `${count} new`) : null}
-        {countBadge(count)}
+        {countBadge(count, undefined, item.badgeTone ?? "default")}
         {liveBadge(item.showLive)}
       </>
     );

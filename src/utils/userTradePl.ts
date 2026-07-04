@@ -41,6 +41,8 @@ export type UserTradeRowLike = {
   history_archived?: unknown;
   balance_after_usd?: unknown;
   stop_snapshot_at?: unknown;
+  user_stopped_trade?: unknown;
+  user_stopped_at?: unknown;
   price?: unknown;
   mt5_type?: unknown;
   close_time?: unknown;
@@ -103,6 +105,41 @@ export function fmtMt5Price(n: number, symbol?: unknown): string {
     digits = 5;
   }
   return n.toFixed(digits);
+}
+
+/** User manually stopped copy trading while this trade was open (P/L frozen at stop time). */
+export function isUserStoppedTrade(r: UserTradeRowLike): boolean {
+  const raw = r.stop_snapshot_at;
+  if (raw == null) return false;
+  const s = String(raw).trim();
+  return s !== "" && s !== "0000-00-00 00:00:00";
+}
+
+export function userStoppedAt(r: UserTradeRowLike): string | null {
+  if (!isUserStoppedTrade(r)) return null;
+  return String(r.stop_snapshot_at).trim();
+}
+
+/** Close time shown in history — prefers user stop snapshot over master close. */
+export function tradeEffectiveCloseAt(
+  r: UserTradeRowLike & { close_time?: unknown },
+): string | null {
+  if (!isTradeClosed(r)) return null;
+  const stopped = userStoppedAt(r);
+  if (stopped) return stopped;
+  const ct = r.close_time;
+  if (
+    ct != null &&
+    String(ct).trim() !== "" &&
+    String(ct) !== "0000-00-00 00:00:00"
+  ) {
+    return String(ct).trim();
+  }
+  if (r.wallet_settled_at != null) {
+    const ws = String(r.wallet_settled_at).trim();
+    if (ws !== "" && ws !== "0000-00-00 00:00:00") return ws;
+  }
+  return null;
 }
 
 export function isTradeClosed(

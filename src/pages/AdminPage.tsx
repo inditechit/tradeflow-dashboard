@@ -8,6 +8,9 @@ import {
   History,
   Phone,
   Download,
+  PauseCircle,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -58,8 +61,45 @@ function daysLeftUntil(value: unknown): number | null {
   return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function isCopyTradingActive(loc: { trading_active?: unknown }): boolean {
+function isTradeActive(loc: { trading_active?: unknown }): boolean {
   return Number(loc.trading_active ?? 1) !== 0;
+}
+
+/** Pin order: live → stopped+open P/L → open profit → open loss → other stopped → active. */
+function userListSortTier(loc: {
+  is_online?: unknown;
+  trading_active?: unknown;
+  open_positions?: unknown;
+  live_pl?: unknown;
+}): number {
+  if (Number(loc.is_online) === 1) return 0;
+  const stopped = !isTradeActive(loc);
+  const openPos = Number(loc.open_positions ?? 0);
+  const livePl = Number(loc.live_pl ?? 0);
+  const hasOpenExposure = openPos > 0 || Math.abs(livePl) > 0.01;
+  if (stopped && hasOpenExposure) return 1;
+  if (hasOpenExposure && livePl > 0.01) return 2;
+  if (hasOpenExposure && livePl < -0.01) return 3;
+  if (stopped) return 4;
+  return 5;
+}
+
+function rowLivePl(
+  loc: { id?: unknown; live_pl?: unknown },
+  overlay: Record<number, AdminFinanceOverlay>,
+): number {
+  const uid = Number(loc.id);
+  if (uid && overlay[uid]?.live_pl != null) return Number(overlay[uid].live_pl);
+  return Number(loc.live_pl ?? 0);
+}
+
+function rowHasOpenExposure(
+  loc: { id?: unknown; open_positions?: unknown; live_pl?: unknown },
+  overlay: Record<number, AdminFinanceOverlay>,
+): boolean {
+  const openPos = Number(loc.open_positions ?? 0);
+  const livePl = rowLivePl(loc, overlay);
+  return openPos > 0 || Math.abs(livePl) > 0.01;
 }
 
 function userPackageExpired(loc: { active_package_id?: unknown; package_expired?: unknown; last_package_end_at?: unknown }): boolean {
@@ -104,6 +144,7 @@ const AdminPage = () => {
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
   const [filterPackage, setFilterPackage] = useState<string>('all');
   const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
+  const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -166,7 +207,7 @@ const AdminPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users?finance=1`);
+      const response = await fetch(`${API_BASE}/admin/users?finance=1&limit=2000`);
       const data = await response.json();
       if (data.success) {
         setLocations(data.users);
@@ -435,16 +476,26 @@ const AdminPage = () => {
         (filterPackage === "expired" && userPackageExpired(loc)) ||
         activePkg === filterPackage;
 
-      const copyActive = isCopyTradingActive(loc);
+      const copyActive = isTradeActive(loc);
       const matchTrading =
         filterTrading === "all" ||
         (filterTrading === "active" && copyActive) ||
         (filterTrading === "stopped" && !copyActive);
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage && matchTrading;
+      const livePl = rowLivePl(loc, financeOverlay);
+      const hasOpenExposure = rowHasOpenExposure(loc, financeOverlay);
+      const matchOpenPl =
+        filterOpenPl === "all" ||
+        (filterOpenPl === "profit" && hasOpenExposure && livePl > 0.01) ||
+        (filterOpenPl === "loss" && hasOpenExposure && livePl < -0.01);
+
+      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage && matchTrading && matchOpenPl;
     });
 
     return filtered.sort((a, b) => {
+      const tierDiff = userListSortTier(a) - userListSortTier(b);
+      if (tierDiff !== 0) return tierDiff;
+
       if (userSort === "joined_new" || userSort === "joined_old") {
         const ta = new Date(String(a.created_at ?? "")).getTime() || 0;
         const tb = new Date(String(b.created_at ?? "")).getTime() || 0;
@@ -453,10 +504,40 @@ const AdminPage = () => {
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return userSort === "wallet_high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag, userSort]);
+  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag, userSort, financeOverlay]);
 
   const totalUserCount = locations.length;
   const filteredUserCount = filteredLocations.length;
+  const stoppedWithOpenPlCount = useMemo(
+    () =>
+      locations.filter((loc) => {
+        if (isTradeActive(loc)) return false;
+        const openPos = Number(loc.open_positions ?? 0);
+        const livePl = Math.abs(Number(loc.live_pl ?? 0));
+        return openPos > 0 || livePl > 0.01;
+      }).length,
+    [locations],
+  );
+  const stoppedTradingCount = useMemo(
+    () => locations.filter((loc) => !isTradeActive(loc)).length,
+    [locations],
+  );
+  const inProfitCount = useMemo(
+    () =>
+      locations.filter((loc) => {
+        const livePl = rowLivePl(loc, financeOverlay);
+        return rowHasOpenExposure(loc, financeOverlay) && livePl > 0.01;
+      }).length,
+    [locations, financeOverlay],
+  );
+  const inLossCount = useMemo(
+    () =>
+      locations.filter((loc) => {
+        const livePl = rowLivePl(loc, financeOverlay);
+        return rowHasOpenExposure(loc, financeOverlay) && livePl < -0.01;
+      }).length,
+    [locations, financeOverlay],
+  );
   const hasActiveFilters = useMemo(
     () =>
       Boolean(filterName.trim()) ||
@@ -466,8 +547,9 @@ const AdminPage = () => {
       filterWallet !== "all" ||
       filterPackage !== "all" ||
       filterTrading !== "all" ||
+      filterOpenPl !== "all" ||
       filterTag !== "all",
-    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag],
+    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag],
   );
 
   const sortLabel = useMemo(() => {
@@ -520,7 +602,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterTag, userSort, setUserPage]);
+  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag, userSort, setUserPage]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -574,6 +656,63 @@ const AdminPage = () => {
                 {filterOnline === "live" ? " · filtered" : ""}
               </button>
             </EmployeeGate>
+            {stoppedWithOpenPlCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterTrading((prev) => (prev === "stopped" ? "all" : "stopped"))
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                  filterTrading === "stopped"
+                    ? "border-amber-400 bg-amber-100 text-amber-900 ring-2 ring-amber-200"
+                    : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                }`}
+                title="Trade stopped — click to show stopped users (with open P/L pinned near top)"
+              >
+                <PauseCircle className="h-3 w-3" />
+                {stoppedWithOpenPlCount} trade stop
+                {filterTrading === "stopped" ? " · filtered" : ""}
+              </button>
+            )}
+            {stoppedTradingCount > stoppedWithOpenPlCount && filterTrading !== "stopped" && (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                {stoppedTradingCount} stopped total
+              </span>
+            )}
+            <EmployeeGate perm="col:users:live_pl">
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterOpenPl((prev) => (prev === "profit" ? "all" : "profit"))
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                  filterOpenPl === "profit"
+                    ? "border-emerald-400 bg-emerald-100 text-emerald-900 ring-2 ring-emerald-200"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                }`}
+                title="Users with open trades in profit — click to filter"
+              >
+                <TrendingUp className="h-3 w-3" />
+                {inProfitCount} in profit
+                {filterOpenPl === "profit" ? " · filtered" : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterOpenPl((prev) => (prev === "loss" ? "all" : "loss"))
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                  filterOpenPl === "loss"
+                    ? "border-red-400 bg-red-100 text-red-900 ring-2 ring-red-200"
+                    : "border-red-200 bg-red-50 text-red-800 hover:bg-red-100"
+                }`}
+                title="Users with open trades in loss — click to filter"
+              >
+                <TrendingDown className="h-3 w-3" />
+                {inLossCount} in loss
+                {filterOpenPl === "loss" ? " · filtered" : ""}
+              </button>
+            </EmployeeGate>
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700">
               {hasActiveFilters
                 ? `${filteredUserCount.toLocaleString()} of ${totalUserCount.toLocaleString()} users`
@@ -581,7 +720,7 @@ const AdminPage = () => {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Manage accounts, wallets, addresses &amp; KYC · sorted by {sortLabel}
+            Manage accounts, wallets, addresses &amp; KYC · live users first, then trade-stopped with open P/L · sorted by {sortLabel}
             {hasActiveFilters ? (
               <span className="font-medium text-slate-800">
                 {" "}
@@ -735,7 +874,7 @@ const AdminPage = () => {
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Copy trading
+            Trade
           </label>
           <select
             value={filterTrading}
@@ -743,8 +882,8 @@ const AdminPage = () => {
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
-            <option value="active">Active copy trading</option>
-            <option value="stopped">Stopped copy trading</option>
+            <option value="active">Trade active</option>
+            <option value="stopped">Trade stopped</option>
           </select>
         </div>
         <EmployeeGate perm="filter:users:tag">
@@ -979,7 +1118,15 @@ const AdminPage = () => {
                 const userSharePctRow = Number(loc.user_share_pct ?? 0);
 
                 return (
-                <tr key={loc.id} className="border-b border-slate-100 transition hover:bg-yellow-50/40">
+                <tr
+                  key={loc.id}
+                  className={cn(
+                    "border-b border-slate-100 transition hover:bg-yellow-50/40",
+                    !isTradeActive(loc) &&
+                      openPos > 0 &&
+                      "bg-amber-50/40",
+                  )}
+                >
                   {can("col:users:name") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     {can("action:users:view_trades") ? (
@@ -1074,10 +1221,10 @@ const AdminPage = () => {
                     <p
                       className={cn(
                         "mt-1 text-[11px] font-medium",
-                        isCopyTradingActive(loc) ? "text-emerald-600" : "text-amber-700",
+                        isTradeActive(loc) ? "text-emerald-600" : "text-amber-700",
                       )}
                     >
-                      Copy: {isCopyTradingActive(loc) ? "Active" : "Stopped"}
+                      Trade: {isTradeActive(loc) ? "Active" : "Stop"}
                     </p>
                   </td>
                   )}

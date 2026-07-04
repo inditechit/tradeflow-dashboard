@@ -8,10 +8,12 @@ import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 import {
   fmtMt5Price,
   isTradeClosed,
+  isUserStoppedTrade,
   resolveEffectiveSlice,
   resolveMt5BuySellPrices,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
+import { UserStoppedTradeBadge } from "@/components/trades/UserStoppedTradeBadge";
 import { plTextClass } from "@/utils/plColors";
 import type { AdminOpenAssignRow } from "@/utils/adminLiveFinance";
 import { resolveRowAdminUserPl } from "@/utils/adminLiveFinance";
@@ -108,6 +110,7 @@ export function TicketAssignDialog({
                 <th className="px-3 py-2.5 font-bold">Admin P/L</th>
                 <th className="px-3 py-2.5 font-bold">User share</th>
                 <th className="px-3 py-2.5 font-bold">Split</th>
+                <th className="px-3 py-2.5 font-bold">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -156,6 +159,15 @@ export function TicketAssignDialog({
                     </td>
                     <td className="px-3 py-2.5 text-xs tabular-nums text-slate-600">
                       {userSharePct}/{Math.round((100 - userSharePct) * 100) / 100}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {isUserStoppedTrade(r) ? (
+                        <UserStoppedTradeBadge row={r} variant="admin" showTime />
+                      ) : closed ? (
+                        <span className="text-xs text-slate-500">Closed</span>
+                      ) : (
+                        <span className="text-xs text-sky-700">Open</span>
+                      )}
                     </td>
                   </tr>
                 );
