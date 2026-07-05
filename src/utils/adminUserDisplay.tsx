@@ -39,11 +39,38 @@ export function lastSeenLabel(lastSeenAt: unknown, isOnline: unknown): string {
 
 export function parseUserJoinMs(value: unknown): number | null {
   if (value == null) return null;
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
   const raw = String(value).trim();
-  if (!raw) return null;
+  if (!raw || raw === "null" || raw === "undefined") return null;
   const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
-  const ms = Date.parse(normalized);
+  let ms = Date.parse(normalized);
+  if (!Number.isFinite(ms) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(normalized)) {
+    ms = Date.parse(`${normalized}Z`);
+  }
   return Number.isFinite(ms) ? ms : null;
+}
+
+/** Sort key for admin user table — newest join first uses higher user id as tiebreaker. */
+export function compareUsersByJoin(
+  a: { id?: unknown; created_at?: unknown },
+  b: { id?: unknown; created_at?: unknown },
+  order: "joined_new" | "joined_old",
+): number {
+  const ta = parseUserJoinMs(a.created_at);
+  const tb = parseUserJoinMs(b.created_at);
+  let primary = 0;
+  if (ta != null && tb != null) {
+    primary = order === "joined_new" ? tb - ta : ta - tb;
+  } else if (ta != null || tb != null) {
+    primary = order === "joined_new" ? (ta != null ? -1 : 1) : ta != null ? 1 : -1;
+  }
+  if (primary !== 0) return primary;
+  const idA = Number(a.id) || 0;
+  const idB = Number(b.id) || 0;
+  return order === "joined_new" ? idB - idA : idA - idB;
 }
 
 export function formatAdminDate(dateString: string) {

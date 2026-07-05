@@ -13,6 +13,7 @@ import { fundLockNotice } from "@/utils/packageHelpers";
 import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 import { PackageCouponSection } from "@/components/packages/PackageCouponSection";
 import { API_BASE } from "@/config/api";
+import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
 
 const riskProfiles = [
   {
@@ -55,6 +56,7 @@ const PackagesPage = () => {
   const [pendingPackage, setPendingPackage] = useState<SubscriptionPackage | null>(null);
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [purchaseBlocked, setPurchaseBlocked] = useState<string | null>(null);
   const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages(
@@ -97,6 +99,7 @@ const PackagesPage = () => {
     }
     setPendingPackage(pkg);
     setTrialTermsAccepted(false);
+    setLegalAccepted(false);
     setIsRiskModalOpen(true);
   };
 
@@ -109,6 +112,11 @@ const PackagesPage = () => {
   const proceedToCheckout = async () => {
     if (selectedRisks.length === 0) {
       alert("Please select at least one risk profile to proceed.");
+      return;
+    }
+
+    if (!legalAccepted) {
+      alert("Please accept the Privacy Policy, Terms & Conditions, and Refund Policy to continue.");
       return;
     }
 
@@ -148,7 +156,10 @@ const PackagesPage = () => {
 
       setSelectedPackage(selected);
       navigate("/payment", {
-        state: pendingPackage.isTrial ? { trialTermsAccepted: true } : undefined,
+        state: {
+          legalAccepted: true,
+          ...(pendingPackage.isTrial ? { trialTermsAccepted: true } : {}),
+        },
       });
     } catch (error) {
       console.error("Failed to save risk profile:", error);
@@ -320,6 +331,14 @@ const PackagesPage = () => {
             </div>
 
             <div className="p-6 overflow-y-auto flex-1">
+              <div className="mb-6">
+                <LegalAcceptanceCheckbox
+                  checked={legalAccepted}
+                  onChange={setLegalAccepted}
+                  id="package-legal-accept"
+                />
+              </div>
+
               {pendingPackage.isTrial && (
                 <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
                   <p className="text-sm font-bold text-emerald-900 mb-3">Trial terms</p>
@@ -402,6 +421,7 @@ const PackagesPage = () => {
                 disabled={
                   isSubmitting ||
                   selectedRisks.length === 0 ||
+                  !legalAccepted ||
                   (pendingPackage.isTrial && !trialTermsAccepted)
                 }
                 className="px-6 py-2.5 text-sm font-bold bg-[#FFD700] hover:bg-[#E6C200] text-black rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"

@@ -177,6 +177,13 @@ function badgeCount(item: MenuItem, badges: Record<AdminSidebarBadgeKey, number>
   return Number(badges[item.badgeKey] ?? 0);
 }
 
+function menuItemPath(item: MenuItem, badges: Record<AdminSidebarBadgeKey, number>): string {
+  if (item.path === "/admin/users" && Number(badges.new_users ?? 0) > 0) {
+    return "/admin/users?sort=joined_new";
+  }
+  return item.path;
+}
+
 function groupBadgeTotal(items: MenuItem[], badges: Record<AdminSidebarBadgeKey, number>) {
   return items.reduce((sum, item) => sum + badgeCount(item, badges), 0);
 }
@@ -357,7 +364,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
               if (entry.kind === "item") {
                 const Icon = entry.icon;
                 return (
-                  <NavLink key={entry.path} to={entry.path} onClick={onClose} className={itemClasses}>
+                  <NavLink key={entry.path} to={menuItemPath(entry, badges)} onClick={onClose} className={itemClasses}>
                     <Icon size={18} className="shrink-0" />
                     <span className="flex-1">{entry.name}</span>
                     {renderItemBadges(entry)}
@@ -400,7 +407,7 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
                         return (
                           <NavLink
                             key={item.path}
-                            to={item.path}
+                            to={menuItemPath(item, badges)}
                             onClick={onClose}
                             className={itemClasses}
                           >

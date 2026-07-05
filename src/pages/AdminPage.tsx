@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -41,6 +41,7 @@ import {
   lastSeenLabel,
   parseCoord,
   parseUserJoinMs,
+  compareUsersByJoin,
   referrerDisplayLabel,
   renderRiskBadges,
   walletBalanceOf,
@@ -186,20 +187,8 @@ const AdminPage = () => {
 
   const { toast } = useToast();
 
-  // Arriving from the "new user registered" call notification: auto-activate the
-  // join-date (newest first) sort so the just-registered user shows at the top,
-  // then strip the hint params so a manual sort change isn't overridden later.
-  useEffect(() => {
-    const sortHint = searchParams.get("sort");
-    if (sortHint === "joined_new" || sortHint === "joined_old") {
-      setUserSort(sortHint);
-      const next = new URLSearchParams(searchParams);
-      next.delete("sort");
-      next.delete("from");
-      setSearchParams(next, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const tableTopRef = useRef<HTMLDivElement>(null);
+  const prevUserCountRef = useRef(0);
 
   const fetchOpenAssignments = useCallback(async () => {
     try {
@@ -213,14 +202,14 @@ const AdminPage = () => {
     }
   }, []);
 
-  const fetchLocations = async (opts?: { silent?: boolean }) => {
+  const fetchLocations = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
     if (!silent) setIsLoading(true);
     setError('');
 
     try {
       const [usersRes, referrerMap] = await Promise.all([
-        fetch(`${API_BASE}/admin/users?finance=1&limit=2000`),
+        fetch(`${API_BASE}/admin/users?finance=1`),
         fetchReferrerByUserIdMap(),
       ]);
       const data = await usersRes.json();
@@ -245,22 +234,54 @@ const AdminPage = () => {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Notification / sidebar link: ?sort=joined_new — must react while already on this page.
+  useEffect(() => {
+    const sortHint = searchParams.get("sort");
+    if (sortHint !== "joined_new" && sortHint !== "joined_old") return;
+    setUserSort(sortHint);
+    void fetchLocations({ silent: true });
+    const next = new URLSearchParams(searchParams);
+    next.delete("sort");
+    next.delete("from");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, fetchLocations]);
 
   useEffect(() => {
     markAdminUsersSeen();
   }, []);
 
   useEffect(() => {
-    fetchLocations();
+    void fetchLocations();
     void fetchOpenAssignments();
-    const usersPoll = window.setInterval(() => fetchLocations({ silent: true }), 10_000);
+    const usersPoll = window.setInterval(() => void fetchLocations({ silent: true }), 10_000);
     const openPoll = window.setInterval(() => void fetchOpenAssignments(), 60_000);
     return () => {
       window.clearInterval(usersPoll);
       window.clearInterval(openPoll);
     };
-  }, [fetchOpenAssignments]);
+  }, [fetchLocations, fetchOpenAssignments]);
+
+  useEffect(() => {
+    const onNewUser = () => {
+      setUserSort("joined_new");
+      void fetchLocations({ silent: true });
+    };
+    window.addEventListener("admin-new-user-registered", onNewUser);
+    return () => window.removeEventListener("admin-new-user-registered", onNewUser);
+  }, [fetchLocations]);
+
+  useEffect(() => {
+    const prev = prevUserCountRef.current;
+    const next = locations.length;
+    if (next > prev && userSort === "joined_new") {
+      requestAnimationFrame(() => {
+        tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    prevUserCountRef.current = next;
+  }, [locations.length, userSort]);
 
   useEffect(() => {
     const overlay: Record<number, AdminFinanceOverlay> = {};
@@ -558,19 +579,14 @@ const AdminPage = () => {
         if (plDiff !== 0) return plDiff;
       }
 
-      let primary = 0;
-
       if (userSort === "joined_new" || userSort === "joined_old") {
-        const ta = parseUserJoinMs(a.created_at) ?? 0;
-        const tb = parseUserJoinMs(b.created_at) ?? 0;
-        primary = userSort === "joined_new" ? tb - ta : ta - tb;
-      } else {
-        const diff = walletBalanceOf(b) - walletBalanceOf(a);
-        primary = userSort === "wallet_high" ? diff : -diff;
+        return compareUsersByJoin(a, b, userSort);
       }
 
+      const diff = walletBalanceOf(b) - walletBalanceOf(a);
+      const primary = userSort === "wallet_high" ? diff : -diff;
       if (primary !== 0) return primary;
-      return Number(a.id) - Number(b.id);
+      return Number(b.id) - Number(a.id);
     });
   }, [
     locations,
@@ -1176,7 +1192,7 @@ const AdminPage = () => {
             </span>
           ) : null}
         </div>
-        <div className="overflow-x-auto">
+        <div ref={tableTopRef} className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">

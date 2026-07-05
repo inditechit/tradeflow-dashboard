@@ -209,6 +209,7 @@ export function useAdminCallAlerts(pollMs = 12_000) {
       }
 
       if (badges && prefs.types.new_user && Number(badges.new_users) > wm.new_users) {
+        window.dispatchEvent(new CustomEvent("admin-new-user-registered"));
         triggerCall(
           {
             key: `new-user-${badges.new_users}`,

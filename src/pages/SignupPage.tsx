@@ -1,585 +1,69 @@
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp, UserData } from '@/context/AppContext';
+import { useEffect, useRef, useState, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
-import {
-  Mail, Camera, Loader2, CheckCircle, Shield,
-  User, Send, FileText, Home, ArrowRight, ArrowLeft, Circle,
-} from 'lucide-react';
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import { Loader2, Shield } from "lucide-react";
+import { useApp, UserData } from "@/context/AppContext";
 import { API_BASE, GOOGLE_CLIENT_ID } from "@/config/api";
 import { getDeviceFingerprint } from "@/utils/deviceFingerprint";
-import { AuthPasswordField } from "@/components/ui/password-input";
-import {
-  clearSignupDraft,
-  inferSignupErrorTarget,
-  loadSignupDraft,
-  saveSignupDraft,
-  inferAccountFieldStep,
-  accountFieldStepFromError,
-  ACCOUNT_FIELD_ORDER,
-  type SignupErrorTarget,
-  type AccountFieldStep,
-} from "@/utils/signupDraftStorage";
-import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
 
-// --- TRADINGVIEW WIDGET COMPONENT ---
-const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
+const TradingViewTicker = memo(({ symbols }: { symbols: { proName: string; title: string }[] }) => {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!container.current) return;
-    
-    // Clear the container to prevent duplicates in strict mode
-    container.current.innerHTML = ''; 
-
+    container.current.innerHTML = "";
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      symbols: symbols,
+      symbols,
       showSymbolLogo: true,
       isTransparent: true,
       displayMode: "regular",
       colorTheme: "light",
-      locale: "en"
+      locale: "en",
     });
-
     container.current.appendChild(script);
   }, [symbols]);
 
   return (
-    <div className="tradingview-widget-container" ref={container} style={{ width: '100%' }}>
-      <div className="tradingview-widget-container__widget"></div>
+    <div className="tradingview-widget-container" ref={container} style={{ width: "100%" }}>
+      <div className="tradingview-widget-container__widget" />
     </div>
   );
 });
 
-// Real-time market data categories for the strips
 const cryptoSymbols = [
   { proName: "BITSTAMP:BTCUSD", title: "Bitcoin" },
   { proName: "BITSTAMP:ETHUSD", title: "Ethereum" },
   { proName: "BINANCE:SOLUSDT", title: "Solana" },
   { proName: "BINANCE:BNBUSDT", title: "BNB" },
-  { proName: "BINANCE:XRPUSDT", title: "XRP" },
-  { proName: "BINANCE:ADAUSDT", title: "Cardano" }
 ];
 
 const forexSymbols = [
   { proName: "FX_IDC:EURUSD", title: "EUR/USD" },
-  { proName: "FX_IDC:GBPUSD", title: "GBP/USD" },
-  { proName: "FX_IDC:USDJPY", title: "USD/JPY" },
   { proName: "OANDA:XAUUSD", title: "Gold" },
-  { proName: "OANDA:XAGUSD", title: "Silver" },
-  { proName: "FX_IDC:AUDUSD", title: "AUD/USD" }
+  { proName: "FX_IDC:GBPUSD", title: "GBP/USD" },
 ];
 
-const indexSymbols = [
-  { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
-  { proName: "FOREXCOM:NSXUSD", title: "US 100" },
-  { proName: "FOREXCOM:DJI", title: "Dow 30" },
-  { proName: "OANDA:UK100GBP", title: "UK 100" },
-  { proName: "INDEX:NKY", title: "Nikkei 225" },
-  { proName: "INDEX:DAX", title: "DAX" }
-];
-
-// Generic document upload row (KYC docs at signup).
-// Uses a native file input with capture="environment" so mobile users get the
-// back-camera. Desktop users get the file picker. No extra deps.
-const DocUploadRow = ({
-  label,
-  icon,
-  value,
-  onPick,
-  onClear,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  value: string;
-  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClear: () => void;
-}) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          {icon}
-          {label}
-        </div>
-        {value && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1"
-          >
-            Remove
-          </button>
-        )}
-      </div>
-
-      {value ? (
-        <img
-          src={value}
-          alt={label}
-          className="w-full max-h-48 object-contain rounded-lg bg-white border border-slate-200"
-        />
-      ) : (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 flex flex-col items-center justify-center text-center">
-          <Camera size={22} className="text-slate-400 mb-2" />
-          <p className="text-xs text-slate-500 mb-3">No image yet</p>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-lg bg-white border border-yellow-300 text-neutral-800 text-sm font-semibold hover:bg-yellow-50 shadow-sm"
-          >
-            Take / upload photo
-          </button>
-        </div>
-      )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={onPick}
-        className="hidden"
-      />
-
-      {value && (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="w-full py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50"
-        >
-          Replace
-        </button>
-      )}
-    </div>
-  );
-};
-
-// Input Field (Kept outside to prevent focus loss)
-const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange, autoFocus, onKeyDown }: any) => (
-  <div className="relative group w-full">
-    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-800 transition-colors">
-      <Icon size={18} />
-    </div>
-    <input
-      type={type}
-      autoFocus={autoFocus}
-      onKeyDown={onKeyDown}
-      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-    />
-  </div>
-);
-
-const ACCOUNT_FIELD_LABELS: Record<AccountFieldStep, string> = {
-  name: "What's your full name?",
-  mobile: "What's your phone number?",
-  telegram: "What's your Telegram username?",
-  password: "Choose a secure password",
-  legal: "Review and accept our policies",
-};
-
-function validateAccountField(
-  field: AccountFieldStep,
-  form: { name: string; mobile: string; telegram: string; password: string },
-  legalAccepted: boolean,
-): string | null {
-  switch (field) {
-    case "name":
-      if (form.name.trim().length < 2) return "Please enter your full name.";
-      return null;
-    case "mobile":
-      if (form.mobile.replace(/\D/g, "").length < 10) return "Please enter a valid phone number.";
-      return null;
-    case "telegram":
-      if (!form.telegram.trim()) return "Please enter your Telegram username.";
-      return null;
-    case "password":
-      if (form.password.length < 6) return "Password must be at least 6 characters.";
-      return null;
-    case "legal":
-      if (!legalAccepted) return "Please accept the Privacy Policy, Terms & Conditions, and Refund Policy to continue.";
-      return null;
-    default:
-      return null;
-  }
-}
-
-const SignupPage = () => {
+export default function SignupPage() {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
-
-  const savedDraft = loadSignupDraft();
-  const [step, setStep] = useState<1 | 2>(savedDraft?.step ?? 1);
-  const [form, setForm] = useState(
-    savedDraft?.form ?? { name: '', mobile: '', telegram: '', password: '', email: '' },
-  );
-  const [accountFieldStep, setAccountFieldStep] = useState<AccountFieldStep>(
-    savedDraft?.accountFieldStep ??
-      inferAccountFieldStep(
-        savedDraft?.form ?? { name: '', mobile: '', telegram: '', password: '', email: '' },
-      ),
-  );
-
-  const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
-  const [otp, setOtp] = useState('');
-  const [permissionsState, setPermissionsState] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
-  const [livePhotoBase64, setLivePhotoBase64] = useState('');
-  const [idProofBase64, setIdProofBase64] = useState('');
-  const [addressProofBase64, setAddressProofBase64] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
-
-  const errorBannerRef = useRef<HTMLDivElement>(null);
-  const step1Ref = useRef<HTMLDivElement>(null);
-  const emailSectionRef = useRef<HTMLDivElement>(null);
-  const permissionsSectionRef = useRef<HTMLDivElement>(null);
-  const photoSectionRef = useRef<HTMLDivElement>(null);
-
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [docsStatus, setDocsStatus] = useState<string>('');
-  const [legalAccepted, setLegalAccepted] = useState(false);
 
-  const scrollToRef = (ref: React.RefObject<HTMLElement | null>) => {
-    requestAnimationFrame(() => {
-      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  };
-
-  const showError = useCallback((message: string, target?: SignupErrorTarget) => {
-    const resolved = target ?? inferSignupErrorTarget(message);
-    setErrorMessage(message);
-    if (resolved === 'step1') {
-      setStep(1);
-      const fieldFromError = accountFieldStepFromError(message);
-      if (fieldFromError) setAccountFieldStep(fieldFromError);
-      window.setTimeout(() => scrollToRef(step1Ref), 80);
-      return;
-    }
-    setStep(2);
-    window.setTimeout(() => {
-      if (resolved === 'email' || resolved === 'otp') scrollToRef(emailSectionRef);
-      else if (resolved === 'permissions') scrollToRef(permissionsSectionRef);
-      else if (resolved === 'photo') scrollToRef(photoSectionRef);
-      else scrollToRef(errorBannerRef);
-    }, 80);
-  }, []);
-
-  useEffect(() => {
-    saveSignupDraft({ step, form, accountFieldStep });
-  }, [step, form, accountFieldStep]);
-
-  // Handle URL parsing and cleaning immediately on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refValue = params.get("r") || params.get("ref");
-
     if (refValue) {
       sessionStorage.setItem("referrer_key", refValue);
-
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  useEffect(() => {
-    return () => {
-      liveStream?.getTracks().forEach((t) => t.stop());
-    };
-  }, [liveStream]);
-
-  // Attach the stream to the <video> element once it is rendered in the DOM.
-  // The video tag is mounted only after permissionsState becomes 'granted',
-  // so we wait until both the ref and the stream are available.
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !liveStream) return;
-    if (video.srcObject !== liveStream) {
-      video.srcObject = liveStream;
-    }
-    video.play().catch(() => {});
-  }, [liveStream, permissionsState, livePhotoBase64]);
-
-  const update = (key: string, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-    setErrorMessage('');
-  };
-
-  const handleGetOtp = async () => {
-    setErrorMessage('');
-    setOtpState('sending');
-    try {
-      const response = await fetch(`${API_BASE}/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email })
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setOtpState('sent');
-      } else {
-        showError(data.error || 'Failed to send OTP.', 'email');
-        setOtpState('idle');
-      }
-    } catch (error) {
-      console.error(error);
-      showError('Server error. Is the backend running?', 'email');
-      setOtpState('idle');
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setErrorMessage('');
-    try {
-      const response = await fetch(`${API_BASE}/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, otp })
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setOtpState('verified');
-        setErrorMessage('');
-      } else {
-        showError(data.error || 'Invalid or expired OTP.', 'otp');
-      }
-    } catch (error) {
-      console.error(error);
-      showError('Server error while verifying OTP.', 'otp');
-    }
-  };
-
-  // Auto-verify as soon as a full 6-digit OTP is entered — no extra click needed.
-  useEffect(() => {
-    if (otpState === 'sent' && otp.length === 6) {
-      void handleVerifyOtp();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [otp, otpState]);
-
-  const requestSystemPermissions = async () => {
-    setErrorMessage('');
-    setPermissionsState('requesting');
-    try {
-      setLiveStream((prev) => {
-        prev?.getTracks().forEach((t) => t.stop());
-        return null;
-      });
-
-      if (!navigator.mediaDevices?.getUserMedia) {
-        showError('Camera is not available. Please use a modern browser on an HTTPS page.', 'permissions');
-        setPermissionsState('denied');
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      });
-
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          () => {
-            setLiveStream(stream);
-            setPermissionsState('granted');
-          },
-          () => {
-            stream.getTracks().forEach((t) => t.stop());
-            showError('Location permission is required. Please allow location access and try again.', 'permissions');
-            setPermissionsState('denied');
-          }
-        );
-      } else {
-        stream.getTracks().forEach((t) => t.stop());
-        showError('Location is not supported on this device.', 'permissions');
-        setPermissionsState('denied');
-      }
-    } catch {
-      showError('Could not access camera or location. Please allow permissions and try again.', 'permissions');
-      setPermissionsState('denied');
-    }
-  };
-
-  const captureLivePhoto = () => {
-    const video = videoRef.current;
-    if (!video?.videoWidth) {
-      showError('Camera preview is not ready. Wait a moment or tap Grant again.', 'photo');
-      return;
-    }
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-    setLivePhotoBase64(dataUrl);
-    liveStream?.getTracks().forEach((t) => t.stop());
-    setLiveStream(null);
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setErrorMessage('');
-  };
-
-  const retakeLivePhoto = () => {
-    setLivePhotoBase64('');
-    requestSystemPermissions();
-  };
-
-  const readFileAsDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    setter: (b64: string) => void,
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      showError('Image is too large. Please pick something under 8 MB.', 'photo');
-      return;
-    }
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setter(dataUrl);
-      setErrorMessage('');
-    } catch (err) {
-      console.error(err);
-      showError('Could not read that file. Try a different image.', 'photo');
-    }
-  };
-
-  const uploadProofDoc = async (
-    userId: number | string,
-    field: 'idProofBase64' | 'addressProofBase64',
-    base64: string,
-  ) => {
-    if (!base64) return;
-    try {
-      await fetch(`${API_BASE}/user/profile/${userId}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: base64 }),
-      });
-    } catch (err) {
-      console.error(`upload ${field} failed:`, err);
-    }
-  };
-
-  const handleProceed = async () => {
-    setErrorMessage('');
-    setDocsStatus('');
-
-    if (otpState !== 'verified') {
-      showError('Please verify your email with the OTP first.', 'otp');
-      return;
-    }
-    if (!legalAccepted) {
-      showError('Please accept the Privacy Policy, Terms & Conditions, and Refund Policy to continue.', 'step1');
-      return;
-    }
-    if (permissionsState !== 'granted') {
-      showError('Please grant camera and location permissions first.', 'permissions');
-      return;
-    }
-    if (!livePhotoBase64) {
-      showError('Please capture your live photo before creating your account.', 'photo');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const storedRef = sessionStorage.getItem("referrer_key");
-
-    try {
-      const deviceFingerprint = await getDeviceFingerprint();
-      const payload = {
-        ...form,
-        photo: livePhotoBase64,
-        country: '',
-        state: '',
-        city: '',
-        pincode: '',
-        deviceFingerprint,
-        ...(storedRef ? { ref_key: storedRef } : {}),
-      };
-
-      const response = await fetch(`${API_BASE}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        clearSignupDraft();
-        sessionStorage.removeItem("referrer_key");
-        // Account created. If the user attached extra KYC docs at signup,
-        // push them now via the existing /user/profile/:userId/documents
-        // endpoint. This is fire-and-forget so signup never blocks on it.
-        if (idProofBase64 || addressProofBase64) {
-          setDocsStatus('Uploading documents…');
-          await Promise.all([
-            idProofBase64
-              ? uploadProofDoc(data.userId, 'idProofBase64', idProofBase64)
-              : Promise.resolve(),
-            addressProofBase64
-              ? uploadProofDoc(data.userId, 'addressProofBase64', addressProofBase64)
-              : Promise.resolve(),
-          ]);
-        }
-
-        const user: UserData = {
-          name: form.name,
-          mobile: form.mobile,
-          telegram: form.telegram,
-          email: form.email,
-          userId: String(data.userId),
-          role: "user",
-          createdAt: new Date().toISOString(),
-          emailVerified: true,
-          photoCaptured: true,
-          experienceYears: "",
-          depositMethod: "USDT",
-        };
-        setCurrentUser(user);
-        setIsSubmitting(false);
-        navigate('/user/post-signup');
-      } else {
-        const errText = data.error || 'Failed to create account.';
-        showError(errText);
-      }
-      setIsSubmitting(false);
-    } catch (error) {
-      console.error(error);
-      showError('Server error. Could not create account.');
-      setIsSubmitting(false);
-    }
-  };
-
   const handleGoogleSignup = async (credential: string) => {
     setErrorMessage("");
-    if (!legalAccepted) {
-      showError('Please accept the Privacy Policy, Terms & Conditions, and Refund Policy before signing up.', 'step1');
-      return;
-    }
     setIsSubmitting(true);
     try {
       const storedRef = sessionStorage.getItem("referrer_key");
@@ -595,10 +79,9 @@ const SignupPage = () => {
       });
       const data = await response.json();
       if (!response.ok || !data?.success) {
-        showError(data?.error || "Google signup failed.", 'step1');
+        setErrorMessage(data?.error || "Google signup failed.");
         return;
       }
-      clearSignupDraft();
       sessionStorage.removeItem("referrer_key");
       const user: UserData = {
         name: data.name ?? "",
@@ -615,561 +98,80 @@ const SignupPage = () => {
       };
       setCurrentUser(user);
       navigate(data.isNewUser ? "/user/post-signup" : "/user/dashboard");
-    } catch (error) {
-      console.error(error);
-      showError("Google signup failed. Please try again.", 'step1');
+    } catch {
+      setErrorMessage("Google signup failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const accountFieldIndex = ACCOUNT_FIELD_ORDER.indexOf(accountFieldStep);
-  const isCurrentAccountFieldValid =
-    validateAccountField(accountFieldStep, form, legalAccepted) === null;
-
-  const goToNextAccountField = () => {
-    const err = validateAccountField(accountFieldStep, form, legalAccepted);
-    if (err) {
-      setErrorMessage(err);
-      return;
-    }
-    setErrorMessage('');
-    const next = ACCOUNT_FIELD_ORDER[accountFieldIndex + 1];
-    if (next) {
-      setAccountFieldStep(next);
-      return;
-    }
-    setStep(2);
-  };
-
-  const goToPrevAccountField = () => {
-    setErrorMessage('');
-    const prev = ACCOUNT_FIELD_ORDER[accountFieldIndex - 1];
-    if (prev) setAccountFieldStep(prev);
-  };
-
-  const handleAccountFieldKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    if (accountFieldStep === 'legal') {
-      if (isStep1Valid) setStep(2);
-      return;
-    }
-    if (isCurrentAccountFieldValid) goToNextAccountField();
-  };
-
-  const isStep1Valid =
-    form.name.trim() !== '' &&
-    form.mobile.trim() !== '' &&
-    form.telegram.trim() !== '' &&
-    form.password.trim() !== '' &&
-    legalAccepted;
-
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 py-10 bg-slate-200 overflow-hidden">
-      
-      {/* --- CREATIVE BACKGROUND ELEMENTS --- */}
-
-      {/* 1. Subtle Trading Grid */}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-200 p-4 py-10">
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
 
-    {/* --- CLEAN STRAIGHT BACKGROUND STRIPS --- */}
-
-{/* Top Strip (Crypto) */}
-<div className="absolute z-0 w-full h-[60px] top-[1.5%] left-0 bg-white/60 border-y border-slate-300/50 backdrop-blur-md flex items-center overflow-hidden pointer-events-none">
-  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-  <div className="w-full opacity-90">
-    <TradingViewTicker symbols={cryptoSymbols} />
-  </div>
-</div>
-
-{/* Middle Strip (Indices)
-<div className="absolute z-0 w-full h-[60px] top-[50%] left-0 -translate-y-1/2 bg-white/40 border-y border-slate-300/40 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
-  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-  <div className="w-full opacity-80">
-    <TradingViewTicker symbols={indexSymbols} />
-  </div>
-</div> */}
-
-{/* Bottom Strip (Forex) */}
-<div className="absolute z-0 w-full h-[60px] bottom-[1.5%] left-0 bg-white/30 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none">
-  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
-  <div className="w-full opacity-70">
-    <TradingViewTicker symbols={forexSymbols} />
-  </div>
-</div>
-
-      {/* 3. Floating Graphic Candlesticks */}
-      
-      {/* Bullish Candle 1 */}
-      <div className="absolute z-0 left-[10%] top-[25%] w-6 h-48 animate-float-slow opacity-60">
-        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" />
-        <div className="absolute top-[20%] w-full h-[50%] bg-green-600 rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
+      <div className="pointer-events-none absolute top-[1.5%] z-0 flex h-[60px] w-full items-center overflow-hidden border-y border-slate-300/50 bg-white/60 backdrop-blur-md">
+        <div className="w-full opacity-90">
+          <TradingViewTicker symbols={cryptoSymbols} />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute bottom-[1.5%] z-0 flex h-[60px] w-full items-center overflow-hidden border-y border-slate-300/30 bg-white/30 backdrop-blur-sm">
+        <div className="w-full opacity-70">
+          <TradingViewTicker symbols={forexSymbols} />
+        </div>
       </div>
 
-      {/* Bearish Candle 1 */}
-      <div className="absolute z-0 right-[15%] bottom-[20%] w-8 h-40 animate-float-medium opacity-60">
-        <div className="w-1 h-full bg-red-600 mx-auto rounded-full" />
-        <div className="absolute top-[40%] w-full h-[40%] bg-red-600 rounded-sm shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
-      </div>
-
-      {/* Bullish Candle 2 */}
-      <div className="absolute z-0 right-[8%] top-[15%] w-4 h-32 animate-float-fast opacity-60">
-        <div className="w-1 h-full bg-green-600 mx-auto rounded-full" />
-        <div className="absolute top-[10%] w-full h-[60%] bg-green-600 rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
-      </div>
-
-      {/* Bearish Candle 2 */}
-      <div className="absolute z-0 left-[20%] bottom-[15%] w-5 h-24 animate-float-slow opacity-30" style={{ animationDelay: '2s' }}>
-        <div className="w-0.5 h-full bg-slate-400 mx-auto rounded-full" />
-        <div className="absolute top-[30%] w-full h-[30%] bg-slate-400 rounded-sm" />
-      </div>
-
-      {/* --- ORIGINAL FORM UNTOUCHED --- */}
-      <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-2xl shadow-neutral-900/12 overflow-hidden flex flex-col">
-
-        {/* Header Section */}
-        <div className="text-center p-8 pb-6 border-b border-slate-100 bg-white">
-          <div className="inline-flex items-center justify-center gap-3 mb-2 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
-            <Shield size={20} />
-            <span className="font-semibold tracking-wide uppercase text-sm">Copy Trade Engine — Secure setup</span>
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-100 bg-white/95 shadow-2xl shadow-neutral-900/12 backdrop-blur-md">
+        <div className="border-b border-slate-100 bg-white p-8 text-center">
+          <div className="mb-2 inline-flex items-center justify-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-neutral-900">
+            <Shield size={18} />
+            Copy Trade Engine
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mt-4">Join Copy Trade Engine</h1>
-          <p className="text-slate-500 text-sm mt-2">Create your account and verify your device to get started</p>
-
-          <div className="flex items-center justify-center mt-8 max-w-xs mx-auto">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>1</div>
-            <div className={`flex-1 h-1 mx-2 rounded-full ${step >= 2 ? 'bg-[#FFD700]' : 'bg-slate-100'}`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-[#FFD700] text-black' : 'bg-slate-100 text-slate-400'}`}>2</div>
-          </div>
-
-       <div className="mt-8 text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-yellow-400 uppercase tracking-widest drop-shadow-sm">
-            {step === 1 ? 'SIGNUP' : 'VERIFICATION'}
-          </div>
+          <h1 className="mt-4 text-3xl font-bold text-slate-800">Create your account</h1>
+          <p className="mt-2 text-sm text-slate-500">Sign up with Google to get started</p>
         </div>
 
-        {/* Global Error Message Display */}
-        {errorMessage && (
-          <div
-            ref={errorBannerRef}
-            className="mx-8 mt-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium text-center"
-          >
-            {errorMessage}
-          </div>
-        )}
-
-        {/* Body Section */}
-        <div className="p-8 md:p-10 flex-1 pt-6 bg-white/95 backdrop-blur-md">
-          {step === 1 && (
-            <div ref={step1Ref} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <User size={22} className="text-yellow-800" /> Account Details
-              </h2>
-
-              <div key={accountFieldStep} className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
-                <p className="text-lg font-medium text-slate-700">
-                  {ACCOUNT_FIELD_LABELS[accountFieldStep]}
-                </p>
-
-                {accountFieldStep === 'name' && (
-                  <InputField
-                    icon={User}
-                    placeholder="Full Name"
-                    value={form.name}
-                    onChange={(e: any) => update('name', e.target.value)}
-                    autoFocus
-                    onKeyDown={handleAccountFieldKeyDown}
-                  />
-                )}
-
-                {accountFieldStep === 'mobile' && (
-                  <div className="w-full">
-                    <PhoneInput
-                      country={"in"}
-                      value={form.mobile}
-                      onChange={(value) => update("mobile", value)}
-                      inputClass="!w-full !py-3 !pl-14 !rounded-xl !border text-black !border-slate-200 !text-sm"
-                      buttonClass="!border-none text-black !bg-transparent"
-                      containerClass="w-full"
-                      inputProps={{ autoFocus: true, onKeyDown: handleAccountFieldKeyDown }}
-                    />
-                  </div>
-                )}
-
-                {accountFieldStep === 'telegram' && (
-                  <InputField
-                    icon={Send}
-                    placeholder="Telegram Username"
-                    value={form.telegram}
-                    onChange={(e: any) => update('telegram', e.target.value)}
-                    autoFocus
-                    onKeyDown={handleAccountFieldKeyDown}
-                  />
-                )}
-
-                {accountFieldStep === 'password' && (
-                  <AuthPasswordField
-                    placeholder="Secure Password"
-                    value={form.password}
-                    onChange={(e) => update('password', e.target.value)}
-                    onKeyDown={handleAccountFieldKeyDown}
-                    autoComplete="new-password"
-                    autoFocus
-                  />
-                )}
-
-                {accountFieldStep === 'legal' && (
-                  <>
-                    <LegalAcceptanceCheckbox checked={legalAccepted} onChange={setLegalAccepted} />
-
-                    <div className="relative pt-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-3 text-slate-400">or</span>
-                      </div>
-                    </div>
-
-                    {GOOGLE_CLIENT_ID ? (
-                      <div className={`flex justify-center ${!legalAccepted ? "pointer-events-none opacity-50" : ""}`}>
-                        <GoogleLogin
-                          onSuccess={(resp) => {
-                            if (resp.credential) handleGoogleSignup(resp.credential);
-                            else setErrorMessage("Google did not return a signup token.");
-                          }}
-                          onError={() => setErrorMessage("Google signup popup failed.")}
-                          useOneTap={false}
-                          text="signup_with"
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-center text-xs text-slate-400">
-                        Google signup is disabled (missing client ID).
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="pt-2 flex flex-col gap-4">
-                <div className="flex gap-3">
-                  {accountFieldIndex > 0 && (
-                    <button
-                      type="button"
-                      onClick={goToPrevAccountField}
-                      className="px-6 py-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ArrowLeft size={20} /> Back
-                    </button>
-                  )}
-                  {accountFieldStep !== 'legal' ? (
-                    <button
-                      type="button"
-                      onClick={goToNextAccountField}
-                      disabled={!isCurrentAccountFieldValid}
-                      className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                    >
-                      Next <ArrowRight size={20} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const err = validateAccountField('legal', form, legalAccepted);
-                        if (err) {
-                          setErrorMessage(err);
-                          return;
-                        }
-                        setErrorMessage('');
-                        setStep(2);
-                      }}
-                      disabled={!isStep1Valid}
-                      className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                    >
-                      Continue to Verification <ArrowRight size={20} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="text-center text-sm text-slate-500">
-                  Already have an account?{" "}
-                  <span
-                    onClick={() => navigate("/login")}
-                    className="text-neutral-900 font-semibold cursor-pointer hover:underline"
-                  >
-                    Login
-                  </span>
-                </div>
-              </div>
+        <div className="space-y-6 p-8">
+          {errorMessage && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm font-medium text-red-600">
+              {errorMessage}
             </div>
           )}
 
-          {step === 2 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-              <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2 pb-2">
-                <Shield size={22} className="text-yellow-800" /> Verification
-              </h2>
-
-              {/* Live checklist so users always know exactly what's left before they can finish. */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  3 quick steps to finish
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {[
-                    { label: 'Verify email', done: otpState === 'verified' },
-                    { label: 'Grant permissions', done: permissionsState === 'granted' },
-                    { label: 'Capture live photo', done: Boolean(livePhotoBase64) },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                        item.done
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                          : 'border-slate-200 bg-slate-50 text-slate-500'
-                      }`}
-                    >
-                      {item.done ? (
-                        <CheckCircle size={16} className="shrink-0 text-emerald-600" />
-                      ) : (
-                        <Circle size={16} className="shrink-0 text-slate-300" />
-                      )}
-                      {item.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div ref={emailSectionRef} className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4 shadow-sm">
-                <h3 className="font-medium text-slate-800 mb-2">Email Verification</h3>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
-                    <InputField icon={Mail} type="email" placeholder="Email Address" value={form.email} onChange={(e: any) => update('email', e.target.value)} />
-                  </div>
-                  <button
-                    onClick={handleGetOtp}
-                    disabled={otpState === 'sending' || otpState === 'verified' || !form.email}
-                    className="px-6 py-3.5 rounded-xl bg-yellow-50 text-neutral-900 text-sm font-semibold hover:bg-yellow-100 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center justify-center gap-2 h-[50px] border border-yellow-200"
-                  >
-                    {otpState === 'sending' && <Loader2 className="animate-spin" size={18} />}
-                    {otpState === 'sending' ? 'Sending...' : otpState === 'sent' ? 'Resend OTP' : otpState === 'verified' ? 'OTP Sent' : 'Get OTP'}
-                  </button>
-                </div>
-
-                {(otpState === 'sent' || otpState === 'verified') && (
-                  <div className="flex flex-col sm:flex-row gap-3 items-center pt-2">
-                    <input
-                      className="flex-1 w-full px-4 py-3.5 rounded-xl text-sm border border-slate-200 text-center tracking-widest font-mono focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 outline-none h-[50px]"
-                      placeholder="Enter 6-digit OTP"
-                      value={otp}
-                      onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      autoFocus
-                      disabled={otpState === 'verified'}
-                      style={{    color: 'black'}}
-                    />
-                    {otpState === 'verified' ? (
-                      <div className="w-full sm:w-auto px-6 h-[50px] rounded-xl bg-yellow-50 text-neutral-900 border border-yellow-200 flex items-center justify-center gap-2 font-medium">
-                        <CheckCircle size={18} /> Verified
-                      </div>
-                    ) : (
-                      <button onClick={handleVerifyOtp} className="w-full sm:w-auto px-8 h-[50px] rounded-xl bg-[#FFD700] text-black text-sm font-bold hover:bg-[#E6C200] shadow-md shadow-black/20 transition-all">
-                        Verify
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div ref={permissionsSectionRef} className={`p-6 rounded-xl border transition-all duration-300 ${permissionsState === 'granted' ? 'border-yellow-300 bg-yellow-50/60' : 'border-slate-100 bg-slate-50/50 shadow-sm'}`}>
-                <div className="flex items-start gap-4 mb-5">
-                  <div className={`p-3 rounded-full flex-shrink-0 ${permissionsState === 'granted' ? 'bg-yellow-100 text-neutral-900' : 'bg-yellow-100 text-neutral-900'}`}>
-                    {permissionsState === 'granted' ? <CheckCircle size={24} /> : <Shield size={24} />}
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-slate-800">System Permissions</h3>
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                      Copy Trade Engine requires access to your camera, microphone, and location to verify your identity.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={requestSystemPermissions}
-
-                  disabled={permissionsState === 'requesting' || permissionsState === 'granted'}
-                  className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
-                    ${permissionsState === 'granted'
-                      ? 'bg-yellow-100 text-neutral-900 cursor-default'
-                      : permissionsState === 'denied'
-                        ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                        : 'bg-white border border-yellow-300 text-neutral-800 hover:bg-yellow-50 shadow-sm'}`}
-                >
-                  {permissionsState === 'requesting' && <Loader2 className="animate-spin" size={18} />}
-                  {permissionsState === 'idle' && 'Grant Permissions'}
-                  {permissionsState === 'requesting' && 'Waiting for approval...'}
-                  {permissionsState === 'granted' && 'Permissions Granted'}
-                  {permissionsState === 'denied' && 'Access Denied - Try Again'}
-                  {permissionsState === 'denied' && (
-                    <div className="mt-4 text-center">
-                      <p className="text-sm text-red-500 mb-2">
-                        Permissions were denied. Watch this video to enable them.
-                      </p>
-
-                      <a
-                        href="/videos/video.mp4"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-neutral-900 font-semibold hover:underline"
-                      >
-                        Watch How to Enable Permissions
-                      </a>
-                    </div>
-                  )}
-                </button>
-              </div>
-
-              {permissionsState === 'granted' && (
-                <div ref={photoSectionRef} className="p-6 rounded-xl border border-yellow-200 bg-yellow-50/40 space-y-4 shadow-sm">
-                  <h3 className="font-medium text-slate-800 flex items-center gap-2">
-                    <Camera size={18} className="text-neutral-900" />
-                    Live photo (required)
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Position your face in the frame, then capture. This is stored with your registration.
-                  </p>
-                  {!livePhotoBase64 ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full max-h-72 rounded-xl bg-black object-cover border border-slate-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={captureLivePhoto}
-                        className="w-full py-3.5 rounded-xl bg-[#FFD700] text-black text-sm font-bold hover:bg-[#E6C200] shadow-md"
-                      >
-                        Capture photo
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <img
-                        src={livePhotoBase64}
-                        alt="Your capture"
-                        className="w-full max-h-72 rounded-xl object-contain border border-slate-200 bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={retakeLivePhoto}
-                        className="w-full py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50"
-                      >
-                        Retake photo
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Optional KYC documents – uploaded after signup via the existing documents endpoint */}
-              {permissionsState === 'granted' && livePhotoBase64 && (
-                <div className="p-6 rounded-xl border border-slate-200 bg-white space-y-5 shadow-sm">
-                  <div>
-                    <h3 className="font-medium text-slate-800 flex items-center gap-2">
-                      <FileText size={18} className="text-neutral-900" />
-                      KYC documents <span className="text-xs font-normal text-slate-400">(optional — finish in profile later)</span>
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Add a photo of your government ID and an address proof now to speed up KYC. You can also add them later from your profile.
-                    </p>
-                  </div>
-
-                  <DocUploadRow
-                    label="ID proof"
-                    icon={<FileText size={16} className="text-yellow-800" />}
-                    value={idProofBase64}
-                    onPick={(e) => handleFileChange(e, setIdProofBase64)}
-                    onClear={() => setIdProofBase64('')}
-                  />
-
-                  <DocUploadRow
-                    label="Address proof"
-                    icon={<Home size={16} className="text-yellow-800" />}
-                    value={addressProofBase64}
-                    onPick={(e) => handleFileChange(e, setAddressProofBase64)}
-                    onClear={() => setAddressProofBase64('')}
-                  />
-                </div>
-              )}
-
-              {docsStatus && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex items-center gap-2">
-                  <Loader2 className="animate-spin h-4 w-4 text-yellow-700" />
-                  {docsStatus}
-                </div>
-              )}
-
-              <LegalAcceptanceCheckbox
-                checked={legalAccepted}
-                onChange={setLegalAccepted}
-                id="legal-accept-step2"
+          {isSubmitting ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-6 text-slate-600">
+              <Loader2 className="h-8 w-8 animate-spin text-yellow-700" />
+              <p className="text-sm font-medium">Creating your account…</p>
+            </div>
+          ) : GOOGLE_CLIENT_ID ? (
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={(resp) => {
+                  if (resp.credential) void handleGoogleSignup(resp.credential);
+                  else setErrorMessage("Google did not return a signup token.");
+                }}
+                onError={() => setErrorMessage("Google signup popup failed.")}
+                useOneTap={false}
+                text="signup_with"
               />
-
-              <div className="pt-4 flex gap-4">
-                <button
-                  onClick={() => {
-                    setAccountFieldStep('legal');
-                    setStep(1);
-                  }}
-                  disabled={isSubmitting}
-                  className="px-6 py-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <ArrowLeft size={20} /> Back
-                </button>
-                <button
-                  onClick={handleProceed}
-                  disabled={
-                    otpState !== 'verified' ||
-                    permissionsState !== 'granted' ||
-                    !livePhotoBase64 ||
-                    !legalAccepted ||
-                    isSubmitting
-                  }
-                  className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
-                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
-                </button>
-              </div>
             </div>
+          ) : (
+            <p className="text-center text-sm text-slate-400">
+              Google signup is disabled (missing client ID).
+            </p>
           )}
+
+          <p className="text-center text-sm text-slate-500">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="font-semibold text-neutral-900 hover:underline"
+            >
+              Log in
+            </button>
+          </p>
         </div>
       </div>
-
-      {/* Keyframes for the floating candles */}
-      <style>{`        
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        .animate-float-slow {
-          animation: float 8s ease-in-out infinite;
-        }
-        .animate-float-medium {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-fast {
-          animation: float 4s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
-};
-
-export default SignupPage;
+}

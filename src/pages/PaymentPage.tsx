@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
   AlertTriangle, QrCode, Loader2, CheckCircle,
@@ -16,6 +16,7 @@ import {
   setStoredCouponCode,
 } from "@/hooks/usePackages";
 import { Wallet } from "lucide-react";
+import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ const PaymentPage = () => {
   const [copiedWallet, setCopiedWallet] = useState(false);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(
     Boolean((location.state as { trialTermsAccepted?: boolean })?.trialTermsAccepted)
+  );
+  const [legalAccepted, setLegalAccepted] = useState(
+    Boolean((location.state as { legalAccepted?: boolean })?.legalAccepted)
   );
   const [couponPreview, setCouponPreview] = useState<{
     code: string;
@@ -173,6 +177,10 @@ const PaymentPage = () => {
 
   const handlePayWithWallet = async () => {
     if (!currentUser?.userId || !selectedPackage) return;
+    if (!legalAccepted) {
+      setErrorMessage("Please accept the Privacy Policy, Terms & Conditions, and Refund Policy.");
+      return;
+    }
     try {
       setPayingWithWallet(true);
       setErrorMessage("");
@@ -199,6 +207,14 @@ const PaymentPage = () => {
 
   const handleCreatePayment = async () => {
     if (!currentUser?.userId || !selectedPackage) return;
+    if (!legalAccepted) {
+      setErrorMessage("Please accept the Privacy Policy, Terms & Conditions, and Refund Policy.");
+      return;
+    }
+    if (isTrial && !trialTermsAccepted) {
+      setErrorMessage("Please accept the trial terms to continue.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -442,18 +458,22 @@ const PaymentPage = () => {
                         ) : null}
                         . Once the transaction is successfully completed, it will be processed instantly.
                       </p>
-                      <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
-                        By proceeding, you acknowledge our{" "}
-                        <Link to="/terms" className="text-slate-700 underline hover:text-slate-900">
-                          Terms &amp; Conditions
-                        </Link>{" "}
-                        and{" "}
-                        <Link to="/refund-policy" className="text-slate-700 underline hover:text-slate-900">
-                          Refund Policy
-                        </Link>
-                        . Due to the irreversible nature of digital asset settlements, all processed
-                        transactions are final and strictly non-refundable.
-                      </p>
+                      {!legalAccepted && (
+                        <div className="mt-4">
+                          <LegalAcceptanceCheckbox
+                            checked={legalAccepted}
+                            onChange={setLegalAccepted}
+                            id="payment-legal-accept"
+                          />
+                        </div>
+                      )}
+                      {legalAccepted && (
+                        <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
+                          You accepted our policies when selecting this package. Due to the irreversible
+                          nature of digital asset settlements, all processed transactions are final and
+                          strictly non-refundable.
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
@@ -496,7 +516,7 @@ const PaymentPage = () => {
                   <button
                     type="button"
                     onClick={() => void handlePayWithWallet()}
-                    disabled={payingWithWallet || isSubmitting}
+                    disabled={payingWithWallet || isSubmitting || !legalAccepted}
                     className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl border-2 border-neutral-900 bg-white py-4 text-lg font-bold text-neutral-900 shadow-sm transition hover:bg-slate-50 disabled:opacity-70"
                   >
                     {payingWithWallet ? (
@@ -509,7 +529,12 @@ const PaymentPage = () => {
                 )}
                 <button
                   onClick={handleCreatePayment}
-                  disabled={isSubmitting || payingWithWallet || (isTrial && !trialTermsAccepted)}
+                  disabled={
+                    isSubmitting ||
+                    payingWithWallet ||
+                    !legalAccepted ||
+                    (isTrial && !trialTermsAccepted)
+                  }
                   className={`flex w-full flex-1 items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold shadow-lg transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0 ${
                     isTrial
                       ? "bg-emerald-500 text-white hover:bg-emerald-600"
