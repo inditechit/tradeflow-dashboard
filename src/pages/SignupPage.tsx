@@ -16,7 +16,11 @@ import {
   inferSignupErrorTarget,
   loadSignupDraft,
   saveSignupDraft,
+  inferAccountFieldStep,
+  accountFieldStepFromError,
+  ACCOUNT_FIELD_ORDER,
   type SignupErrorTarget,
+  type AccountFieldStep,
 } from "@/utils/signupDraftStorage";
 import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
 
@@ -176,6 +180,40 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange, a
   </div>
 );
 
+const ACCOUNT_FIELD_LABELS: Record<AccountFieldStep, string> = {
+  name: "What's your full name?",
+  mobile: "What's your phone number?",
+  telegram: "What's your Telegram username?",
+  password: "Choose a secure password",
+  legal: "Review and accept our policies",
+};
+
+function validateAccountField(
+  field: AccountFieldStep,
+  form: { name: string; mobile: string; telegram: string; password: string },
+  legalAccepted: boolean,
+): string | null {
+  switch (field) {
+    case "name":
+      if (form.name.trim().length < 2) return "Please enter your full name.";
+      return null;
+    case "mobile":
+      if (form.mobile.replace(/\D/g, "").length < 10) return "Please enter a valid phone number.";
+      return null;
+    case "telegram":
+      if (!form.telegram.trim()) return "Please enter your Telegram username.";
+      return null;
+    case "password":
+      if (form.password.length < 6) return "Password must be at least 6 characters.";
+      return null;
+    case "legal":
+      if (!legalAccepted) return "Please accept the Privacy Policy, Terms & Conditions, and Refund Policy to continue.";
+      return null;
+    default:
+      return null;
+  }
+}
+
 const SignupPage = () => {
   const navigate = useNavigate();
   const { setCurrentUser } = useApp();
@@ -184,6 +222,12 @@ const SignupPage = () => {
   const [step, setStep] = useState<1 | 2>(savedDraft?.step ?? 1);
   const [form, setForm] = useState(
     savedDraft?.form ?? { name: '', mobile: '', telegram: '', password: '', email: '' },
+  );
+  const [accountFieldStep, setAccountFieldStep] = useState<AccountFieldStep>(
+    savedDraft?.accountFieldStep ??
+      inferAccountFieldStep(
+        savedDraft?.form ?? { name: '', mobile: '', telegram: '', password: '', email: '' },
+      ),
   );
 
   const [otpState, setOtpState] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
@@ -217,6 +261,8 @@ const SignupPage = () => {
     setErrorMessage(message);
     if (resolved === 'step1') {
       setStep(1);
+      const fieldFromError = accountFieldStepFromError(message);
+      if (fieldFromError) setAccountFieldStep(fieldFromError);
       window.setTimeout(() => scrollToRef(step1Ref), 80);
       return;
     }
@@ -230,8 +276,8 @@ const SignupPage = () => {
   }, []);
 
   useEffect(() => {
-    saveSignupDraft({ step, form });
-  }, [step, form]);
+    saveSignupDraft({ step, form, accountFieldStep });
+  }, [step, form, accountFieldStep]);
 
   // Handle URL parsing and cleaning immediately on mount
   useEffect(() => {
@@ -577,6 +623,41 @@ const SignupPage = () => {
     }
   };
 
+  const accountFieldIndex = ACCOUNT_FIELD_ORDER.indexOf(accountFieldStep);
+  const isCurrentAccountFieldValid =
+    validateAccountField(accountFieldStep, form, legalAccepted) === null;
+
+  const goToNextAccountField = () => {
+    const err = validateAccountField(accountFieldStep, form, legalAccepted);
+    if (err) {
+      setErrorMessage(err);
+      return;
+    }
+    setErrorMessage('');
+    const next = ACCOUNT_FIELD_ORDER[accountFieldIndex + 1];
+    if (next) {
+      setAccountFieldStep(next);
+      return;
+    }
+    setStep(2);
+  };
+
+  const goToPrevAccountField = () => {
+    setErrorMessage('');
+    const prev = ACCOUNT_FIELD_ORDER[accountFieldIndex - 1];
+    if (prev) setAccountFieldStep(prev);
+  };
+
+  const handleAccountFieldKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (accountFieldStep === 'legal') {
+      if (isStep1Valid) setStep(2);
+      return;
+    }
+    if (isCurrentAccountFieldValid) goToNextAccountField();
+  };
+
   const isStep1Valid =
     form.name.trim() !== '' &&
     form.mobile.trim() !== '' &&
@@ -685,66 +766,131 @@ const SignupPage = () => {
                 <User size={22} className="text-yellow-800" /> Account Details
               </h2>
 
-              <div className="grid sm:grid-cols-2 gap-5">
-                <InputField icon={User} placeholder="Full Name" value={form.name} onChange={(e: any) => update('name', e.target.value)} autoFocus />
-                <div className="w-full">
-                  <PhoneInput
-                    country={"in"}
-                    value={form.mobile}
-                    onChange={(value) => update("mobile", value)}
-                    inputClass="!w-full !py-3 !pl-14 !rounded-xl !border text-black !border-slate-200 !text-sm"
-                    buttonClass="!border-none text-black !bg-transparent"
-                    containerClass="w-full"
+              <div key={accountFieldStep} className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-200">
+                <p className="text-lg font-medium text-slate-700">
+                  {ACCOUNT_FIELD_LABELS[accountFieldStep]}
+                </p>
+
+                {accountFieldStep === 'name' && (
+                  <InputField
+                    icon={User}
+                    placeholder="Full Name"
+                    value={form.name}
+                    onChange={(e: any) => update('name', e.target.value)}
+                    autoFocus
+                    onKeyDown={handleAccountFieldKeyDown}
                   />
-                </div>
-                <InputField icon={Send} placeholder="Telegram Username" value={form.telegram} onChange={(e: any) => update('telegram', e.target.value)} />
-                {/* <InputField icon={AtSign} placeholder="Account Username" value={form.username} onChange={(e: any) => update('username', e.target.value)} /> */}
-                 <AuthPasswordField
-                   placeholder="Secure Password"
-                   value={form.password}
-                   onChange={(e) => update('password', e.target.value)}
-                   onKeyDown={(e) => { if (e.key === 'Enter' && isStep1Valid) setStep(2); }}
-                   autoComplete="new-password"
-                 />
-              </div>
+                )}
 
-              <LegalAcceptanceCheckbox checked={legalAccepted} onChange={setLegalAccepted} />
-
-              <div className="pt-2 flex flex-col gap-4">
-                <button
-                  onClick={() => setStep(2)}
-                  disabled={!isStep1Valid}
-                  className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                  Continue to Verification <ArrowRight size={20} />
-                </button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-3 text-slate-400">or</span>
-                  </div>
-                </div>
-
-                {GOOGLE_CLIENT_ID ? (
-                  <div className={`flex justify-center ${!legalAccepted ? "pointer-events-none opacity-50" : ""}`}>
-                    <GoogleLogin
-                      onSuccess={(resp) => {
-                        if (resp.credential) handleGoogleSignup(resp.credential);
-                        else setErrorMessage("Google did not return a signup token.");
-                      }}
-                      onError={() => setErrorMessage("Google signup popup failed.")}
-                      useOneTap={false}
-                      text="signup_with"
+                {accountFieldStep === 'mobile' && (
+                  <div className="w-full">
+                    <PhoneInput
+                      country={"in"}
+                      value={form.mobile}
+                      onChange={(value) => update("mobile", value)}
+                      inputClass="!w-full !py-3 !pl-14 !rounded-xl !border text-black !border-slate-200 !text-sm"
+                      buttonClass="!border-none text-black !bg-transparent"
+                      containerClass="w-full"
+                      inputProps={{ autoFocus: true, onKeyDown: handleAccountFieldKeyDown }}
                     />
                   </div>
-                ) : (
-                  <p className="text-center text-xs text-slate-400">
-                    Google signup is disabled (missing client ID).
-                  </p>
                 )}
+
+                {accountFieldStep === 'telegram' && (
+                  <InputField
+                    icon={Send}
+                    placeholder="Telegram Username"
+                    value={form.telegram}
+                    onChange={(e: any) => update('telegram', e.target.value)}
+                    autoFocus
+                    onKeyDown={handleAccountFieldKeyDown}
+                  />
+                )}
+
+                {accountFieldStep === 'password' && (
+                  <AuthPasswordField
+                    placeholder="Secure Password"
+                    value={form.password}
+                    onChange={(e) => update('password', e.target.value)}
+                    onKeyDown={handleAccountFieldKeyDown}
+                    autoComplete="new-password"
+                    autoFocus
+                  />
+                )}
+
+                {accountFieldStep === 'legal' && (
+                  <>
+                    <LegalAcceptanceCheckbox checked={legalAccepted} onChange={setLegalAccepted} />
+
+                    <div className="relative pt-2">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-3 text-slate-400">or</span>
+                      </div>
+                    </div>
+
+                    {GOOGLE_CLIENT_ID ? (
+                      <div className={`flex justify-center ${!legalAccepted ? "pointer-events-none opacity-50" : ""}`}>
+                        <GoogleLogin
+                          onSuccess={(resp) => {
+                            if (resp.credential) handleGoogleSignup(resp.credential);
+                            else setErrorMessage("Google did not return a signup token.");
+                          }}
+                          onError={() => setErrorMessage("Google signup popup failed.")}
+                          useOneTap={false}
+                          text="signup_with"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-center text-xs text-slate-400">
+                        Google signup is disabled (missing client ID).
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="pt-2 flex flex-col gap-4">
+                <div className="flex gap-3">
+                  {accountFieldIndex > 0 && (
+                    <button
+                      type="button"
+                      onClick={goToPrevAccountField}
+                      className="px-6 py-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ArrowLeft size={20} /> Back
+                    </button>
+                  )}
+                  {accountFieldStep !== 'legal' ? (
+                    <button
+                      type="button"
+                      onClick={goToNextAccountField}
+                      disabled={!isCurrentAccountFieldValid}
+                      className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      Next <ArrowRight size={20} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const err = validateAccountField('legal', form, legalAccepted);
+                        if (err) {
+                          setErrorMessage(err);
+                          return;
+                        }
+                        setErrorMessage('');
+                        setStep(2);
+                      }}
+                      disabled={!isStep1Valid}
+                      className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      Continue to Verification <ArrowRight size={20} />
+                    </button>
+                  )}
+                </div>
 
                 <div className="text-center text-sm text-slate-500">
                   Already have an account?{" "}
@@ -977,7 +1123,10 @@ const SignupPage = () => {
 
               <div className="pt-4 flex gap-4">
                 <button
-                  onClick={() => setStep(1)}
+                  onClick={() => {
+                    setAccountFieldStep('legal');
+                    setStep(1);
+                  }}
                   disabled={isSubmitting}
                   className="px-6 py-4 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >

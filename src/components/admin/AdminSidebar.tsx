@@ -164,7 +164,7 @@ const MENU: MenuEntry[] = [
     icon: UserCog,
     items: [
       { name: "User maintenance", icon: Construction, path: "/admin/maintenance" },
-      { name: "Employees", icon: UserCog, path: "/admin/employees", adminOnly: true },
+      { name: "Access Control", icon: UserCog, path: "/admin/employees", adminOnly: true },
     ],
   },
   { kind: "item", name: "Profile", icon: User, path: "/admin/profile" },

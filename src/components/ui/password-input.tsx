@@ -49,6 +49,7 @@ type AuthPasswordFieldProps = {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoComplete?: string;
+  autoFocus?: boolean;
   disabled?: boolean;
 };
 
@@ -59,6 +60,7 @@ function AuthPasswordField({
   onChange,
   onKeyDown,
   autoComplete = "current-password",
+  autoFocus,
   disabled,
 }: AuthPasswordFieldProps) {
   const [visible, setVisible] = React.useState(false);
@@ -76,6 +78,7 @@ function AuthPasswordField({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        autoFocus={autoFocus}
         disabled={disabled}
         className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-10 pr-11 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
       />
