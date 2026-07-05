@@ -71,6 +71,7 @@ export const ADMIN_MENU_PATHS = [
   "/admin/referrals",
   "/admin/wallet-ledger",
   "/admin/financial-stats",
+  "/admin/referral-payable",
   "/admin/user-pnl-report",
   "/admin/wallet-rebuild-doc",
 ];

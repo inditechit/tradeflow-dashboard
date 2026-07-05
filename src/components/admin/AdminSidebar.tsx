@@ -22,6 +22,7 @@ import {
   PieChart,
   FileText,
   FileBarChart,
+  Coins,
   UserCog,
   AlertTriangle,
   ChevronDown,
@@ -133,6 +134,7 @@ const MENU: MenuEntry[] = [
     icon: PieChart,
     items: [
       { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
+      { name: "Referral payable", icon: Coins, path: "/admin/referral-payable" },
       { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
       { name: "Invoices", icon: FileText, path: "/admin/invoices" },
     ],
