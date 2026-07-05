@@ -71,6 +71,7 @@ import LandingPage from "./pages/LandingPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsConditionsPage from "./pages/TermsConditionsPage";
 import RefundPolicyPage from "./pages/RefundPolicyPage";
+import TradingLossSopPage from "./pages/TradingLossSopPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
 
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsConditionsPage />} />
             <Route path="/refund-policy" element={<RefundPolicyPage />} />
+            <Route path="/trading-loss-sop" element={<TradingLossSopPage />} />
 
             {/* Auth */}
             <Route path="/login" element={<LoginPage />} />

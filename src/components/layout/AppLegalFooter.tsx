@@ -18,6 +18,9 @@ export function AppLegalFooter() {
           <Link to="/refund-policy" className="hover:text-slate-900">
             Refund Policy
           </Link>
+          <Link to="/trading-loss-sop" className="hover:text-slate-900">
+            Loss responsibility (SOP)
+          </Link>
         </nav>
       </div>
     </footer>

@@ -1,4 +1,5 @@
 import { ScrollText } from "lucide-react";
+import { Link } from "react-router-dom";
 import { LegalPageShell, LegalSection } from "@/components/legal/LegalPageShell";
 import { LEGAL_BRAND } from "@/constants/legal";
 import { SUPPORT_HOURS } from "@/constants/legal";
@@ -68,6 +69,13 @@ export default function TermsConditionsPage() {
           can reduce your balance, and your wallet can reach zero. If your wallet reaches zero you stop
           participating in further trades until you add funds. Balances below your deposit reflect real
           trading losses, not a deduction by the platform.
+        </p>
+        <p>
+          Full details on user responsibility for losses are in our{" "}
+          <Link to="/trading-loss-sop" className="font-medium text-slate-900 underline">
+            Trading Loss Responsibility (SOP)
+          </Link>
+          .
         </p>
       </LegalSection>
 

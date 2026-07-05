@@ -752,6 +752,7 @@ export default function LandingPage() {
             <Link to="/privacy-policy" className="hover:text-slate-900">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-slate-900">Terms &amp; Conditions</Link>
             <Link to="/refund-policy" className="hover:text-slate-900">Refund Policy</Link>
+            <Link to="/trading-loss-sop" className="hover:text-slate-900">Loss responsibility (SOP)</Link>
           </nav>
         </div>
       </footer>

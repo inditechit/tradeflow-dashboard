@@ -73,6 +73,9 @@ function LegalPageShellFooter() {
         <Link to="/refund-policy" className="font-medium text-slate-600 underline hover:text-slate-900">
           Refund Policy
         </Link>
+        <Link to="/trading-loss-sop" className="font-medium text-slate-600 underline hover:text-slate-900">
+          Loss responsibility (SOP)
+        </Link>
       </nav>
     </div>
   );
