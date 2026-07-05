@@ -14,37 +14,8 @@ import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 import { PackageCouponSection } from "@/components/packages/PackageCouponSection";
 import { API_BASE } from "@/config/api";
 import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
-
-const riskProfiles = [
-  {
-    id: "LOW",
-    title: "LOW RISK",
-    allocation: "Capital divided into 5 allocation parts",
-    exposure: "5% – 10%",
-    color: "bg-green-100 border-green-300 text-green-800",
-  },
-  {
-    id: "MEDIUM",
-    title: "MEDIUM RISK",
-    allocation: "Capital divided into 4 allocation parts",
-    exposure: "10% – 20%",
-    color: "bg-yellow-100 border-yellow-300 text-yellow-800",
-  },
-  {
-    id: "HIGH",
-    title: "HIGH RISK",
-    allocation: "Capital divided into 3 allocation parts",
-    exposure: "20% – 50%",
-    color: "bg-orange-100 border-orange-300 text-orange-800",
-  },
-  {
-    id: "SUPER_HIGH",
-    title: "SUPER HIGH RISK",
-    allocation: "Capital divided into 2 allocation parts",
-    exposure: "20% – 100%",
-    color: "bg-red-100 border-red-300 text-red-800",
-  },
-];
+import { RiskProfilePicker } from "@/components/risk/RiskProfilePicker";
+import { parseUserRiskIds } from "@/utils/userRiskProfile";
 
 const PackagesPage = () => {
   const navigate = useNavigate();
@@ -54,7 +25,7 @@ const PackagesPage = () => {
 
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [pendingPackage, setPendingPackage] = useState<SubscriptionPackage | null>(null);
-  const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
+  const [selectedRisk, setSelectedRisk] = useState<string | null>(null);
   const [trialTermsAccepted, setTrialTermsAccepted] = useState(false);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,7 +63,7 @@ const PackagesPage = () => {
   const trialPkg = packages.find((p) => p.isTrial);
   const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
 
-  const handleSelectPackageClick = (pkg: SubscriptionPackage) => {
+  const handleSelectPackageClick = async (pkg: SubscriptionPackage) => {
     if (purchaseBlocked) {
       alert(purchaseBlocked);
       return;
@@ -100,18 +71,26 @@ const PackagesPage = () => {
     setPendingPackage(pkg);
     setTrialTermsAccepted(false);
     setLegalAccepted(false);
+    setSelectedRisk(null);
+
+    const uid = currentUser?.userId;
+    if (uid) {
+      try {
+        const res = await fetch(`${API_BASE}/user/profile/${uid}`);
+        const data = await res.json();
+        const existing = parseUserRiskIds(data?.profile?.risk);
+        if (existing.length === 1) setSelectedRisk(existing[0]);
+      } catch {
+        /* keep null */
+      }
+    }
+
     setIsRiskModalOpen(true);
   };
 
-  const toggleRiskSelection = (riskId: string) => {
-    setSelectedRisks((prev) =>
-      prev.includes(riskId) ? prev.filter((id) => id !== riskId) : [...prev, riskId]
-    );
-  };
-
   const proceedToCheckout = async () => {
-    if (selectedRisks.length === 0) {
-      alert("Please select at least one risk profile to proceed.");
+    if (!selectedRisk) {
+      alert("Please select one risk profile to proceed.");
       return;
     }
 
@@ -130,11 +109,16 @@ const PackagesPage = () => {
     setIsSubmitting(true);
 
     try {
-      await fetch(`${API_BASE_LOCAL}/user/${currentUser?.userId}/save-risk-profile`, {
+      const saveRes = await fetch(`${API_BASE_LOCAL}/user/${currentUser?.userId}/save-risk-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ risks: selectedRisks }),
+        body: JSON.stringify({ risks: [selectedRisk] }),
       });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok || !saveData?.success) {
+        alert(saveData?.error || "Could not save risk profile.");
+        return;
+      }
 
       const payPrice = pendingPackage.hasDiscount
         ? pendingPackage.discountedPrice ?? pendingPackage.referralPrice ?? pendingPackage.price
@@ -155,6 +139,7 @@ const PackagesPage = () => {
       };
 
       setSelectedPackage(selected);
+      setIsRiskModalOpen(false);
       navigate("/payment", {
         state: {
           legalAccepted: true,
@@ -166,7 +151,6 @@ const PackagesPage = () => {
       alert("Something went wrong saving your risk profile. Please try again.");
     } finally {
       setIsSubmitting(false);
-      setIsRiskModalOpen(false);
     }
   };
 
@@ -364,46 +348,15 @@ const PackagesPage = () => {
                 </div>
               )}
 
-              <p className="text-sm text-slate-500 mb-4">
-                Select one or more risk profiles that match your trading strategy.
+              <p className="mb-4 text-sm text-slate-500">
+                Select <strong>one</strong> risk profile that matches your trading strategy.
               </p>
 
-              <div className="space-y-3">
-                {riskProfiles.map((risk) => {
-                  const isSelected = selectedRisks.includes(risk.id);
-                  return (
-                    <label
-                      key={risk.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        isSelected
-                          ? "border-yellow-400 bg-yellow-50/50"
-                          : "border-slate-100 hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="pt-1">
-                        <input
-                          type="checkbox"
-                          className="w-5 h-5 rounded text-[#FFD700] focus:ring-[#FFD700]"
-                          checked={isSelected}
-                          onChange={() => toggleRiskSelection(risk.id)}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div
-                          className={`inline-block px-2 py-0.5 rounded text-xs font-bold mb-2 border ${risk.color}`}
-                        >
-                          {risk.title}
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800 mb-1">{risk.allocation}</p>
-                        <p className="text-xs text-slate-500">
-                          Estimated Monthly Risk Exposure:{" "}
-                          <span className="font-semibold text-slate-700">{risk.exposure}</span>
-                        </p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
+              <RiskProfilePicker
+                selectedRisk={selectedRisk}
+                onSelect={setSelectedRisk}
+                name="package-risk"
+              />
             </div>
 
             <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
@@ -420,7 +373,7 @@ const PackagesPage = () => {
                 onClick={proceedToCheckout}
                 disabled={
                   isSubmitting ||
-                  selectedRisks.length === 0 ||
+                  !selectedRisk ||
                   !legalAccepted ||
                   (pendingPackage.isTrial && !trialTermsAccepted)
                 }

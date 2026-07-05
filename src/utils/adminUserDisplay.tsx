@@ -1,4 +1,5 @@
 import React from "react";
+import { parseUserRiskIds } from "@/utils/userRiskProfile";
 
 export function kycBadgeStyles(status: string | undefined | null) {
   const s = String(status ?? "pending").toLowerCase();
@@ -98,14 +99,10 @@ function getRiskStyle(riskLevel: string) {
 export function renderRiskBadges(riskData: unknown) {
   if (!riskData) return "—";
 
-  let parsedRisks: string[] = [];
-  try {
-    parsedRisks = typeof riskData === "string" ? JSON.parse(riskData) : (riskData as string[]);
-  } catch {
+  const parsedRisks = parseUserRiskIds(riskData);
+  if (!parsedRisks.length) {
     return <span className="text-slate-500">{String(riskData)}</span>;
   }
-
-  if (!Array.isArray(parsedRisks) || parsedRisks.length === 0) return "—";
 
   return (
     <div className="flex flex-wrap gap-1.5">

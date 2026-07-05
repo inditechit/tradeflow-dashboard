@@ -74,6 +74,7 @@ import RefundPolicyPage from "./pages/RefundPolicyPage";
 import TradingLossSopPage from "./pages/TradingLossSopPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
+import ChooseRiskProfilePage from "./pages/ChooseRiskProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="withdraw" element={<WithdrawPage />} />
               <Route path="post-signup" element={<PostSignupOnboardingPage />} />
               <Route path="required-setup" element={<RequiredSetupPage />} />
+              <Route path="choose-risk" element={<ChooseRiskProfilePage />} />
               <Route path="affiliate" element={<AffiliateProgramPage />} />
               <Route path="notifications" element={<UserNotificationsPage />} />
               <Route path="invoices" element={<UserInvoicesPage />} />

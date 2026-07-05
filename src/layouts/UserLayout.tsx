@@ -9,6 +9,7 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { ProfileComplianceProvider } from "@/context/ProfileComplianceContext";
 import SubscriptionExpiredGuard from "@/components/subscription/SubscriptionExpiredGuard";
 import ComplianceRequiredGuard from "@/components/compliance/ComplianceRequiredGuard";
+import RiskProfileRequiredGuard from "@/components/risk/RiskProfileRequiredGuard";
 import MaintenanceGuard from "@/components/maintenance/MaintenanceGuard";
 import BlockedUserGuard from "@/components/block/BlockedUserGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -66,13 +67,15 @@ const UserLayout = () => {
             <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
               <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
                 <SubscriptionExpiredGuard>
-                  <ComplianceRequiredGuard>
-                    <MaintenanceGuard>
-                      <BlockedUserGuard>
-                        <Outlet />
-                      </BlockedUserGuard>
-                    </MaintenanceGuard>
-                  </ComplianceRequiredGuard>
+                  <RiskProfileRequiredGuard>
+                    <ComplianceRequiredGuard>
+                      <MaintenanceGuard>
+                        <BlockedUserGuard>
+                          <Outlet />
+                        </BlockedUserGuard>
+                      </MaintenanceGuard>
+                    </ComplianceRequiredGuard>
+                  </RiskProfileRequiredGuard>
                 </SubscriptionExpiredGuard>
               </div>
             </main>
