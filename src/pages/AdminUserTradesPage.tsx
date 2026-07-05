@@ -76,6 +76,28 @@ const AdminUserTradesPage = () => {
   const [userShareLive, setUserShareLive] = useState(0);
   const [userSharePct, setUserSharePct] = useState(0);
   const [feePerLotUsd, setFeePerLotUsd] = useState(30);
+  const [depositHistory, setDepositHistory] = useState<
+    Array<{
+      kind: string;
+      amount_usd: number;
+      effective_at?: string;
+      payment_method?: string;
+      tx_hash?: string | null;
+      package_id?: string;
+    }>
+  >([]);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<
+    Array<{
+      id: number;
+      status: string;
+      payout_usd: number;
+      fee_usd: number;
+      total_debit_usd: number;
+      created_at?: string | null;
+      completed_at?: string | null;
+      rejection_reason?: string | null;
+    }>
+  >([]);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -98,6 +120,10 @@ const AdminUserTradesPage = () => {
         );
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
+        setDepositHistory(Array.isArray(summaryData.deposit_history) ? summaryData.deposit_history : []);
+        setWithdrawalHistory(
+          Array.isArray(summaryData.withdrawal_history) ? summaryData.withdrawal_history : [],
+        );
         setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
         setEquity(Number(summaryData.equity ?? wBal));
         setAdminFeeLive(Math.max(0, Number(summaryData.admin_pending_share_live_usd ?? 0)));
@@ -438,6 +464,81 @@ const AdminUserTradesPage = () => {
           pageSize={PAGE_SIZE}
           onPageChange={setPage}
         />
+
+        {(depositHistory.length > 0 || withdrawalHistory.length > 0) && (
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            {depositHistory.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 text-sm font-bold text-slate-800">
+                  Deposit record ({depositHistory.length})
+                </h3>
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-500">
+                        <th className="py-2 pr-2">Date</th>
+                        <th className="py-2 pr-2">Type</th>
+                        <th className="py-2 pr-2">Method</th>
+                        <th className="py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {depositHistory.map((d, i) => (
+                        <tr key={`dep-${i}`} className="border-b border-slate-50">
+                          <td className="py-2 pr-2 tabular-nums text-slate-600">
+                            {d.effective_at ? formatIsoDateTime(d.effective_at) : "—"}
+                          </td>
+                          <td className="py-2 pr-2 text-slate-700">{d.kind}</td>
+                          <td className="py-2 pr-2 text-slate-600">{d.payment_method || d.package_id || "—"}</td>
+                          <td
+                            className={`py-2 text-right font-semibold tabular-nums ${
+                              d.amount_usd >= 0 ? "text-emerald-700" : "text-red-600"
+                            }`}
+                          >
+                            {fmtUsd(d.amount_usd)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {withdrawalHistory.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 text-sm font-bold text-slate-800">
+                  Withdrawal record ({withdrawalHistory.length})
+                </h3>
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-500">
+                        <th className="py-2 pr-2">Date</th>
+                        <th className="py-2 pr-2">Status</th>
+                        <th className="py-2 text-right">Payout</th>
+                        <th className="py-2 text-right">Fee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {withdrawalHistory.map((w) => (
+                        <tr key={`wd-${w.id}`} className="border-b border-slate-50">
+                          <td className="py-2 pr-2 tabular-nums text-slate-600">
+                            {formatIsoDateTime(w.completed_at || w.created_at || null)}
+                          </td>
+                          <td className="py-2 pr-2 capitalize text-slate-700">{w.status}</td>
+                          <td className="py-2 text-right font-semibold tabular-nums text-slate-800">
+                            {fmtUsd(w.payout_usd)}
+                          </td>
+                          <td className="py-2 text-right tabular-nums text-slate-500">{fmtUsd(w.fee_usd)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

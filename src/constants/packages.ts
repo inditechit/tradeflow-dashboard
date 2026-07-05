@@ -144,7 +144,7 @@ export const TRIAL_WITHDRAW_NOTICE =
 export const PAID_WITHDRAW_NOTICE = WITHDRAW_USP.short;
 
 /** Landing / contact — opens user's email client (no backend). */
-export const CONTACT_EMAIL = "teaminditech1@gmail.com";
+export const CONTACT_EMAIL = "support@copytradeengine.com";
 
 /** In-app support — opens Gmail compose (no backend). */
 export const SUPPORT_EMAIL = "support@copytradeengine.com";

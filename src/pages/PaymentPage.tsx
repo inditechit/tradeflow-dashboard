@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
   AlertTriangle, QrCode, Loader2, CheckCircle,
@@ -443,7 +443,16 @@ const PaymentPage = () => {
                         . Once the transaction is successfully completed, it will be processed instantly.
                       </p>
                       <p className="text-sm text-slate-500 mt-3 font-medium border-l-2 border-yellow-400 pl-3">
-                        By proceeding, you acknowledge our Terms of Service. Due to the irreversible nature of digital asset settlements, all processed transactions are final and strictly non-refundable.
+                        By proceeding, you acknowledge our{" "}
+                        <Link to="/terms" className="text-slate-700 underline hover:text-slate-900">
+                          Terms &amp; Conditions
+                        </Link>{" "}
+                        and{" "}
+                        <Link to="/refund-policy" className="text-slate-700 underline hover:text-slate-900">
+                          Refund Policy
+                        </Link>
+                        . Due to the irreversible nature of digital asset settlements, all processed
+                        transactions are final and strictly non-refundable.
                       </p>
                     </>
                   )}

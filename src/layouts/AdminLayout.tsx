@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AdminCallNotificationProvider } from "@/components/admin/AdminCallNotificationLayer";
+import { AppLegalFooter } from "@/components/layout/AppLegalFooter";
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -52,6 +53,7 @@ const AdminLayout = () => {
             </EmployeeTabGuard>
           </div>
         </main>
+        <AppLegalFooter />
       </div>
     </div>
     </AdminCallNotificationProvider>

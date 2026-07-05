@@ -13,6 +13,7 @@ import MaintenanceGuard from "@/components/maintenance/MaintenanceGuard";
 import BlockedUserGuard from "@/components/block/BlockedUserGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { API_BASE } from "@/config/api";
+import { AppLegalFooter } from "@/components/layout/AppLegalFooter";
 
 const UserLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -75,6 +76,7 @@ const UserLayout = () => {
                 </SubscriptionExpiredGuard>
               </div>
             </main>
+            <AppLegalFooter />
           </div>
 
           {currentUser?.role !== "admin" && (

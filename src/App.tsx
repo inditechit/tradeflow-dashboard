@@ -67,10 +67,11 @@ import { EmployeeChooseRoute } from "./components/auth/EmployeeChooseRoute";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
-import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
-import RequiredSetupPage from "./pages/RequiredSetupPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsConditionsPage from "./pages/TermsConditionsPage";
+import RefundPolicyPage from "./pages/RefundPolicyPage";
+import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
+import RequiredSetupPage from "./pages/RequiredSetupPage";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ const App = () => (
             {/* Legal */}
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsConditionsPage />} />
+            <Route path="/refund-policy" element={<RefundPolicyPage />} />
 
             {/* Auth */}
             <Route path="/login" element={<LoginPage />} />

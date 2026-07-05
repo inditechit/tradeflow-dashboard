@@ -40,6 +40,16 @@ function toSheetRow(
     Telegram: String(loc.telegram ?? ""),
     "KYC Status": String(loc.kyc_status ?? ""),
     "Joined At": fmtDate(loc.created_at),
+    "Referred By": (() => {
+      const parts = [loc.referrer_telegram, loc.referrer_name]
+        .map((v) => (v != null ? String(v).trim() : ""))
+        .filter(Boolean);
+      if (parts.length) return parts.join(" · ");
+      if (loc.referrer_email) return String(loc.referrer_email);
+      const rid = Number(loc.referrer_id);
+      return Number.isFinite(rid) && rid > 0 ? `#${rid}` : "";
+    })(),
+    "Referrer ID": Number(loc.referrer_id) > 0 ? Number(loc.referrer_id) : "",
     Online: yesNo(loc.is_online),
     "Last Seen": fmtDate(loc.last_seen_at),
     Label: label,

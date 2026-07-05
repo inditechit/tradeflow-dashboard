@@ -736,16 +736,23 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-slate-50 px-4 py-10 sm:px-6">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm font-semibold text-slate-800">{BRAND}</p>
-          <p className="max-w-md text-center text-xs text-slate-500 sm:text-left">
-            © {new Date().getFullYear()} {BRAND}. Market risk applies. No guaranteed returns.{" "}
-            {WITHDRAW_USP.headline} on paid plans.
-          </p>
-          <div className="flex gap-6 text-sm text-slate-600">
-            <Link to="/login" className="hover:text-slate-900">Log in</Link>
-            <Link to="/signup" className="hover:text-slate-900">Sign up</Link>
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <p className="text-sm font-semibold text-slate-800">{BRAND}</p>
+            <p className="max-w-md text-center text-xs text-slate-500 sm:text-left">
+              © {new Date().getFullYear()} {BRAND}. Market risk applies. No guaranteed returns.{" "}
+              {WITHDRAW_USP.headline} on paid plans.
+            </p>
+            <div className="flex gap-6 text-sm text-slate-600">
+              <Link to="/login" className="hover:text-slate-900">Log in</Link>
+              <Link to="/signup" className="hover:text-slate-900">Sign up</Link>
+            </div>
           </div>
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-slate-200 pt-6 text-xs text-slate-500">
+            <Link to="/privacy-policy" className="hover:text-slate-900">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-slate-900">Terms &amp; Conditions</Link>
+            <Link to="/refund-policy" className="hover:text-slate-900">Refund Policy</Link>
+          </nav>
         </div>
       </footer>
     </div>

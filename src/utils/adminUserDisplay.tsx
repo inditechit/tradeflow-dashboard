@@ -37,9 +37,20 @@ export function lastSeenLabel(lastSeenAt: unknown, isOnline: unknown): string {
   return `${d}d ago`;
 }
 
+export function parseUserJoinMs(value: unknown): number | null {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
+  const ms = Date.parse(normalized);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export function formatAdminDate(dateString: string) {
   if (!dateString) return "Unknown";
-  return new Date(dateString).toLocaleString();
+  const ms = parseUserJoinMs(dateString);
+  if (ms == null) return "Unknown";
+  return new Date(ms).toLocaleString();
 }
 
 function getRiskStyle(riskLevel: string) {
@@ -85,6 +96,21 @@ export function renderRiskBadges(riskData: unknown) {
 
 export function walletBalanceOf(user: { wallet_balance?: unknown }): number {
   return Number(user.wallet_balance ?? 0);
+}
+
+export function referrerDisplayLabel(user: {
+  referrer_id?: unknown;
+  referrer_telegram?: unknown;
+  referrer_name?: unknown;
+  referrer_email?: unknown;
+}): string {
+  const parts = [user.referrer_telegram, user.referrer_name]
+    .map((v) => (v != null ? String(v).trim() : ""))
+    .filter(Boolean);
+  if (parts.length) return parts.join(" · ");
+  if (user.referrer_email) return String(user.referrer_email).trim();
+  const rid = Number(user.referrer_id);
+  return Number.isFinite(rid) && rid > 0 ? `#${rid}` : "—";
 }
 
 /** Equity (wallet + open P/L) minus deposit baseline — same basis as P/L report. */

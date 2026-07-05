@@ -40,9 +40,12 @@ import {
   kycBadgeStyles,
   lastSeenLabel,
   parseCoord,
+  parseUserJoinMs,
+  referrerDisplayLabel,
   renderRiskBadges,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
+import { endOfDayMs, startOfDayMs } from "@/utils/mt5TradeDates";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
@@ -146,6 +149,8 @@ const AdminPage = () => {
   const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
   const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterTag, setFilterTag] = useState('all');
+  const [filterJoinFrom, setFilterJoinFrom] = useState('');
+  const [filterJoinTo, setFilterJoinTo] = useState('');
   const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
@@ -489,22 +494,60 @@ const AdminPage = () => {
         (filterOpenPl === "profit" && hasOpenExposure && livePl > 0.01) ||
         (filterOpenPl === "loss" && hasOpenExposure && livePl < -0.01);
 
-      return matchName && matchEmail && matchKyc && matchOnline && matchTag && matchWallet && matchPackage && matchTrading && matchOpenPl;
+      let matchJoinDate = true;
+      if (filterJoinFrom || filterJoinTo) {
+        const joinMs = parseUserJoinMs(loc.created_at);
+        if (joinMs == null) {
+          matchJoinDate = false;
+        } else {
+          if (filterJoinFrom && joinMs < startOfDayMs(filterJoinFrom)) matchJoinDate = false;
+          if (filterJoinTo && joinMs > endOfDayMs(filterJoinTo)) matchJoinDate = false;
+        }
+      }
+
+      return (
+        matchName &&
+        matchEmail &&
+        matchKyc &&
+        matchOnline &&
+        matchTag &&
+        matchWallet &&
+        matchPackage &&
+        matchTrading &&
+        matchOpenPl &&
+        matchJoinDate
+      );
     });
 
     return filtered.sort((a, b) => {
+      if (userSort === "joined_new" || userSort === "joined_old") {
+        const ta = parseUserJoinMs(a.created_at) ?? 0;
+        const tb = parseUserJoinMs(b.created_at) ?? 0;
+        return userSort === "joined_new" ? tb - ta : ta - tb;
+      }
+
       const tierDiff = userListSortTier(a) - userListSortTier(b);
       if (tierDiff !== 0) return tierDiff;
 
-      if (userSort === "joined_new" || userSort === "joined_old") {
-        const ta = new Date(String(a.created_at ?? "")).getTime() || 0;
-        const tb = new Date(String(b.created_at ?? "")).getTime() || 0;
-        return userSort === "joined_new" ? tb - ta : ta - tb;
-      }
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       return userSort === "wallet_high" ? diff : -diff;
     });
-  }, [locations, filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag, userSort, financeOverlay]);
+  }, [
+    locations,
+    filterName,
+    filterEmail,
+    filterKyc,
+    filterOnline,
+    filterWallet,
+    filterPackage,
+    filterTrading,
+    filterOpenPl,
+    filterTag,
+    filterJoinFrom,
+    filterJoinTo,
+    userSort,
+    financeOverlay,
+  ]);
 
   const totalUserCount = locations.length;
   const filteredUserCount = filteredLocations.length;
@@ -548,8 +591,24 @@ const AdminPage = () => {
       filterPackage !== "all" ||
       filterTrading !== "all" ||
       filterOpenPl !== "all" ||
-      filterTag !== "all",
-    [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag],
+      filterTag !== "all" ||
+      Boolean(filterJoinFrom) ||
+      Boolean(filterJoinTo) ||
+      userSort !== "wallet_high",
+    [
+      filterName,
+      filterEmail,
+      filterKyc,
+      filterOnline,
+      filterWallet,
+      filterPackage,
+      filterTrading,
+      filterOpenPl,
+      filterTag,
+      filterJoinFrom,
+      filterJoinTo,
+      userSort,
+    ],
   );
 
   const sortLabel = useMemo(() => {
@@ -602,7 +661,21 @@ const AdminPage = () => {
 
   useEffect(() => {
     setUserPage(1);
-  }, [filterName, filterEmail, filterKyc, filterOnline, filterWallet, filterPackage, filterTrading, filterOpenPl, filterTag, userSort, setUserPage]);
+  }, [
+    filterName,
+    filterEmail,
+    filterKyc,
+    filterOnline,
+    filterWallet,
+    filterPackage,
+    filterTrading,
+    filterOpenPl,
+    filterTag,
+    filterJoinFrom,
+    filterJoinTo,
+    userSort,
+    setUserPage,
+  ]);
 
   const visibleUserCols = useMemo(
     () =>
@@ -616,6 +689,7 @@ const AdminPage = () => {
         "col:users:withdrawable",
         "col:users:recharges",
         "col:users:created",
+        "col:users:referrer",
         "col:users:kyc",
         "col:users:profit_pct",
         "col:users:dollar_cut",
@@ -903,6 +977,28 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Joined from
+          </label>
+          <input
+            type="date"
+            value={filterJoinFrom}
+            onChange={(e) => setFilterJoinFrom(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Joined to
+          </label>
+          <input
+            type="date"
+            value={filterJoinTo}
+            onChange={(e) => setFilterJoinTo(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
         <EmployeeGate perm="filter:users:wallet_sort">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -946,7 +1042,10 @@ const AdminPage = () => {
               setFilterWallet('all');
               setFilterPackage('all');
               setFilterTrading('all');
+              setFilterOpenPl('all');
               setFilterTag('all');
+              setFilterJoinFrom('');
+              setFilterJoinTo('');
               setUserSort('wallet_high');
             }}
             className="h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:px-8"
@@ -1060,6 +1159,11 @@ const AdminPage = () => {
                 {can("col:users:created") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Created
+                </th>
+                )}
+                {can("col:users:referrer") && (
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
+                  Referred by
                 </th>
                 )}
                 {can("col:users:kyc") && (
@@ -1367,6 +1471,29 @@ const AdminPage = () => {
                   {can("col:users:created") && (
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
                     {formatAdminDate(loc.created_at)}
+                  </td>
+                  )}
+
+                  {can("col:users:referrer") && (
+                  <td className="align-top px-4 py-3 text-sm sm:px-6 sm:py-4">
+                    {(() => {
+                      const refLabel = referrerDisplayLabel(loc);
+                      const refId = Number(loc.referrer_id);
+                      if (!Number.isFinite(refId) || refId <= 0 || refLabel === "—") {
+                        return <span className="text-slate-400">—</span>;
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/user-profile/${refId}`)}
+                          className="text-left text-indigo-700 underline-offset-2 hover:underline"
+                          title={`Referrer #${refId}`}
+                        >
+                          {refLabel}
+                          <span className="mt-0.5 block font-mono text-[10px] text-slate-400">#{refId}</span>
+                        </button>
+                      );
+                    })()}
                   </td>
                   )}
 
