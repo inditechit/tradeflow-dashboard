@@ -59,6 +59,7 @@ import AdminPackageCatalogPage from "./pages/AdminPackageCatalogPage";
 import AdminUnmatchedPaymentsPage from "./pages/AdminUnmatchedPaymentsPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
+import AdminReferralPayablePage from "./pages/AdminReferralPayablePage";
 import AdminUserPnlReportPage from "./pages/AdminUserPnlReportPage";
 import AdminEmployeesPage from "./pages/AdminEmployeesPage";
 import AdminWalletRebuildDocPage from "./pages/AdminWalletRebuildDocPage";
@@ -166,6 +167,7 @@ const App = () => (
               <Route path="referrals" element={<AdminReferralsPage />} />
               <Route path="wallet-ledger" element={<AdminWalletLedgerPage />} />
               <Route path="financial-stats" element={<AdminFinancialStatsPage />} />
+              <Route path="referral-payable" element={<AdminReferralPayablePage />} />
               <Route path="user-pnl-report" element={<AdminUserPnlReportPage />} />
               <Route path="wallet-rebuild-doc" element={<AdminWalletRebuildDocPage />} />
               <Route path="employees" element={<AdminEmployeesPage />} />

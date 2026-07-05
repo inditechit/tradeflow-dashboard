@@ -34,6 +34,7 @@ export const ADMIN_TAB_PATH_KEYS: Record<string, string> = {
   "/admin/referrals": "tab:referrals",
   "/admin/wallet-ledger": "tab:wallet_ledger",
   "/admin/financial-stats": "tab:financial_stats",
+  "/admin/referral-payable": "tab:financial_stats",
   "/admin/user-pnl-report": "tab:user_pnl_report",
   "/admin/wallet-rebuild-doc": "tab:financial_stats",
   "/admin/employees": "tab:employees",

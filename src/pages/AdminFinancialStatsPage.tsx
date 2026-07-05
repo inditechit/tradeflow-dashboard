@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
   RefreshCw,
@@ -97,6 +98,7 @@ function HeroCard({
   accent = "slate",
   valueClass,
   live,
+  to,
 }: {
   title: string;
   value: string;
@@ -105,6 +107,7 @@ function HeroCard({
   accent?: "red" | "gold" | "emerald" | "purple" | "blue";
   valueClass?: string;
   live?: boolean;
+  to?: string;
 }) {
   const styles = {
     red: "border-red-200 bg-red-50",
@@ -114,8 +117,8 @@ function HeroCard({
     blue: "border-blue-200 bg-blue-50",
     slate: "border-slate-200 bg-white",
   };
-  return (
-    <div className={`rounded-2xl border p-5 shadow-sm ${styles[accent]}`}>
+  const inner = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -133,8 +136,24 @@ function HeroCard({
         </div>
         <Icon className="h-6 w-6 shrink-0 text-slate-400" />
       </div>
-    </div>
+      {to && (
+        <p className="mt-3 text-xs font-semibold text-blue-700">View details →</p>
+      )}
+    </>
   );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className={`block rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md hover:ring-2 hover:ring-blue-200/60 ${styles[accent]}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className={`rounded-2xl border p-5 shadow-sm ${styles[accent]}`}>{inner}</div>;
 }
 
 const AdminFinancialStatsPage = () => {
@@ -370,6 +389,7 @@ const AdminFinancialStatsPage = () => {
               sub={`Total earned all time: $${fmt(stats.referral_earned_all_time_usd)} in affiliate wallets`}
               icon={Users}
               accent="blue"
+              to="/admin/referral-payable"
             />
             <HeroCard
               title="Your total earned"
