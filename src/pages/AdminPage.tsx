@@ -53,6 +53,10 @@ import { exportUsersToExcel } from "@/utils/exportUsersExcel";
 import { EmployeeGate } from "@/components/auth/EmployeeGate";
 import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
 import { markAdminUsersSeen } from "@/utils/adminSidebarSeen";
+import {
+  fetchReferrerByUserIdMap,
+  mergeUserReferrerFields,
+} from "@/utils/adminReferrerEnrichment";
 
 const USER_PAGE_SIZE = 50;
 
@@ -212,10 +216,14 @@ const AdminPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users?finance=1&limit=2000`);
-      const data = await response.json();
+      const [usersRes, referrerMap] = await Promise.all([
+        fetch(`${API_BASE}/admin/users?finance=1&limit=2000`),
+        fetchReferrerByUserIdMap(),
+      ]);
+      const data = await usersRes.json();
       if (data.success) {
-        setLocations(data.users);
+        const users = mergeUserReferrerFields(data.users ?? [], referrerMap);
+        setLocations(users);
         setLiveCount(Number(data.live_count ?? data.totals?.live_users ?? 0));
         if (data.totals) {
           setTotals({

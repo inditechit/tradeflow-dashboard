@@ -18,6 +18,7 @@ import {
   saveSignupDraft,
   type SignupErrorTarget,
 } from "@/utils/signupDraftStorage";
+import { LegalAcceptanceCheckbox } from "@/components/legal/LegalAcceptanceCheckbox";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 const TradingViewTicker = memo(({ symbols }: { symbols: any[] }) => {
@@ -203,6 +204,7 @@ const SignupPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [docsStatus, setDocsStatus] = useState<string>('');
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   const scrollToRef = (ref: React.RefObject<HTMLElement | null>) => {
     requestAnimationFrame(() => {
@@ -443,6 +445,10 @@ const SignupPage = () => {
       showError('Please verify your email with the OTP first.', 'otp');
       return;
     }
+    if (!legalAccepted) {
+      showError('Please accept the Privacy Policy, Terms & Conditions, and Refund Policy to continue.', 'step1');
+      return;
+    }
     if (permissionsState !== 'granted') {
       showError('Please grant camera and location permissions first.', 'permissions');
       return;
@@ -524,6 +530,10 @@ const SignupPage = () => {
 
   const handleGoogleSignup = async (credential: string) => {
     setErrorMessage("");
+    if (!legalAccepted) {
+      showError('Please accept the Privacy Policy, Terms & Conditions, and Refund Policy before signing up.', 'step1');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const storedRef = sessionStorage.getItem("referrer_key");
@@ -567,7 +577,12 @@ const SignupPage = () => {
     }
   };
 
-  const isStep1Valid = form.name.trim() !== '' && form.mobile.trim() !== '' && form.telegram.trim() !== '' && form.password.trim() !== '';
+  const isStep1Valid =
+    form.name.trim() !== '' &&
+    form.mobile.trim() !== '' &&
+    form.telegram.trim() !== '' &&
+    form.password.trim() !== '' &&
+    legalAccepted;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 py-10 bg-slate-200 overflow-hidden">
@@ -693,7 +708,9 @@ const SignupPage = () => {
                  />
               </div>
 
-              <div className="pt-6 flex flex-col gap-4">
+              <LegalAcceptanceCheckbox checked={legalAccepted} onChange={setLegalAccepted} />
+
+              <div className="pt-2 flex flex-col gap-4">
                 <button
                   onClick={() => setStep(2)}
                   disabled={!isStep1Valid}
@@ -712,7 +729,7 @@ const SignupPage = () => {
                 </div>
 
                 {GOOGLE_CLIENT_ID ? (
-                  <div className="flex justify-center">
+                  <div className={`flex justify-center ${!legalAccepted ? "pointer-events-none opacity-50" : ""}`}>
                     <GoogleLogin
                       onSuccess={(resp) => {
                         if (resp.credential) handleGoogleSignup(resp.credential);
@@ -952,6 +969,12 @@ const SignupPage = () => {
                 </div>
               )}
 
+              <LegalAcceptanceCheckbox
+                checked={legalAccepted}
+                onChange={setLegalAccepted}
+                id="legal-accept-step2"
+              />
+
               <div className="pt-4 flex gap-4">
                 <button
                   onClick={() => setStep(1)}
@@ -966,6 +989,7 @@ const SignupPage = () => {
                     otpState !== 'verified' ||
                     permissionsState !== 'granted' ||
                     !livePhotoBase64 ||
+                    !legalAccepted ||
                     isSubmitting
                   }
                   className="flex-1 py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
