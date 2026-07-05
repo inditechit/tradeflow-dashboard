@@ -72,25 +72,6 @@ function isTradeActive(loc: { trading_active?: unknown }): boolean {
   return Number(loc.trading_active ?? 1) !== 0;
 }
 
-/** Pin order: live → stopped+open P/L → open profit → open loss → other stopped → active. */
-function userListSortTier(loc: {
-  is_online?: unknown;
-  trading_active?: unknown;
-  open_positions?: unknown;
-  live_pl?: unknown;
-}): number {
-  if (Number(loc.is_online) === 1) return 0;
-  const stopped = !isTradeActive(loc);
-  const openPos = Number(loc.open_positions ?? 0);
-  const livePl = Number(loc.live_pl ?? 0);
-  const hasOpenExposure = openPos > 0 || Math.abs(livePl) > 0.01;
-  if (stopped && hasOpenExposure) return 1;
-  if (hasOpenExposure && livePl > 0.01) return 2;
-  if (hasOpenExposure && livePl < -0.01) return 3;
-  if (stopped) return 4;
-  return 5;
-}
-
 function rowLivePl(
   loc: { id?: unknown; live_pl?: unknown },
   overlay: Record<number, AdminFinanceOverlay>,
@@ -100,13 +81,34 @@ function rowLivePl(
   return Number(loc.live_pl ?? 0);
 }
 
-function rowHasOpenExposure(
-  loc: { id?: unknown; open_positions?: unknown; live_pl?: unknown },
+function rowEquity(
+  loc: { id?: unknown; wallet_balance?: unknown; equity?: unknown },
   overlay: Record<number, AdminFinanceOverlay>,
-): boolean {
-  const openPos = Number(loc.open_positions ?? 0);
-  const livePl = rowLivePl(loc, overlay);
-  return openPos > 0 || Math.abs(livePl) > 0.01;
+): number {
+  const uid = Number(loc.id);
+  const wallet = Number(loc.wallet_balance ?? 0);
+  if (uid && overlay[uid]?.equity != null) return Number(overlay[uid].equity);
+  return Number(loc.equity ?? wallet);
+}
+
+/** Equity minus deposit baseline — same basis as admin P/L report. */
+function rowPlVsBaseline(
+  loc: {
+    id?: unknown;
+    wallet_balance?: unknown;
+    equity?: unknown;
+    deposit_baseline?: unknown;
+    equity_pl?: unknown;
+  },
+  overlay: Record<number, AdminFinanceOverlay>,
+): number {
+  const fromApi = Number(loc.equity_pl);
+  if (Number.isFinite(fromApi) && loc.equity_pl != null && loc.equity_pl !== "") {
+    return fromApi;
+  }
+  const baseline = Number(loc.deposit_baseline ?? 0);
+  const equity = rowEquity(loc, overlay);
+  return Math.round((equity - baseline) * 100) / 100;
 }
 
 function userPackageExpired(loc: { active_package_id?: unknown; package_expired?: unknown; last_package_end_at?: unknown }): boolean {
@@ -152,6 +154,7 @@ const AdminPage = () => {
   const [filterPackage, setFilterPackage] = useState<string>('all');
   const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
   const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
+  const [filterReferrer, setFilterReferrer] = useState<string>('all');
   const [filterTag, setFilterTag] = useState('all');
   const [filterJoinFrom, setFilterJoinFrom] = useState('');
   const [filterJoinTo, setFilterJoinTo] = useState('');
@@ -457,6 +460,17 @@ const AdminPage = () => {
     fetchLocations({ silent: true });
   };
 
+  const referrerFilterOptions = useMemo(() => {
+    const byId = new Map<number, { id: number; label: string }>();
+    for (const loc of locations) {
+      const rid = Number(loc.referrer_id);
+      if (!Number.isFinite(rid) || rid <= 0) continue;
+      if (byId.has(rid)) continue;
+      byId.set(rid, { id: rid, label: referrerDisplayLabel(loc) });
+    }
+    return Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [locations]);
+
   const filteredLocations = useMemo(() => {
     const filtered = locations.filter((loc) => {
       const nameStr = String(loc.name || "").toLowerCase();
@@ -495,12 +509,17 @@ const AdminPage = () => {
         (filterTrading === "active" && copyActive) ||
         (filterTrading === "stopped" && !copyActive);
 
-      const livePl = rowLivePl(loc, financeOverlay);
-      const hasOpenExposure = rowHasOpenExposure(loc, financeOverlay);
+      const plVsBaseline = rowPlVsBaseline(loc, financeOverlay);
       const matchOpenPl =
         filterOpenPl === "all" ||
-        (filterOpenPl === "profit" && hasOpenExposure && livePl > 0.01) ||
-        (filterOpenPl === "loss" && hasOpenExposure && livePl < -0.01);
+        (filterOpenPl === "profit" && plVsBaseline > 0.01) ||
+        (filterOpenPl === "loss" && plVsBaseline < -0.01);
+
+      const refId = Number(loc.referrer_id);
+      const matchReferrer =
+        filterReferrer === "all" ||
+        (filterReferrer === "none" && (!Number.isFinite(refId) || refId <= 0)) ||
+        refId === Number(filterReferrer);
 
       let matchJoinDate = true;
       if (filterJoinFrom || filterJoinTo) {
@@ -523,22 +542,35 @@ const AdminPage = () => {
         matchPackage &&
         matchTrading &&
         matchOpenPl &&
+        matchReferrer &&
         matchJoinDate
       );
     });
 
     return filtered.sort((a, b) => {
+      if (filterOpenPl === "profit") {
+        const plDiff =
+          rowPlVsBaseline(b, financeOverlay) - rowPlVsBaseline(a, financeOverlay);
+        if (plDiff !== 0) return plDiff;
+      } else if (filterOpenPl === "loss") {
+        const plDiff =
+          rowPlVsBaseline(a, financeOverlay) - rowPlVsBaseline(b, financeOverlay);
+        if (plDiff !== 0) return plDiff;
+      }
+
+      let primary = 0;
+
       if (userSort === "joined_new" || userSort === "joined_old") {
         const ta = parseUserJoinMs(a.created_at) ?? 0;
         const tb = parseUserJoinMs(b.created_at) ?? 0;
-        return userSort === "joined_new" ? tb - ta : ta - tb;
+        primary = userSort === "joined_new" ? tb - ta : ta - tb;
+      } else {
+        const diff = walletBalanceOf(b) - walletBalanceOf(a);
+        primary = userSort === "wallet_high" ? diff : -diff;
       }
 
-      const tierDiff = userListSortTier(a) - userListSortTier(b);
-      if (tierDiff !== 0) return tierDiff;
-
-      const diff = walletBalanceOf(b) - walletBalanceOf(a);
-      return userSort === "wallet_high" ? diff : -diff;
+      if (primary !== 0) return primary;
+      return Number(a.id) - Number(b.id);
     });
   }, [
     locations,
@@ -550,6 +582,7 @@ const AdminPage = () => {
     filterPackage,
     filterTrading,
     filterOpenPl,
+    filterReferrer,
     filterTag,
     filterJoinFrom,
     filterJoinTo,
@@ -575,18 +608,12 @@ const AdminPage = () => {
   );
   const inProfitCount = useMemo(
     () =>
-      locations.filter((loc) => {
-        const livePl = rowLivePl(loc, financeOverlay);
-        return rowHasOpenExposure(loc, financeOverlay) && livePl > 0.01;
-      }).length,
+      locations.filter((loc) => rowPlVsBaseline(loc, financeOverlay) > 0.01).length,
     [locations, financeOverlay],
   );
   const inLossCount = useMemo(
     () =>
-      locations.filter((loc) => {
-        const livePl = rowLivePl(loc, financeOverlay);
-        return rowHasOpenExposure(loc, financeOverlay) && livePl < -0.01;
-      }).length,
+      locations.filter((loc) => rowPlVsBaseline(loc, financeOverlay) < -0.01).length,
     [locations, financeOverlay],
   );
   const hasActiveFilters = useMemo(
@@ -599,6 +626,7 @@ const AdminPage = () => {
       filterPackage !== "all" ||
       filterTrading !== "all" ||
       filterOpenPl !== "all" ||
+      filterReferrer !== "all" ||
       filterTag !== "all" ||
       Boolean(filterJoinFrom) ||
       Boolean(filterJoinTo) ||
@@ -612,6 +640,7 @@ const AdminPage = () => {
       filterPackage,
       filterTrading,
       filterOpenPl,
+      filterReferrer,
       filterTag,
       filterJoinFrom,
       filterJoinTo,
@@ -678,6 +707,7 @@ const AdminPage = () => {
     filterPackage,
     filterTrading,
     filterOpenPl,
+    filterReferrer,
     filterTag,
     filterJoinFrom,
     filterJoinTo,
@@ -761,7 +791,7 @@ const AdminPage = () => {
                 {stoppedTradingCount} stopped total
               </span>
             )}
-            <EmployeeGate perm="col:users:live_pl">
+            <EmployeeGate perm="filter:users:pnl">
               <button
                 type="button"
                 onClick={() =>
@@ -772,10 +802,10 @@ const AdminPage = () => {
                     ? "border-emerald-400 bg-emerald-100 text-emerald-900 ring-2 ring-emerald-200"
                     : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                 }`}
-                title="Users with open trades in profit — click to filter"
+                title="Equity above deposit baseline — click to filter"
               >
                 <TrendingUp className="h-3 w-3" />
-                {inProfitCount} in profit
+                {inProfitCount} above baseline
                 {filterOpenPl === "profit" ? " · filtered" : ""}
               </button>
               <button
@@ -788,10 +818,10 @@ const AdminPage = () => {
                     ? "border-red-400 bg-red-100 text-red-900 ring-2 ring-red-200"
                     : "border-red-200 bg-red-50 text-red-800 hover:bg-red-100"
                 }`}
-                title="Users with open trades in loss — click to filter"
+                title="Equity below deposit baseline — click to filter"
               >
                 <TrendingDown className="h-3 w-3" />
-                {inLossCount} in loss
+                {inLossCount} below baseline
                 {filterOpenPl === "loss" ? " · filtered" : ""}
               </button>
             </EmployeeGate>
@@ -802,7 +832,12 @@ const AdminPage = () => {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Manage accounts, wallets, addresses &amp; KYC · live users first, then trade-stopped with open P/L · sorted by {sortLabel}
+            Manage accounts, wallets, addresses &amp; KYC · sorted by {sortLabel}
+            {filterOpenPl === "profit"
+              ? " · above baseline (highest P/L first)"
+              : filterOpenPl === "loss"
+                ? " · below baseline (deepest loss first)"
+                : null}
             {hasActiveFilters ? (
               <span className="font-medium text-slate-800">
                 {" "}
@@ -985,6 +1020,26 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
+        <EmployeeGate perm="filter:users:referrer">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Referred by
+          </label>
+          <select
+            value={filterReferrer}
+            onChange={(e) => setFilterReferrer(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All referrers</option>
+            <option value="none">No referrer (direct)</option>
+            {referrerFilterOptions.map((ref) => (
+              <option key={ref.id} value={String(ref.id)}>
+                {ref.label} (#{ref.id})
+              </option>
+            ))}
+          </select>
+        </div>
+        </EmployeeGate>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Joined from
@@ -1051,6 +1106,7 @@ const AdminPage = () => {
               setFilterPackage('all');
               setFilterTrading('all');
               setFilterOpenPl('all');
+              setFilterReferrer('all');
               setFilterTag('all');
               setFilterJoinFrom('');
               setFilterJoinTo('');
