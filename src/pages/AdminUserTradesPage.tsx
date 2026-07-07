@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
+import { exportUserTradesToExcel } from "@/utils/exportUserTradesExcel";
+import { useToast } from "@/hooks/use-toast";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { TradeSummaryFooter } from "@/components/trades/TradeSummaryFooter";
@@ -63,9 +65,11 @@ function tradeClosedAt(r: UserTradeRow): string {
 const AdminUserTradesPage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userName, setUserName] = useState("");
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
   const [depositBaseline, setDepositBaseline] = useState(0);
@@ -188,6 +192,55 @@ const AdminUserTradesPage = () => {
     return Math.round(gross * 100) / 100;
   }, [sortedRows]);
 
+  const handleExportExcel = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setExporting(true);
+      let tradesToExport = rows;
+      if (!tradesToExport.length || (totalLoaded > 0 && tradesToExport.length < totalLoaded)) {
+        const fetched = await fetchAllUserTrades(userId, { admin: true });
+        tradesToExport = fetched.trades as UserTradeRow[];
+      }
+      if (!tradesToExport.length) {
+        toast({
+          title: "Nothing to export",
+          description: "This user has no assigned trades.",
+          variant: "destructive",
+        });
+        return;
+      }
+      exportUserTradesToExcel(tradesToExport, {
+        userId,
+        userName,
+        feePerLotUsd,
+        walletBalance,
+        depositBaseline,
+      });
+      toast({
+        title: "Excel downloaded",
+        description: `${tradesToExport.length.toLocaleString()} trade(s) exported (all pages).`,
+      });
+    } catch (err) {
+      console.error("AdminUserTradesPage export:", err);
+      toast({
+        title: "Export failed",
+        description: err instanceof Error ? err.message : "Could not create Excel file.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [
+    userId,
+    rows,
+    totalLoaded,
+    userName,
+    feePerLotUsd,
+    walletBalance,
+    depositBaseline,
+    toast,
+  ]);
+
   if (!userId) {
     return <Navigate to="/admin/users" replace />;
   }
@@ -218,17 +271,30 @@ const AdminUserTradesPage = () => {
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-fit gap-2"
-          onClick={refresh}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={handleExportExcel}
+            disabled={loading || exporting}
+          >
+            <Download className={`h-4 w-4 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Exporting…" : "Export Excel"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={refresh}
+            disabled={loading || exporting}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
