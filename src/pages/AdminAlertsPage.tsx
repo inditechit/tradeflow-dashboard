@@ -376,7 +376,7 @@ const AdminAlertsPage = () => {
 
                   {events.length === 0 ? (
                     <p className="mt-4 text-sm text-slate-500">
-                      No start/stop events recorded in the ledger yet.
+                      No start/stop events recorded yet.
                     </p>
                   ) : (
                     <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
