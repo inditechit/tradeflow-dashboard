@@ -15,6 +15,7 @@ import { API_BASE } from "@/config/api";
 type AdminAlert = {
   id: number;
   alert_type: string;
+  category?: string | null;
   user_id: number | null;
   title: string;
   message: string;
@@ -23,6 +24,30 @@ type AdminAlert = {
   created_at: string;
   user_name?: string | null;
 };
+
+const CATEGORY_LABEL: Record<string, string> = {
+  unmatched: "Unmatch",
+  withdraw: "Withdraw",
+  recharge: "Recharge",
+  support: "Support",
+  new_user: "New user",
+  payments: "Payments",
+  start_stop: "Start/Stop",
+};
+
+function categoryFromType(t: string) {
+  const x = String(t || "").toLowerCase();
+  if (x === "unmatched" || x === "unmatched_payment") return "unmatched";
+  if (x === "withdrawal" || x === "withdrawals") return "withdraw";
+  if (x === "recharge" || x === "recharges" || x === "wallet_recharge") return "recharge";
+  if (x === "support") return "support";
+  if (x === "new_user" || x === "signups" || x === "signup") return "new_user";
+  if (x === "payment" || x === "payments" || x === "pending_payment") return "payments";
+  if (x === "user_stop_trading" || x === "user_restart_trading" || x === "stop_trading") {
+    return "start_stop";
+  }
+  return null;
+}
 
 export function AdminAlertBell() {
   const navigate = useNavigate();
@@ -62,14 +87,18 @@ export function AdminAlertBell() {
 
   const onItemClick = async (a: AdminAlert) => {
     if (!a.read_at) await markRead(a.id);
+    const cat = a.category || categoryFromType(a.alert_type);
     if (a.link_url?.includes("/admin/alerts")) {
       navigate(a.link_url);
-    } else if (a.user_id && (a.alert_type === "user_stop_trading" || a.alert_type === "user_restart_trading")) {
-      navigate(`/admin/alerts?alert=${a.id}`);
+    } else if (
+      a.user_id &&
+      (a.alert_type === "user_stop_trading" || a.alert_type === "user_restart_trading")
+    ) {
+      navigate(`/admin/alerts?alert=${a.id}&category=start_stop`);
     } else if (a.link_url) {
       navigate(a.link_url);
-    } else if (a.user_id) {
-      navigate(`/admin/alerts?alert=${a.id}`);
+    } else {
+      navigate(`/admin/alerts?alert=${a.id}${cat ? `&category=${cat}` : ""}`);
     }
   };
 
@@ -91,21 +120,31 @@ export function AdminAlertBell() {
         {items.length === 0 ? (
           <p className="px-3 py-4 text-center text-xs text-slate-500">No alerts yet</p>
         ) : (
-          items.map((a) => (
-            <DropdownMenuItem
-              key={a.id}
-              className="cursor-pointer flex-col items-start gap-0.5 py-2 focus:bg-slate-100"
-              onClick={() => void onItemClick(a)}
-            >
-              <span className={`text-sm font-medium ${a.read_at ? "text-slate-600" : "text-slate-900"}`}>
-                {a.title}
-              </span>
-              <span className="line-clamp-2 text-xs text-slate-500">{a.message}</span>
-              <span className="text-[10px] text-slate-400">
-                {a.created_at ? new Date(a.created_at).toLocaleString() : ""}
-              </span>
-            </DropdownMenuItem>
-          ))
+          items.map((a) => {
+            const cat = a.category || categoryFromType(a.alert_type);
+            return (
+              <DropdownMenuItem
+                key={a.id}
+                className="cursor-pointer flex-col items-start gap-0.5 py-2 focus:bg-slate-100"
+                onClick={() => void onItemClick(a)}
+              >
+                <div className="flex w-full items-center justify-between gap-2">
+                  <span className={`text-sm font-medium ${a.read_at ? "text-slate-600" : "text-slate-900"}`}>
+                    {a.title}
+                  </span>
+                  {cat && (
+                    <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600">
+                      {CATEGORY_LABEL[cat] || cat}
+                    </span>
+                  )}
+                </div>
+                <span className="line-clamp-2 text-xs text-slate-500">{a.message}</span>
+                <span className="text-[10px] text-slate-400">
+                  {a.created_at ? new Date(a.created_at).toLocaleString() : ""}
+                </span>
+              </DropdownMenuItem>
+            );
+          })
         )}
         <DropdownMenuSeparator className="bg-slate-200" />
         <DropdownMenuItem

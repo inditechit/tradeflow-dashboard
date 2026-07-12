@@ -77,6 +77,7 @@ const WithdrawPage = () => {
   const [otpSending, setOtpSending] = useState(false);
   const [otpConfirming, setOtpConfirming] = useState(false);
   const [cancelBusyId, setCancelBusyId] = useState<number | null>(null);
+  const [kycStatus, setKycStatus] = useState("pending");
 
   const load = useCallback(async (pageNum = 1) => {
     if (!userId) return;
@@ -95,8 +96,10 @@ const WithdrawPage = () => {
         const addr = String(pData.profile.trc20WithdrawAddress ?? "").trim();
         setPayoutSaved(addr);
         if (!addr) setAddressDraft("");
+        setKycStatus(String(pData.profile.kycStatus ?? "pending").toLowerCase());
       } else {
         setPayoutSaved("");
+        setKycStatus("pending");
       }
       const rData = await rRes.json();
       if (rData.success && Array.isArray(rData.requests)) {
@@ -166,6 +169,19 @@ const WithdrawPage = () => {
 
   const handleSubmit = async () => {
     if (!userId) return;
+    if (kycStatus !== "verified") {
+      toast({
+        title: kycStatus === "rejected" ? "KYC rejected" : "KYC required",
+        description:
+          kycStatus === "rejected"
+            ? "Re-upload your documents in Profile, then wait for verification before withdrawing."
+            : kycStatus === "submitted"
+              ? "Your documents are under review. Withdrawals unlock after KYC is verified."
+              : "Complete identity verification in your Profile before withdrawing.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (fundLock.locked) {
       toast({
         title: "Withdrawal locked",
@@ -339,7 +355,9 @@ const WithdrawPage = () => {
   }
 
   const hasAddress = Boolean(payoutSaved);
-  const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0;
+  const kycVerified = kycStatus === "verified";
+  const kycBlocked = !kycVerified;
+  const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0 || kycBlocked;
   const amountNum = Number(amount);
   const payoutPreview =
     Number.isFinite(amountNum) && amountNum > WITHDRAW_FEE
@@ -365,6 +383,41 @@ const WithdrawPage = () => {
         </p>
       </div>
 
+      {kycBlocked && kycStatus === "rejected" && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 px-5 py-4 text-sm text-red-950">
+          <p className="font-bold text-red-900">Identity verification rejected</p>
+          <p className="mt-2">
+            Withdrawals are blocked until your documents are approved. Re-upload your live photo, ID proof, and
+            address proof, then wait for admin verification.
+          </p>
+          <Link
+            to="/user/profile"
+            className="mt-3 inline-flex font-semibold text-red-900 underline underline-offset-2 hover:text-red-800"
+          >
+            Re-upload documents in Profile
+          </Link>
+        </div>
+      )}
+
+      {kycBlocked && kycStatus !== "rejected" && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          <p className="font-bold text-amber-900">
+            {kycStatus === "submitted" ? "KYC under review" : "Complete KYC to withdraw"}
+          </p>
+          <p className="mt-2">
+            {kycStatus === "submitted"
+              ? "Your documents are being reviewed. Withdrawals unlock once verification is complete."
+              : "Upload your identity documents in Profile before you can withdraw."}
+          </p>
+          <Link
+            to="/user/profile"
+            className="mt-3 inline-flex font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-900"
+          >
+            Go to Profile
+          </Link>
+        </div>
+      )}
+
       {withdrawBlocked && fundLock.locked && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
           <p className="font-bold text-amber-900">
@@ -385,7 +438,7 @@ const WithdrawPage = () => {
         </div>
       )}
 
-      {withdrawBlocked && !fundLock.locked && (
+      {withdrawBlocked && !fundLock.locked && !kycBlocked && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
           <p className="font-bold text-amber-900">Withdrawal unavailable</p>
           <p className="mt-2">

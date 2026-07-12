@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 type AdminAlertRow = {
   id: number;
   alert_type: string;
+  category?: string | null;
   user_id: number | null;
   title: string;
   message: string;
@@ -25,6 +26,13 @@ type AdminAlertRow = {
   created_at: string;
   user_name?: string | null;
   user_email?: string | null;
+};
+
+type CategoryStat = {
+  key: string;
+  label: string;
+  total: number;
+  unread: number;
 };
 
 type TradingEvent = {
@@ -58,6 +66,17 @@ type AlertDetail = {
 
 const PAGE_SIZE = 40;
 
+const CATEGORY_TABS: { key: string; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "unmatched", label: "Unmatch" },
+  { key: "withdraw", label: "Withdraw" },
+  { key: "recharge", label: "Wallet recharge" },
+  { key: "support", label: "Support ticket" },
+  { key: "new_user", label: "New user" },
+  { key: "payments", label: "Pending payments" },
+  { key: "start_stop", label: "Start / Stop" },
+];
+
 function fmtDateTime(v: string | null | undefined) {
   if (!v) return "—";
   const d = new Date(String(v).replace(" ", "T"));
@@ -74,11 +93,36 @@ function fmtDateTime(v: string | null | undefined) {
 function alertTypeLabel(t: string) {
   if (t === "user_stop_trading") return "Stop trading";
   if (t === "user_restart_trading") return "Restart trading";
+  if (t === "unmatched") return "Unmatched payment";
+  if (t === "withdrawal") return "Withdraw";
+  if (t === "recharge") return "Wallet recharge";
+  if (t === "support") return "Support ticket";
+  if (t === "new_user") return "New user";
+  if (t === "payment") return "Pending payment";
   return t.replace(/_/g, " ");
+}
+
+function categoryBadge(category: string | null | undefined) {
+  const map: Record<string, string> = {
+    unmatched: "bg-orange-100 text-orange-900",
+    withdraw: "bg-blue-100 text-blue-900",
+    recharge: "bg-emerald-100 text-emerald-900",
+    support: "bg-violet-100 text-violet-900",
+    new_user: "bg-sky-100 text-sky-900",
+    payments: "bg-amber-100 text-amber-900",
+    start_stop: "bg-slate-100 text-slate-700",
+  };
+  return map[String(category || "")] || "bg-slate-100 text-slate-600";
 }
 
 function isTradingAlert(t: string) {
   return t === "user_stop_trading" || t === "user_restart_trading";
+}
+
+function parseCategory(raw: string | null) {
+  const key = String(raw || "all").trim().toLowerCase();
+  if (CATEGORY_TABS.some((t) => t.key === key)) return key;
+  return "all";
 }
 
 const AdminAlertsPage = () => {
@@ -90,10 +134,16 @@ const AdminAlertsPage = () => {
     return raw && /^\d+$/.test(raw) ? Number(raw) : null;
   }, [searchParams]);
 
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const category = useMemo(
+    () => parseCategory(searchParams.get("category")),
+    [searchParams],
+  );
+
+  const [readFilter, setReadFilter] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
+  const [categories, setCategories] = useState<CategoryStat[]>([]);
   const [rows, setRows] = useState<AdminAlertRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
 
@@ -108,13 +158,15 @@ const AdminAlertsPage = () => {
           limit: String(PAGE_SIZE),
           offset: String((pageNum - 1) * PAGE_SIZE),
         });
-        if (filter === "unread") qs.set("unread", "1");
+        if (readFilter === "unread") qs.set("unread", "1");
+        if (category !== "all") qs.set("category", category);
         const res = await fetch(`${API_BASE}/admin/alerts?${qs}`);
         const data = await res.json();
         if (data.success) {
           setRows(data.rows ?? []);
           setTotal(Number(data.total ?? 0));
           setUnread(Number(data.unread ?? 0));
+          setCategories(Array.isArray(data.categories) ? data.categories : []);
           setPage(pageNum);
         } else {
           toast({ title: "Error", description: data.error, variant: "destructive" });
@@ -125,7 +177,7 @@ const AdminAlertsPage = () => {
         setListLoading(false);
       }
     },
-    [filter, toast],
+    [readFilter, category, toast],
   );
 
   const loadDetail = useCallback(
@@ -172,16 +224,32 @@ const AdminAlertsPage = () => {
     else setDetail(null);
   }, [selectedAlertId, loadDetail]);
 
+  const setCategory = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (key === "all") next.delete("category");
+    else next.set("category", key);
+    next.delete("alert");
+    setSearchParams(next);
+  };
+
   const selectAlert = (id: number) => {
-    setSearchParams({ alert: String(id) });
+    const next = new URLSearchParams(searchParams);
+    next.set("alert", String(id));
+    if (category !== "all") next.set("category", category);
+    setSearchParams(next);
   };
 
   const markAllRead = async () => {
     try {
-      await fetch(`${API_BASE}/admin/alerts/read-all`, { method: "POST" });
+      await fetch(`${API_BASE}/admin/alerts/read-all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(category !== "all" ? { category } : {}),
+      });
       setUnread(0);
       setRows((prev) => prev.map((r) => ({ ...r, read_at: r.read_at ?? new Date().toISOString() })));
       toast({ title: "All alerts marked read" });
+      void loadList(page);
     } catch {
       toast({ title: "Could not mark all read", variant: "destructive" });
     }
@@ -190,6 +258,11 @@ const AdminAlertsPage = () => {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tc = detail?.trading_control;
   const events = tc?.events ?? [];
+  const categoryUnreadMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of categories) m[c.key] = c.unread;
+    return m;
+  }, [categories]);
 
   return (
     <div className="mx-auto max-w-[90rem] space-y-6 p-6 md:p-8">
@@ -200,10 +273,11 @@ const AdminAlertsPage = () => {
             Admin alerts
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Stop / restart trading and other admin events. Click an alert to see full start–stop history.
+            Alerts by category — unmatch, withdraw, recharge, support, new users, payments, and
+            start/stop trading.
           </p>
           {unread > 0 && (
-            <p className="mt-1 text-xs font-medium text-amber-700">{unread} unread</p>
+            <p className="mt-1 text-xs font-medium text-amber-700">{unread} unread in this view</p>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -220,18 +294,46 @@ const AdminAlertsPage = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {CATEGORY_TABS.map((tab) => {
+          const badge =
+            tab.key === "all"
+              ? categories.reduce((s, c) => s + c.unread, 0)
+              : categoryUnreadMap[tab.key] ?? 0;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setCategory(tab.key)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                category === tab.key
+                  ? "border-yellow-400 bg-[#FFF9E6] text-neutral-900 ring-1 ring-yellow-300/70"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              {tab.label}
+              {badge > 0 && (
+                <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
-        {/* Alert list */}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex border-b border-slate-200">
             {(["all", "unread"] as const).map((f) => (
               <button
                 key={f}
                 type="button"
-                onClick={() => setFilter(f)}
+                onClick={() => setReadFilter(f)}
                 className={cn(
                   "flex-1 px-4 py-3 text-sm font-semibold capitalize transition-colors",
-                  filter === f
+                  readFilter === f
                     ? "border-b-2 border-[#FFD700] text-slate-900"
                     : "text-slate-500 hover:text-slate-700",
                 )}
@@ -246,7 +348,7 @@ const AdminAlertsPage = () => {
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="p-8 text-center text-sm text-slate-500">No alerts</p>
+            <p className="p-8 text-center text-sm text-slate-500">No alerts in this category</p>
           ) : (
             <ul className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto">
               {rows.map((a) => (
@@ -269,11 +371,19 @@ const AdminAlertsPage = () => {
                       >
                         {a.title}
                       </span>
-                      {isTradingAlert(a.alert_type) && (
-                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600">
-                          {a.alert_type === "user_stop_trading" ? "Stop" : "Start"}
-                        </span>
-                      )}
+                      <span
+                        className={cn(
+                          "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                          categoryBadge(a.category),
+                        )}
+                      >
+                        {isTradingAlert(a.alert_type)
+                          ? a.alert_type === "user_stop_trading"
+                            ? "Stop"
+                            : "Start"
+                          : CATEGORY_TABS.find((t) => t.key === a.category)?.label ||
+                            alertTypeLabel(a.alert_type)}
+                      </span>
                     </div>
                     <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{a.message}</p>
                     <p className="mt-1 text-[10px] text-slate-400">{fmtDateTime(a.created_at)}</p>
@@ -293,12 +403,11 @@ const AdminAlertsPage = () => {
           />
         </div>
 
-        {/* Detail panel */}
         <div className="min-h-[24rem] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {!selectedAlertId ? (
             <div className="flex h-full min-h-[24rem] flex-col items-center justify-center p-8 text-center text-slate-500">
               <BellRing className="mb-3 h-10 w-10 text-slate-300" />
-              <p className="text-sm">Select an alert to view details and trading history</p>
+              <p className="text-sm">Select an alert to view details</p>
             </div>
           ) : detailLoading ? (
             <div className="flex min-h-[24rem] items-center justify-center">
@@ -313,6 +422,14 @@ const AdminAlertsPage = () => {
                 <h2 className="mt-1 text-xl font-bold text-slate-900">{detail.alert.title}</h2>
                 <p className="mt-2 text-sm text-slate-600">{detail.alert.message}</p>
                 <p className="mt-2 text-xs text-slate-400">{fmtDateTime(detail.alert.created_at)}</p>
+                {detail.alert.link_url && (
+                  <Link
+                    to={detail.alert.link_url}
+                    className="mt-3 inline-block text-sm font-semibold text-[#B8860B] hover:underline"
+                  >
+                    Open related page
+                  </Link>
+                )}
               </div>
 
               {detail.user && (
@@ -348,7 +465,7 @@ const AdminAlertsPage = () => {
                 </div>
               )}
 
-              {tc && (
+              {tc && isTradingAlert(detail.alert.alert_type) && (
                 <div className="mt-6">
                   <h3 className="text-sm font-bold text-slate-800">Copy trading start / stop history</h3>
                   <p className="mt-1 text-xs text-slate-500">
@@ -375,9 +492,7 @@ const AdminAlertsPage = () => {
                   </div>
 
                   {events.length === 0 ? (
-                    <p className="mt-4 text-sm text-slate-500">
-                      No start/stop events recorded yet.
-                    </p>
+                    <p className="mt-4 text-sm text-slate-500">No start/stop events recorded yet.</p>
                   ) : (
                     <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
@@ -409,7 +524,10 @@ const AdminAlertsPage = () => {
                               <td className="p-3 whitespace-nowrap text-slate-700">
                                 {fmtDateTime(ev.at)}
                               </td>
-                              <td className="p-3 max-w-xs truncate text-xs text-slate-500" title={ev.note ?? ""}>
+                              <td
+                                className="p-3 max-w-xs truncate text-xs text-slate-500"
+                                title={ev.note ?? ""}
+                              >
                                 {ev.note || "—"}
                                 {ev.source === "inferred" ? (
                                   <span className="ml-1 text-amber-600">(inferred)</span>
@@ -428,10 +546,6 @@ const AdminAlertsPage = () => {
                     </p>
                   )}
                 </div>
-              )}
-
-              {!tc && detail.user && (
-                <p className="mt-6 text-sm text-slate-500">No trading control history for this user.</p>
               )}
             </div>
           ) : (

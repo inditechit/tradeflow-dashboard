@@ -198,16 +198,6 @@ export function Mt5TradeHistoryList({
     };
   }, [filtered, showProfitShare]);
 
-  const periodFeeTotal = useMemo(() => {
-    if (!showTradeFee) return 0;
-    let fees = 0;
-    for (const r of filtered) {
-      const fee = resolveEffectiveSlice(r).fee;
-      if (fee > 0) fees += fee;
-    }
-    return Math.round(fees * 100) / 100;
-  }, [filtered, showTradeFee]);
-
   const activeLabel = PERIOD_TABS.find((t) => t.key === period)?.label ?? "All";
 
   // MT5-style: "Profit" reflects the trades currently shown (period-filtered),
@@ -571,11 +561,6 @@ export function Mt5TradeHistoryList({
                   User {periodShareTotals.userSum >= 0 ? "+" : ""}
                   {fmtMoney(periodShareTotals.userSum, currency)}
                 </span>
-                {showTradeFee && (
-                  <span className="text-xs font-semibold tabular-nums text-slate-600">
-                    Total fees {fmtMoney(periodFeeTotal, currency)}
-                  </span>
-                )}
               </>
             ) : (
               <>
@@ -585,11 +570,6 @@ export function Mt5TradeHistoryList({
                   Total P/L {periodNetPl >= 0 ? "+" : ""}
                   {fmtMoney(periodNetPl, currency)}
                 </span>
-                {showTradeFee && (
-                  <span className="text-xs font-semibold tabular-nums text-slate-600">
-                    Total fees {fmtMoney(periodFeeTotal, currency)}
-                  </span>
-                )}
               </>
             )}
           </div>

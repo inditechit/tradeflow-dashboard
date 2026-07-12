@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   Check,
+  Filter,
   Loader2,
   Plus,
   RefreshCw,
   Search,
+  Users,
+  X,
   XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE } from "@/config/api";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 type WithdrawalRow = {
   id: number;
@@ -41,7 +44,20 @@ type WithdrawalRow = {
   user_email: string | null;
   user_telegram: string | null;
   admin_initiated?: number | boolean;
+  user_total_payout_usd?: string | number | null;
 };
+
+type WithdrawStats = {
+  completed_count: number;
+  pending_count: number;
+  rejected_count: number;
+  completed_payout_usd: number;
+  completed_fee_usd: number;
+  completed_total_usd: number;
+  pending_payout_usd: number;
+};
+
+type StatusFilter = "pending" | "all" | "completed" | "rejected";
 
 function statusClass(s: string) {
   const x = String(s).toLowerCase();
@@ -51,11 +67,28 @@ function statusClass(s: string) {
   return "border-red-200 bg-red-50 text-red-900";
 }
 
+function money(n: number) {
+  return `USD ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 const AdminWithdrawalsPage = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userIdParam = searchParams.get("userId")?.trim() ?? "";
+  const statusParam = String(searchParams.get("status") ?? "pending").toLowerCase();
+
   const [rows, setRows] = useState<WithdrawalRow[]>([]);
+  const [stats, setStats] = useState<WithdrawStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<StatusFilter>(
+    statusParam === "all" || statusParam === "completed" || statusParam === "rejected"
+      ? statusParam
+      : "pending",
+  );
+  const [filterUserId, setFilterUserId] = useState(userIdParam);
+  const [activeUserId, setActiveUserId] = useState<number | null>(
+    userIdParam && /^\d+$/.test(userIdParam) ? Number(userIdParam) : null,
+  );
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveId, setApproveId] = useState<number | null>(null);
@@ -73,8 +106,8 @@ const AdminWithdrawalsPage = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 100;
-const WITHDRAW_FEE = 5;
-const MIN_PAYOUT = 10;
+  const WITHDRAW_FEE = 5;
+  const MIN_PAYOUT = 10;
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createUserId, setCreateUserId] = useState<number | null>(null);
@@ -83,35 +116,103 @@ const MIN_PAYOUT = 10;
   const [createTxHash, setCreateTxHash] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
 
-  const load = useCallback(async (pageNum = 1) => {
-    setLoading(true);
-    try {
-      const qs = new URLSearchParams();
-      if (filter === "pending") qs.set("status", "pending");
-      qs.set("page", String(pageNum));
-      qs.set("limit", String(pageSize));
-      const res = await fetch(`${API_BASE}/admin/withdrawals?${qs.toString()}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.withdrawals)) {
-        setRows(data.withdrawals);
-        setTotal(Number(data.total ?? data.withdrawals.length));
-        setPage(Number(data.page ?? pageNum));
-      } else {
-        setRows([]);
-        if (data.error) {
-          toast({ title: "Error", description: data.error, variant: "destructive" });
+  const load = useCallback(
+    async (pageNum = 1, status: StatusFilter = filter, userId: number | null = activeUserId) => {
+      setLoading(true);
+      try {
+        const qs = new URLSearchParams();
+        if (status !== "all") qs.set("status", status);
+        if (userId != null) qs.set("userId", String(userId));
+        qs.set("page", String(pageNum));
+        qs.set("limit", String(pageSize));
+        const res = await fetch(`${API_BASE}/admin/withdrawals?${qs.toString()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.withdrawals)) {
+          setRows(data.withdrawals);
+          setTotal(Number(data.total ?? data.withdrawals.length));
+          setPage(Number(data.page ?? pageNum));
+          if (data.stats) {
+            setStats({
+              completed_count: Number(data.stats.completed_count ?? 0),
+              pending_count: Number(data.stats.pending_count ?? 0),
+              rejected_count: Number(data.stats.rejected_count ?? 0),
+              completed_payout_usd: Number(data.stats.completed_payout_usd ?? 0),
+              completed_fee_usd: Number(data.stats.completed_fee_usd ?? 0),
+              completed_total_usd: Number(data.stats.completed_total_usd ?? 0),
+              pending_payout_usd: Number(data.stats.pending_payout_usd ?? 0),
+            });
+          } else {
+            setStats(null);
+          }
+        } else {
+          setRows([]);
+          setStats(null);
+          if (data.error) {
+            toast({ title: "Error", description: data.error, variant: "destructive" });
+          }
         }
+      } catch {
+        toast({ title: "Network error", variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast({ title: "Network error", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, toast]);
+    },
+    [filter, activeUserId, toast],
+  );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const uid = searchParams.get("userId")?.trim() ?? "";
+    const st = String(searchParams.get("status") ?? "pending").toLowerCase();
+    const nextStatus: StatusFilter =
+      st === "all" || st === "completed" || st === "rejected" ? st : "pending";
+    const nextUser = uid && /^\d+$/.test(uid) ? Number(uid) : null;
+    setFilter(nextStatus);
+    setFilterUserId(uid);
+    setActiveUserId(nextUser);
+  }, [searchParams]);
+
+  useEffect(() => {
+    void load(1, filter, activeUserId);
+  }, [filter, activeUserId, load]);
+
+  const setStatusAndUrl = (status: StatusFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (status === "pending") next.delete("status");
+    else next.set("status", status);
+    setSearchParams(next);
+  };
+
+  const applyUserFilter = (userId?: number | null) => {
+    const raw = userId != null ? String(userId) : filterUserId.trim();
+    if (raw && !/^\d+$/.test(raw)) {
+      toast({ title: "Invalid user id", description: "Use numbers only.", variant: "destructive" });
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    if (!raw) next.delete("userId");
+    else next.set("userId", raw);
+    // Show all of that user's withdrawals when filtering by user
+    if (raw) next.set("status", "all");
+    setSearchParams(next);
+  };
+
+  const clearUserFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("userId");
+    setSearchParams(next);
+  };
+
+  const filterUserAllWithdrawals = (userId: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("userId", String(userId));
+    next.set("status", "all");
+    setSearchParams(next);
+  };
+
+  const titleSuffix = useMemo(() => {
+    if (activeUserId == null) return "";
+    return ` — user #${activeUserId}`;
+  }, [activeUserId]);
 
 
 const openApprove = (id: number) => {
@@ -141,7 +242,7 @@ const confirmApprove = async () => {
   description: `USDT sent successfully. TX: ${data.txHash.slice(0, 12)}...`,
 });
       setApproveOpen(false);
-      load(); // Refresh the table
+      void load(page); // Refresh the table
     } else {
       // If the Admin wallet is out of Energy or USDT, it shows the error here
       toast({ 
@@ -181,7 +282,7 @@ const confirmApprove = async () => {
       if (data.success) {
         toast({ title: "Request rejected" });
         setRejectOpen(false);
-        load();
+        void load(page);
       } else {
         toast({ title: "Failed", description: data.error ?? "", variant: "destructive" });
       }
@@ -237,7 +338,7 @@ const confirmApprove = async () => {
         setCreateUserId(null);
         setCreateAmount("");
         setCreateTxHash("");
-        load();
+        void load(page);
       } else {
         toast({
           title: "Withdrawal failed",
@@ -276,7 +377,7 @@ const confirmApprove = async () => {
       if (data.success) {
         toast({ title: "Tx saved" });
         setTxFixOpen(false);
-        load();
+        void load(page);
       } else {
         toast({ title: "Failed", description: data.error ?? "", variant: "destructive" });
       }
@@ -294,14 +395,18 @@ const confirmApprove = async () => {
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
             <ArrowDownToLine className="h-8 w-8 shrink-0 text-neutral-900" aria-hidden />
             Withdrawal requests
+            {titleSuffix ? (
+              <span className="font-semibold text-slate-600">{titleSuffix}</span>
+            ) : null}
           </h1>
-         <p className="mt-1 text-sm text-slate-600">
-  Approve to automatically send USDT (TRC20) to the user's wallet and deduct their in-app balance after successful blockchain verification.{" "}
-  <Link to="/admin/bulk-withdraw" className="font-semibold text-neutral-800 underline">
-    Bulk withdraw
-  </Link>{" "}
-  for multi-user payouts.
-</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Approve to automatically send USDT (TRC20) to the user&apos;s wallet and deduct their
+            in-app balance after successful blockchain verification.{" "}
+            <Link to="/admin/bulk-withdraw" className="font-semibold text-neutral-800 underline">
+              Bulk withdraw
+            </Link>{" "}
+            for multi-user payouts.
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button
@@ -331,24 +436,141 @@ const confirmApprove = async () => {
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={filter === "pending" ? "default" : "outline"}
-          className={filter === "pending" ? "bg-slate-800 text-white" : ""}
-          onClick={() => setFilter("pending")}
-        >
-          Pending
-        </Button>
-        <Button
-          type="button"
-          variant={filter === "all" ? "default" : "outline"}
-          className={filter === "all" ? "bg-slate-800 text-white" : ""}
-          onClick={() => setFilter("all")}
-        >
-          All
-        </Button>
+      <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["pending", "Pending"],
+              ["all", "All"],
+              ["completed", "Completed"],
+              ["rejected", "Rejected"],
+            ] as const
+          ).map(([key, label]) => (
+            <Button
+              key={key}
+              type="button"
+              variant={filter === key ? "default" : "outline"}
+              className={filter === key ? "bg-slate-800 text-white" : ""}
+              onClick={() => setStatusAndUrl(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label
+              htmlFor="withdraw-user-filter"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500"
+            >
+              Filter by user ID
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="withdraw-user-filter"
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 42"
+                value={filterUserId}
+                onChange={(e) => setFilterUserId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyUserFilter();
+                }}
+                className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+              />
+              <Button
+                type="button"
+                onClick={() => applyUserFilter()}
+                className="h-10 gap-1.5 bg-slate-800 text-white hover:bg-slate-900"
+              >
+                <Filter className="h-4 w-4" />
+                Apply
+              </Button>
+              {activeUserId !== null && (
+                <Button type="button" variant="outline" onClick={clearUserFilter} className="h-10 gap-1.5">
+                  <X className="h-4 w-4" />
+                  Clear user
+                </Button>
+              )}
+            </div>
+          </div>
+          {activeUserId !== null && (
+            <Link
+              to={`/admin/user-profile/${activeUserId}`}
+              className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
+            >
+              <Users className="h-4 w-4" />
+              Open user profile
+            </Link>
+          )}
+        </div>
       </div>
+
+      {stats && (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => setStatusAndUrl("completed")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              filter === "completed"
+                ? "border-yellow-400 ring-2 ring-yellow-300/60"
+                : "border-yellow-300"
+            } bg-yellow-50/60`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
+              Total withdrawn{activeUserId != null ? ` · #${activeUserId}` : ""}
+            </p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
+              {money(stats.completed_payout_usd)}
+            </p>
+            <p className="mt-1 text-xs text-neutral-900/90">
+              {stats.completed_count} completed · click to filter
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusAndUrl("pending")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              filter === "pending"
+                ? "border-amber-400 ring-2 ring-amber-300/60"
+                : "border-amber-200"
+            } bg-amber-50/60`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pending</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-amber-900">{stats.pending_count}</p>
+            <p className="mt-1 text-xs text-amber-800/90">
+              {money(stats.pending_payout_usd)} payout · click to filter
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusAndUrl("completed")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              filter === "completed"
+                ? "border-yellow-400 ring-2 ring-yellow-300/60"
+                : "border-yellow-200"
+            } bg-[#FFF9E6]/90`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">Completed</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">{stats.completed_count}</p>
+            <p className="mt-1 text-xs text-neutral-800/90">Click to filter completed</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusAndUrl("rejected")}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${
+              filter === "rejected"
+                ? "border-red-400 ring-2 ring-red-300/60"
+                : "border-red-200"
+            } bg-red-50/60`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Rejected</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-red-900">{stats.rejected_count}</p>
+            <p className="mt-1 text-xs text-red-800/90">Click to filter rejected</p>
+          </button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -357,6 +579,9 @@ const confirmApprove = async () => {
               <tr className="border-b border-slate-200 bg-slate-50/95">
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">ID</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">User</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
+                  User total
+                </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Payout</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Fee</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">Total</th>
@@ -373,14 +598,33 @@ const confirmApprove = async () => {
                 rows.map((r) => {
                   const payout = Number(r.amount_usd);
                   const fee = Number(r.fee_usd ?? 0);
-                  const total = Math.round((payout + fee) * 100) / 100;
+                  const rowTotal = Math.round((payout + fee) * 100) / 100;
+                  const userTotal = Number(r.user_total_payout_usd ?? 0);
                   return (
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm text-slate-700 sm:px-6">{r.id}</td>
                     <td className="px-4 py-3 sm:px-6">
-                      <div className="font-semibold text-slate-900">{r.user_name ?? "—"}</div>
-                      <div className="text-xs text-slate-500">#{r.user_id}</div>
+                      <button
+                        type="button"
+                        onClick={() => filterUserAllWithdrawals(r.user_id)}
+                        className="text-left hover:underline"
+                        title="Show all withdrawals for this user"
+                      >
+                        <div className="font-semibold text-slate-900">{r.user_name ?? "—"}</div>
+                        <div className="text-xs text-slate-500">#{r.user_id}</div>
+                      </button>
                       <div className="break-all text-xs text-slate-600">{r.user_email}</div>
+                    </td>
+                    <td className="px-4 py-3 sm:px-6">
+                      <button
+                        type="button"
+                        onClick={() => filterUserAllWithdrawals(r.user_id)}
+                        className="font-semibold tabular-nums text-emerald-800 underline-offset-2 hover:underline"
+                        title="Show all withdrawals for this user"
+                      >
+                        ${userTotal.toFixed(2)}
+                      </button>
+                      <div className="text-[11px] text-slate-500">completed · click to filter</div>
                     </td>
                     <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
                       ${payout.toFixed(2)}
@@ -394,7 +638,7 @@ const confirmApprove = async () => {
                       {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
                     </td>
                     <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
-                      ${total.toFixed(2)}
+                      ${rowTotal.toFixed(2)}
                     </td>
                     <td className="max-w-[220px] px-4 py-3 sm:px-6">
                       <span className="break-all font-mono text-xs text-slate-800">{r.trc20_address}</span>

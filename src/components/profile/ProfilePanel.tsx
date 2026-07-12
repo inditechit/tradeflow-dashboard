@@ -403,6 +403,8 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   const idSrc = proofImageSrc(profile.idProofData as string);
   const addrSrc = proofImageSrc(profile.addressProofData as string);
   const kycStatus = String(profile.kycStatus ?? "pending");
+  const kycRejected = kycStatus === "rejected";
+  const ownerCanReplaceDocs = viewerIsOwner && !isAdmin && kycRejected;
 
   return (
     <div className="font-sans w-full min-w-0 max-w-4xl space-y-6 text-slate-800 sm:space-y-8">
@@ -473,6 +475,15 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
                     <SelectItem value="rejected">rejected</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {viewerIsOwner && !isAdmin && kycRejected && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+                <p className="font-semibold text-red-900">Verification rejected</p>
+                <p className="mt-1">
+                  Re-upload your live photo, ID proof, and address proof below. Withdrawals stay blocked until
+                  an admin verifies your documents again.
+                </p>
               </div>
             )}
             {showAdminExtras && isAdmin && (
@@ -832,13 +843,15 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         <DocBlock
           title="Live photo"
           subtitle={
-            liveSrc && viewerIsOwner && !isAdmin
-              ? "Your live photo is on file. Contact support if it needs to change."
-              : "Take a selfie with your camera only — picking from the gallery is not allowed."
+            ownerCanReplaceDocs
+              ? "Re-upload a clear selfie — your previous photo was rejected."
+              : liveSrc && viewerIsOwner && !isAdmin
+                ? "Your live photo is on file. Contact support if it needs to change."
+                : "Take a selfie with your camera only — picking from the gallery is not allowed."
           }
           src={liveSrc}
-          canUpload={isAdmin || (viewerIsOwner && !liveSrc)}
-          locked={Boolean(liveSrc) && viewerIsOwner && !isAdmin}
+          canUpload={isAdmin || (viewerIsOwner && (!liveSrc || kycRejected))}
+          locked={Boolean(liveSrc) && viewerIsOwner && !isAdmin && !kycRejected}
           disabled={saving}
           facingMode="user"
           onCaptured={(dataUrl) => uploadDoc("livePhotoBase64", dataUrl)}
@@ -847,13 +860,15 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         <DocBlock
           title="ID proof"
           subtitle={
-            idSrc && viewerIsOwner && !isAdmin
-              ? "Your ID proof is on file. Contact support if it needs to change."
-              : "Photograph your government ID with the camera — gallery upload is not used."
+            ownerCanReplaceDocs
+              ? "Re-upload a clear photo of your government ID."
+              : idSrc && viewerIsOwner && !isAdmin
+                ? "Your ID proof is on file. Contact support if it needs to change."
+                : "Photograph your government ID with the camera — gallery upload is not used."
           }
           src={idSrc}
-          canUpload={isAdmin || (viewerIsOwner && !idSrc)}
-          locked={Boolean(idSrc) && viewerIsOwner && !isAdmin}
+          canUpload={isAdmin || (viewerIsOwner && (!idSrc || kycRejected))}
+          locked={Boolean(idSrc) && viewerIsOwner && !isAdmin && !kycRejected}
           disabled={saving}
           facingMode="environment"
           onCaptured={(dataUrl) => uploadDoc("idProofBase64", dataUrl)}
@@ -862,13 +877,15 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
         <DocBlock
           title="Address proof"
           subtitle={
-            addrSrc && viewerIsOwner && !isAdmin
-              ? "Your address proof is on file. Contact support if it needs to change."
-              : "Photograph your document with the camera — gallery upload is not used."
+            ownerCanReplaceDocs
+              ? "Re-upload a clear photo of your address proof."
+              : addrSrc && viewerIsOwner && !isAdmin
+                ? "Your address proof is on file. Contact support if it needs to change."
+                : "Photograph your document with the camera — gallery upload is not used."
           }
           src={addrSrc}
-          canUpload={isAdmin || (viewerIsOwner && !addrSrc)}
-          locked={Boolean(addrSrc) && viewerIsOwner && !isAdmin}
+          canUpload={isAdmin || (viewerIsOwner && (!addrSrc || kycRejected))}
+          locked={Boolean(addrSrc) && viewerIsOwner && !isAdmin && !kycRejected}
           disabled={saving}
           facingMode="environment"
           onCaptured={(dataUrl) => uploadDoc("addressProofBase64", dataUrl)}

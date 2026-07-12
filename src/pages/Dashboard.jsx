@@ -6,7 +6,6 @@ import {
   Wallet,
   TrendingDown,
   Landmark,
-  Percent,
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
 import { plBadgeClass, plDotClass, plTextClass } from "@/utils/plColors";
@@ -80,7 +79,6 @@ const Dashboard = () => {
       if (data.success && data.stats) {
         const s = data.stats;
         setFinancials({
-          totalFees: Number(s.brokerage_fees_usd ?? 0),
           totalDeposited: Number(s.facts?.total_recharged_usd ?? 0),
           totalWithdrawn: Number(s.facts?.total_withdrawn_usd ?? 0),
           currentWallet: Number(
@@ -359,14 +357,8 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Money row — all 4 cards in one line */}
-      <div className="mb-6 grid grid-cols-4 gap-4">
-        {moneyCard(
-          <Percent className="h-5 w-5 text-sky-600" />,
-          "bg-sky-50",
-          "Total fees",
-          `$${fmtMoney(financials?.totalFees ?? 0)}`,
-        )}
+      {/* Money row */}
+      <div className="mb-6 grid grid-cols-3 gap-4">
         {moneyCard(
           <Wallet className="h-5 w-5 text-emerald-600" />,
           "bg-emerald-50",
@@ -376,7 +368,7 @@ const Dashboard = () => {
         {moneyCard(
           <TrendingDown className="h-5 w-5 text-amber-600" />,
           "bg-amber-50",
-          "Total withdrawn",
+          "Total withdrawls",
           `$${fmtMoney(financials?.totalWithdrawn ?? 0)}`,
         )}
         {moneyCard(

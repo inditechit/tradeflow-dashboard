@@ -75,7 +75,7 @@ const MENU: MenuEntry[] = [
     icon: Users,
     items: [
       {
-        name: "All users",
+        name: "Users",
         icon: Users,
         path: "/admin/users",
         showLive: true,

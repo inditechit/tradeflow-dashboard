@@ -28,11 +28,21 @@ function maxPayoutFromWallet(walletUsd: number) {
   return Math.max(0, Math.round((walletUsd - WITHDRAW_FEE) * 100) / 100);
 }
 
+/** Default payout = profit above deposit baseline (leaves baseline in wallet). */
+function defaultPayoutAboveBaseline(withdrawable: number, baseline: number | null | undefined) {
+  const base = Math.max(0, Number(baseline ?? 0));
+  const above = Math.max(0, Math.round((Number(withdrawable) - base) * 100) / 100);
+  if (above <= WITHDRAW_FEE) return "";
+  return maxPayoutFromWallet(above).toFixed(2);
+}
+
 type BulkUserRow = {
   user_id: number;
   name: string | null;
   email: string | null;
   invested: number | null;
+  deposit_baseline?: number | null;
+  above_baseline?: number | null;
   equity: number;
   withdrawable: number;
   wallet_balance: number;
@@ -43,6 +53,20 @@ type BulkUserRow = {
   block_reason: string | null;
   error?: string;
 };
+
+function rowBaseline(u: BulkUserRow) {
+  if (u.deposit_baseline != null) return Number(u.deposit_baseline);
+  if (u.invested != null) return Number(u.invested);
+  return null;
+}
+
+function rowAboveBaseline(u: BulkUserRow) {
+  if (u.above_baseline != null) return Number(u.above_baseline);
+  const base = rowBaseline(u);
+  const w = Number(u.withdrawable ?? 0);
+  if (base == null) return Math.max(0, w);
+  return Math.max(0, Math.round((w - base) * 100) / 100);
+}
 
 type RowState = {
   selected: boolean;
@@ -105,8 +129,8 @@ const AdminBulkWithdrawPage = () => {
         for (const u of data.users as BulkUserRow[]) {
           const existing = prev[u.user_id];
           const defaultAmt =
-            u.eligible && u.withdrawable > WITHDRAW_FEE
-              ? maxPayoutFromWallet(u.withdrawable).toFixed(2)
+            u.eligible && rowAboveBaseline(u) > WITHDRAW_FEE
+              ? defaultPayoutAboveBaseline(u.withdrawable, rowBaseline(u))
               : "";
           next[u.user_id] = {
             selected: existing?.selected ?? false,
@@ -159,21 +183,21 @@ const AdminBulkWithdrawPage = () => {
           selected: checked,
           amount:
             prev[u.user_id]?.amount ||
-            (u.withdrawable > WITHDRAW_FEE ? maxPayoutFromWallet(u.withdrawable).toFixed(2) : ""),
+            defaultPayoutAboveBaseline(u.withdrawable, rowBaseline(u)),
         };
       }
       return next;
     });
   };
 
-  const fillWithdrawableForSelected = () => {
+  const fillAboveBaselineForSelected = () => {
     setRowState((prev) => {
       const next = { ...prev };
       for (const u of users) {
         if (!next[u.user_id]?.selected || !u.eligible) continue;
         next[u.user_id] = {
           ...next[u.user_id],
-          amount: maxPayoutFromWallet(u.withdrawable).toFixed(2),
+          amount: defaultPayoutAboveBaseline(u.withdrawable, rowBaseline(u)),
         };
       }
       return next;
@@ -244,8 +268,9 @@ const AdminBulkWithdrawPage = () => {
             Bulk withdraw
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Users with wallet balance only, sorted highest to lowest. Payout amounts are USDT sent;
-            each withdrawal also debits a ${WITHDRAW_FEE} fee from the user wallet.
+            Users with wallet balance only, sorted highest to lowest. Default payout is profit above
+            deposit baseline (baseline stays in the wallet). Each withdrawal also debits a $
+            {WITHDRAW_FEE} fee from the user wallet.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Approve queued requests on{" "}
@@ -293,8 +318,8 @@ const AdminBulkWithdrawPage = () => {
         <Button type="button" variant="outline" size="sm" onClick={() => toggleAllVisible(false)}>
           Clear selection
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={fillWithdrawableForSelected}>
-          Fill withdrawable for selected
+        <Button type="button" variant="outline" size="sm" onClick={fillAboveBaselineForSelected}>
+          Fill above baseline for selected
         </Button>
         <Button
           type="button"
@@ -342,7 +367,7 @@ const AdminBulkWithdrawPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[1280px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
                 <th className="px-4 py-3 sm:px-6">
@@ -359,7 +384,10 @@ const AdminBulkWithdrawPage = () => {
                   Wallet
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
-                  Invested
+                  Baseline
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
+                  Above baseline
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Equity
@@ -379,6 +407,8 @@ const AdminBulkWithdrawPage = () => {
               {!loading &&
                 filtered.map((u) => {
                   const st = rowState[u.user_id] ?? { selected: false, amount: "" };
+                  const baseline = rowBaseline(u);
+                  const above = rowAboveBaseline(u);
                   return (
                     <tr
                       key={u.user_id}
@@ -395,7 +425,7 @@ const AdminBulkWithdrawPage = () => {
                                 selected: v === true,
                                 amount:
                                   prev[u.user_id]?.amount ||
-                                  (u.withdrawable > WITHDRAW_FEE ? maxPayoutFromWallet(u.withdrawable).toFixed(2) : ""),
+                                  defaultPayoutAboveBaseline(u.withdrawable, baseline),
                               },
                             }));
                           }}
@@ -412,7 +442,17 @@ const AdminBulkWithdrawPage = () => {
                         {money(u.wallet_balance)}
                       </td>
                       <td className="px-4 py-3 tabular-nums text-slate-800 sm:px-6">
-                        {u.invested != null ? money(u.invested) : "—"}
+                        {baseline != null ? money(baseline) : "—"}
+                      </td>
+                      <td
+                        className={`px-4 py-3 tabular-nums font-semibold sm:px-6 ${
+                          above > 0.01 ? "text-emerald-800" : "text-slate-500"
+                        }`}
+                      >
+                        {money(above)}
+                        {above <= 0.01 && baseline != null && Number(u.withdrawable) < baseline && (
+                          <div className="text-[11px] font-normal text-amber-800">Below baseline</div>
+                        )}
                       </td>
                       <td className="px-4 py-3 tabular-nums text-slate-800 sm:px-6">
                         {money(u.equity)}
