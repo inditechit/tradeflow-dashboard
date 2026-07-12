@@ -4,7 +4,6 @@ import {
   RefreshCw,
   CalendarRange,
   Wallet,
-  TrendingDown,
   Landmark,
 } from "lucide-react";
 import { tradeInDateRange } from "@/utils/mt5TradeDates";
@@ -366,8 +365,8 @@ const Dashboard = () => {
           `$${fmtMoney(financials?.totalDeposited ?? 0)}`,
         )}
         {moneyCard(
-          <TrendingDown className="h-5 w-5 text-amber-600" />,
-          "bg-amber-50",
+          <Wallet className="h-5 w-5 text-orange-600" />,
+          "bg-orange-50",
           "Total withdrawls",
           `$${fmtMoney(financials?.totalWithdrawn ?? 0)}`,
         )}

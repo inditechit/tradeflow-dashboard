@@ -4,9 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   RefreshCw,
   UserPlus,
-  MoreHorizontal,
-  History,
-  Phone,
+  ChevronDown,
   Download,
   PauseCircle,
   TrendingDown,
@@ -20,8 +18,14 @@ import WalletModal from '../components/admin/WalletModal';
 import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
 import ExtendSubscriptionModal from '../components/admin/ExtendSubscriptionModal';
-import UserLabelsDisplay from '../components/admin/UserLabelsDisplay';
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE, SOCKET_URL } from "@/config/api";
@@ -43,7 +47,6 @@ import {
   parseUserJoinMs,
   compareUsersByJoin,
   referrerDisplayLabel,
-  renderRiskBadges,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
 import { endOfDayMs, startOfDayMs } from "@/utils/mt5TradeDates";
@@ -59,7 +62,8 @@ import {
   mergeUserReferrerFields,
 } from "@/utils/adminReferrerEnrichment";
 
-const USER_PAGE_SIZE = 50;
+const USER_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+const DEFAULT_USER_PAGE_SIZE = 10;
 
 /** Whole days remaining until a package end date (null if no/invalid date). */
 function daysLeftUntil(value: unknown): number | null {
@@ -163,6 +167,7 @@ const AdminPage = () => {
   const [filterTag, setFilterTag] = useState('all');
   const [filterJoinFrom, setFilterJoinFrom] = useState('');
   const [filterJoinTo, setFilterJoinTo] = useState('');
+  const [userPageSize, setUserPageSize] = useState<number>(DEFAULT_USER_PAGE_SIZE);
   const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
@@ -728,7 +733,7 @@ const AdminPage = () => {
     pageItems: pagedLocations,
     totalPages: userTotalPages,
     total: filteredUserTotal,
-  } = useClientPagination(filteredLocations, USER_PAGE_SIZE);
+  } = useClientPagination(filteredLocations, userPageSize);
 
   useEffect(() => {
     setUserPage(1);
@@ -745,7 +750,9 @@ const AdminPage = () => {
     filterTag,
     filterJoinFrom,
     filterJoinTo,
+    filterUserId,
     userSort,
+    userPageSize,
     setUserPage,
   ]);
 
@@ -753,22 +760,11 @@ const AdminPage = () => {
     () =>
       [
         "col:users:name",
-        "col:users:labels",
         "col:users:status",
         "col:users:wallet",
         "col:users:equity",
         "col:users:live_pl",
-        "col:users:withdrawable",
-        "col:users:recharges",
-        "col:users:created",
-        "col:users:referrer",
         "col:users:kyc",
-        "col:users:profit_pct",
-        "col:users:dollar_cut",
-        "col:users:risk",
-        "col:users:actions",
-        "col:users:mobile",
-        "col:users:telegram",
       ].filter((k) => can(k)).length,
     [can],
   );
@@ -1233,11 +1229,27 @@ const AdminPage = () => {
               </>
             )}
           </p>
-          {hasActiveFilters ? (
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-              Filters active
-            </span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              Rows
+              <select
+                value={userPageSize}
+                onChange={(e) => setUserPageSize(Number(e.target.value))}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {USER_PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {hasActiveFilters ? (
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                Filters active
+              </span>
+            ) : null}
+          </div>
         </div>
         <div ref={tableTopRef} className="overflow-x-auto">
           <table className="w-full text-left">
@@ -1248,11 +1260,6 @@ const AdminPage = () => {
                   User
                 </th>
                 )}
-                {can("col:users:labels") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Label &amp; Tags
-                </th>
-                )}
                 {can("col:users:status") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   Status
@@ -1260,7 +1267,7 @@ const AdminPage = () => {
                 )}
                 {can("col:users:wallet") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Wallet (settled)
+                  Wallet
                 </th>
                 )}
                 {can("col:users:equity") && (
@@ -1273,59 +1280,9 @@ const AdminPage = () => {
                   Open P/L (unrealized)
                 </th>
                 )}
-                {can("col:users:withdrawable") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Withdrawable
-                </th>
-                )}
-                {can("col:users:recharges") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Recharges
-                </th>
-                )}
-                {can("col:users:created") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Created
-                </th>
-                )}
-                {can("col:users:referrer") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Referred by
-                </th>
-                )}
                 {can("col:users:kyc") && (
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
                   KYC
-                </th>
-                )}
-                {can("col:users:profit_pct") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Profit %
-                </th>
-                )}
-                {can("col:users:dollar_cut") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Fee / lot
-                </th>
-                )}
-                {can("col:users:risk") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Risk profile
-                </th>
-                )}
-                {can("col:users:actions") && (
-                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Action
-                </th>
-                )}
-                {can("col:users:mobile") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Mobile
-                </th>
-                )}
-                {can("col:users:telegram") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Telegram
                 </th>
                 )}
               </tr>
@@ -1337,16 +1294,7 @@ const AdminPage = () => {
                 const walletBal = Number(loc.wallet_balance ?? 0);
                 const livePl = fin?.live_pl ?? Number(loc.live_pl ?? 0);
                 const equityVal = fin?.equity ?? Number(loc.equity ?? walletBal);
-                const withdrawableVal =
-                  fin?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
                 const openPos = Number(loc.open_positions ?? 0);
-                const adminFeeLiveRow = Number(
-                  loc.admin_pending_share_live_usd ?? loc.admin_pending_share_usd ?? 0,
-                );
-                const userShareRow = Number(
-                  loc.user_equity_share_usd ?? equityVal - adminFeeLiveRow,
-                );
-                const userSharePctRow = Number(loc.user_share_pct ?? 0);
 
                 return (
                 <tr
@@ -1360,17 +1308,60 @@ const AdminPage = () => {
                 >
                   {can("col:users:name") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    {can("action:users:view_trades") ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
-                      className="text-left font-semibold text-yellow-900 underline-offset-2 hover:underline"
-                    >
-                      {loc.name}
-                    </button>
-                    ) : (
-                    <span className="font-semibold text-slate-900">{loc.name}</span>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex max-w-full items-center gap-1 text-left font-semibold text-yellow-900 underline-offset-2 hover:underline"
+                        >
+                          <span className="truncate">{loc.name}</span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56 border-slate-200 bg-white shadow-lg">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
+                        >
+                          View recharge
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/admin/transactions?userId=${loc.id}`)}
+                        >
+                          View package purchase
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() =>
+                            navigate(`/admin/withdrawals?userId=${loc.id}&status=all`)
+                          }
+                        >
+                          View withdraw
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-slate-200" />
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => handleOpenWalletModal(loc)}
+                        >
+                          Edit wallet
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => openDetail(loc)}
+                        >
+                          See details
+                        </DropdownMenuItem>
+                        {can("action:users:view_trades") && (
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
+                          >
+                            View trades
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
                     {loc.active_package_id ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -1398,33 +1389,6 @@ const AdminPage = () => {
                         No active plan
                       </div>
                     )}
-                  </td>
-                  )}
-
-                  {can("col:users:labels") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    {(() => {
-                      const { label, tags } = parseUserLabels(loc);
-                      if (!label && tags.length === 0) {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => openDetail(loc)}
-                            className="text-[11px] font-medium text-slate-300 transition hover:text-indigo-500"
-                            title="Add label or tags"
-                          >
-                            + add
-                          </button>
-                        );
-                      }
-                      return (
-                        <UserLabelsDisplay
-                          user={loc}
-                          compact
-                          onClick={() => openDetail(loc)}
-                        />
-                      );
-                    })()}
                   </td>
                   )}
 
@@ -1469,22 +1433,6 @@ const AdminPage = () => {
                         maximumFractionDigits: 2,
                       })}
                     </div>
-                    {loc.deposit_baseline != null && (
-                      <div className="mt-0.5 text-[11px] tabular-nums text-slate-500">
-                        Baseline: {Number(loc.deposit_baseline).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </div>
-                    )}
-                    {Number(loc.recovery_remaining_usd ?? 0) > 0.01 && (
-                      <div className="mt-0.5 text-[11px] font-medium tabular-nums text-amber-700">
-                        Recover: {Number(loc.recovery_remaining_usd).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </div>
-                    )}
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}
@@ -1526,122 +1474,6 @@ const AdminPage = () => {
                   </td>
                   )}
 
-                  {can("col:users:withdrawable") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <span className="font-semibold tabular-nums text-slate-900">
-                      USD{" "}
-                      {withdrawableVal.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                    {adminFeeLiveRow > 0.01 && (
-                      <div className="mt-1 space-y-0.5 text-[11px] leading-tight">
-                        <div className="text-slate-500" title="Admin performance fee pending (incl. open P/L)">
-                          Admin fee{userSharePctRow ? ` (${100 - userSharePctRow}%)` : ""}:{" "}
-                          <span className="font-semibold tabular-nums">
-                            {adminFeeLiveRow.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </span>
-                        </div>
-                        <div className="text-emerald-700" title="User's share of equity (incl. open P/L)">
-                          User:{" "}
-                          <span className="font-semibold tabular-nums">
-                            {userShareRow.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="mt-0.5 font-semibold text-[#B8860B] underline-offset-2 hover:underline"
-                          title="Open admin earnings for this user"
-                          onClick={() => navigate(`/admin/financial-stats?userId=${loc.id}`)}
-                        >
-                          Earnings →
-                        </button>
-                      </div>
-                    )}
-                    {adminFeeLiveRow <= 0.01 && (
-                      <button
-                        type="button"
-                        className="mt-1 text-[11px] font-semibold text-[#B8860B] underline-offset-2 hover:underline"
-                        title="Open admin earnings for this user"
-                        onClick={() => navigate(`/admin/financial-stats?userId=${loc.id}`)}
-                      >
-                        Earnings →
-                      </button>
-                    )}
-                  </td>
-                  )}
-
-                  {can("col:users:recharges") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="space-y-1.5">
-                      <div className="font-semibold tabular-nums text-slate-900">
-                        {Number(loc.recharge_success_count ?? 0)}×{" "}
-                        <span className="font-normal text-slate-600">success</span>
-                      </div>
-                      <div className="text-xs tabular-nums font-medium text-neutral-800">
-                        USD{" "}
-                        {Number(loc.recharge_total_usd ?? 0).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{" "}
-                        <span className="font-normal text-slate-500">total</span>
-                      </div>
-                      {Number(loc.recharge_pending_count ?? 0) > 0 && (
-                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                          {Number(loc.recharge_pending_count)} pending
-                        </span>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs font-semibold text-neutral-800 hover:bg-yellow-50 hover:text-neutral-900"
-                        title="Open recharge history for this user"
-                        onClick={() => navigate(`/admin/recharge?userId=${loc.id}`)}
-                      >
-                        <History className="h-3.5 w-3.5" />
-                        History
-                      </Button>
-                    </div>
-                  </td>
-                  )}
-
-                  {can("col:users:created") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-600 sm:px-6 sm:py-4">
-                    {formatAdminDate(loc.created_at)}
-                  </td>
-                  )}
-
-                  {can("col:users:referrer") && (
-                  <td className="align-top px-4 py-3 text-sm sm:px-6 sm:py-4">
-                    {(() => {
-                      const refLabel = referrerDisplayLabel(loc);
-                      const refId = Number(loc.referrer_id);
-                      if (!Number.isFinite(refId) || refId <= 0 || refLabel === "—") {
-                        return <span className="text-slate-400">—</span>;
-                      }
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/user-profile/${refId}`)}
-                          className="text-left text-indigo-700 underline-offset-2 hover:underline"
-                          title={`Referrer #${refId}`}
-                        >
-                          {refLabel}
-                          <span className="mt-0.5 block font-mono text-[10px] text-slate-400">#{refId}</span>
-                        </button>
-                      );
-                    })()}
-                  </td>
-                  )}
-
                   {can("col:users:kyc") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
@@ -1653,62 +1485,6 @@ const AdminPage = () => {
                     >
                       {loc.kyc_status ?? "pending"}
                     </span>
-                  </td>
-                  )}
-
-                  {can("col:users:profit_pct") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {loc.profit_percentage != null && loc.profit_percentage !== ""
-                      ? `${loc.profit_percentage}%`
-                      : "—"}
-                  </td>
-                  )}
-
-                  {can("col:users:dollar_cut") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {loc.dollar_amount ? `$${loc.dollar_amount}` : "—"}
-                  </td>
-                  )}
-
-                  {can("col:users:risk") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
-                    {renderRiskBadges(loc.risk)}
-                  </td>
-                  )}
-
-                  {can("col:users:actions") && (
-                  <td className="align-top px-4 py-3 text-right sm:px-6 sm:py-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50"
-                      onClick={() => openDetail(loc)}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                      Manage
-                    </Button>
-                  </td>
-                  )}
-
-                  {can("col:users:mobile") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="text-slate-800">{loc.mobile || "—"}</span>
-                    </div>
-                  </td>
-                  )}
-
-                  {can("col:users:telegram") && (
-                  <td className="align-top px-4 py-3 text-sm sm:px-6 sm:py-4">
-                    {loc.telegram ? (
-                      <span className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900">
-                        @{loc.telegram}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
                   </td>
                   )}
                 </tr>
@@ -1728,7 +1504,7 @@ const AdminPage = () => {
           page={userPage}
           totalPages={userTotalPages}
           total={filteredUserTotal}
-          pageSize={USER_PAGE_SIZE}
+          pageSize={userPageSize}
           onPageChange={setUserPage}
           itemLabel="users"
         />

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarRange, RefreshCw } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
@@ -92,13 +93,26 @@ function filtersActive(filters: PaymentFilters) {
 
 const Transactions = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState<PaymentFilters>(EMPTY_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<PaymentFilters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<PaymentFilters>(() => {
+    const uid = searchParams.get("userId")?.trim() ?? "";
+    if (uid && /^\d+$/.test(uid)) {
+      return { ...EMPTY_FILTERS, userId: uid };
+    }
+    return EMPTY_FILTERS;
+  });
+  const [appliedFilters, setAppliedFilters] = useState<PaymentFilters>(() => {
+    const uid = searchParams.get("userId")?.trim() ?? "";
+    if (uid && /^\d+$/.test(uid)) {
+      return { ...EMPTY_FILTERS, userId: uid };
+    }
+    return EMPTY_FILTERS;
+  });
 
   const fetchPayments = useCallback(
     async (pageNum: number, activeFilters: PaymentFilters) => {
@@ -132,6 +146,15 @@ const Transactions = () => {
   useEffect(() => {
     void fetchPayments(1, appliedFilters);
   }, [appliedFilters, fetchPayments]);
+
+  useEffect(() => {
+    const uid = searchParams.get("userId")?.trim() ?? "";
+    if (uid && /^\d+$/.test(uid)) {
+      const next = { ...EMPTY_FILTERS, userId: uid };
+      setFilters(next);
+      setAppliedFilters(next);
+    }
+  }, [searchParams]);
 
   const applyFilters = () => {
     setAppliedFilters({ ...filters });

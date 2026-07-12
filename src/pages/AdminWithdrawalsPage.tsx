@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   Check,
-  Filter,
   Loader2,
   Plus,
   RefreshCw,
@@ -85,7 +84,6 @@ const AdminWithdrawalsPage = () => {
       ? statusParam
       : "pending",
   );
-  const [filterUserId, setFilterUserId] = useState(userIdParam);
   const [activeUserId, setActiveUserId] = useState<number | null>(
     userIdParam && /^\d+$/.test(userIdParam) ? Number(userIdParam) : null,
   );
@@ -167,7 +165,6 @@ const AdminWithdrawalsPage = () => {
       st === "all" || st === "completed" || st === "rejected" ? st : "pending";
     const nextUser = uid && /^\d+$/.test(uid) ? Number(uid) : null;
     setFilter(nextStatus);
-    setFilterUserId(uid);
     setActiveUserId(nextUser);
   }, [searchParams]);
 
@@ -182,17 +179,14 @@ const AdminWithdrawalsPage = () => {
     setSearchParams(next);
   };
 
-  const applyUserFilter = (userId?: number | null) => {
-    const raw = userId != null ? String(userId) : filterUserId.trim();
-    if (raw && !/^\d+$/.test(raw)) {
-      toast({ title: "Invalid user id", description: "Use numbers only.", variant: "destructive" });
-      return;
-    }
+  const applyUserFilter = (userId: number | null) => {
     const next = new URLSearchParams(searchParams);
-    if (!raw) next.delete("userId");
-    else next.set("userId", raw);
-    // Show all of that user's withdrawals when filtering by user
-    if (raw) next.set("status", "all");
+    if (userId == null) next.delete("userId");
+    else {
+      next.set("userId", String(userId));
+      // Show all of that user's withdrawals when filtering by user
+      next.set("status", "all");
+    }
     setSearchParams(next);
   };
 
@@ -459,50 +453,32 @@ const confirmApprove = async () => {
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label
-              htmlFor="withdraw-user-filter"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500"
-            >
-              Filter by user ID
+          <div className="min-w-[16rem] flex-1 sm:max-w-md">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Filter by user
             </label>
-            <div className="flex flex-wrap gap-2">
-              <input
-                id="withdraw-user-filter"
-                type="text"
-                inputMode="numeric"
-                placeholder="e.g. 42"
-                value={filterUserId}
-                onChange={(e) => setFilterUserId(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") applyUserFilter();
-                }}
-                className="h-10 w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-              />
-              <Button
-                type="button"
-                onClick={() => applyUserFilter()}
-                className="h-10 gap-1.5 bg-slate-800 text-white hover:bg-slate-900"
-              >
-                <Filter className="h-4 w-4" />
-                Apply
-              </Button>
-              {activeUserId !== null && (
-                <Button type="button" variant="outline" onClick={clearUserFilter} className="h-10 gap-1.5">
-                  <X className="h-4 w-4" />
-                  Clear user
-                </Button>
-              )}
-            </div>
+            <UserSearchSelect
+              value={activeUserId}
+              onChange={(id) => applyUserFilter(id)}
+              placeholder="Search name, email, or ID…"
+              showClearOption
+              clearOptionLabel="All users"
+            />
           </div>
           {activeUserId !== null && (
-            <Link
-              to={`/admin/user-profile/${activeUserId}`}
-              className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
-            >
-              <Users className="h-4 w-4" />
-              Open user profile
-            </Link>
+            <>
+              <Button type="button" variant="outline" onClick={clearUserFilter} className="h-10 gap-1.5">
+                <X className="h-4 w-4" />
+                Clear user
+              </Button>
+              <Link
+                to={`/admin/user-profile/${activeUserId}`}
+                className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
+              >
+                <Users className="h-4 w-4" />
+                Open user profile
+              </Link>
+            </>
           )}
         </div>
       </div>

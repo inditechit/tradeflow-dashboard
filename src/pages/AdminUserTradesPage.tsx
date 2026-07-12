@@ -8,7 +8,6 @@ import { exportUserTradesToExcel } from "@/utils/exportUserTradesExcel";
 import { useToast } from "@/hooks/use-toast";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
-import { TradeSummaryFooter } from "@/components/trades/TradeSummaryFooter";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 
 const PAGE_SIZE = 50;
@@ -76,9 +75,6 @@ const AdminUserTradesPage = () => {
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
   const [equity, setEquity] = useState(0);
-  const [adminFeeLive, setAdminFeeLive] = useState(0);
-  const [userShareLive, setUserShareLive] = useState(0);
-  const [userSharePct, setUserSharePct] = useState(0);
   const [feePerLotUsd, setFeePerLotUsd] = useState(30);
   const [depositHistory, setDepositHistory] = useState<
     Array<{
@@ -130,9 +126,6 @@ const AdminUserTradesPage = () => {
         );
         setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
         setEquity(Number(summaryData.equity ?? wBal));
-        setAdminFeeLive(Math.max(0, Number(summaryData.admin_pending_share_live_usd ?? 0)));
-        setUserShareLive(Math.max(0, Number(summaryData.user_equity_share_usd ?? 0)));
-        setUserSharePct(Number(summaryData.user_share_pct ?? 0));
       }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
@@ -183,14 +176,6 @@ const AdminUserTradesPage = () => {
     () => sumUserFacingPlTotals(sortedRows, facingMap),
     [sortedRows, facingMap],
   );
-
-  const grossTotals = useMemo(() => {
-    let gross = 0;
-    for (const r of sortedRows) {
-      gross += proportionalRawPl(r);
-    }
-    return Math.round(gross * 100) / 100;
-  }, [sortedRows]);
 
   const handleExportExcel = useCallback(async () => {
     if (!userId) return;
@@ -474,25 +459,6 @@ const AdminUserTradesPage = () => {
                 })
               )}
             </tbody>
-            {sortedRows.length > 0 && (
-              <TradeSummaryFooter
-                colSpan={9}
-                trailingColSpan={2}
-                tableTotals={tableTotals}
-                capital={{
-                  totalDeposited,
-                  totalWithdrawn,
-                  walletBalance,
-                  equity,
-                  adminPendingShare: adminFeeLive,
-                  userEquityShare: userShareLive,
-                  userSharePct,
-                }}
-                profitLabel="full wallet credit"
-                fmtUsd={fmtUsd}
-                plTextClass={plTextClass}
-              />
-            )}
           </table>
         </div>
         <ListPaginationBar
@@ -504,32 +470,56 @@ const AdminUserTradesPage = () => {
         />
       </div>
 
-      <div className="mt-4 flex max-w-md flex-col gap-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Gross P/L (trades)</div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(grossTotals)}`}>
-            {fmtUsd(grossTotals)}
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Complete profit (full wallet credit)
           </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Equity</div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
-            {fmtUsd(equity)}
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-emerald-600">
+            {fmtUsd(tableTotals.profit)}
           </div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Admin fee{userSharePct ? ` (${100 - userSharePct}%)` : ""}
+            Complete loss (full wallet credit)
           </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-500">
-            {adminFeeLive > 0 ? `− ${fmtUsd(adminFeeLive)}` : fmtUsd(0)}
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-red-600">
+            {fmtUsd(tableTotals.loss)}
           </div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">User share</div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(userShareLive)}`}>
-            {fmtUsd(userShareLive)}
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Net P/L (full wallet credit)
           </div>
+          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(tableTotals.net)}`}>
+            {fmtUsd(tableTotals.net)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total deposited</div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
+            {fmtUsd(totalDeposited)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total withdrawl</div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
+            {fmtUsd(totalWithdrawn)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Current wallet (settled)
+          </div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
+            {fmtUsd(walletBalance)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Equity (incl. open P/L)
+          </div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">{fmtUsd(equity)}</div>
         </div>
       </div>
 
