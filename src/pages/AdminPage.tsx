@@ -149,6 +149,10 @@ const AdminPage = () => {
 
   const [filterName, setFilterName] = useState('');
   const [filterEmail, setFilterEmail] = useState('');
+  const [filterUserId, setFilterUserId] = useState(() => {
+    const raw = new URLSearchParams(window.location.search).get('userId')?.trim() ?? '';
+    return raw && /^\d+$/.test(raw) ? raw : '';
+  });
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
@@ -237,15 +241,23 @@ const AdminPage = () => {
   }, []);
 
   // Notification / sidebar link: ?sort=joined_new — must react while already on this page.
+  // Also support ?userId=123 deep-links from finance stats.
   useEffect(() => {
     const sortHint = searchParams.get("sort");
-    if (sortHint !== "joined_new" && sortHint !== "joined_old") return;
-    setUserSort(sortHint);
-    void fetchLocations({ silent: true });
-    const next = new URLSearchParams(searchParams);
-    next.delete("sort");
-    next.delete("from");
-    setSearchParams(next, { replace: true });
+    if (sortHint === "joined_new" || sortHint === "joined_old") {
+      setUserSort(sortHint);
+      void fetchLocations({ silent: true });
+    }
+    const uid = searchParams.get("userId")?.trim() ?? "";
+    if (uid && /^\d+$/.test(uid)) setFilterUserId(uid);
+    else if (searchParams.has("userId") && !uid) setFilterUserId("");
+
+    if (sortHint === "joined_new" || sortHint === "joined_old") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("sort");
+      next.delete("from");
+      setSearchParams(next, { replace: true });
+    }
   }, [searchParams, setSearchParams, fetchLocations]);
 
   useEffect(() => {
@@ -499,6 +511,8 @@ const AdminPage = () => {
 
       const matchName = nameStr.includes(filterName.toLowerCase());
       const matchEmail = emailStr.includes(filterEmail.toLowerCase());
+      const matchUserId =
+        !filterUserId.trim() || String(loc.id) === filterUserId.trim();
 
       const currentKyc = String(loc.kyc_status ?? "pending").toLowerCase();
       const matchKyc = filterKyc === "all" || currentKyc === filterKyc;
@@ -556,6 +570,7 @@ const AdminPage = () => {
       return (
         matchName &&
         matchEmail &&
+        matchUserId &&
         matchKyc &&
         matchOnline &&
         matchTag &&
@@ -592,6 +607,7 @@ const AdminPage = () => {
     locations,
     filterName,
     filterEmail,
+    filterUserId,
     filterKyc,
     filterOnline,
     filterWallet,
@@ -636,6 +652,7 @@ const AdminPage = () => {
     () =>
       Boolean(filterName.trim()) ||
       Boolean(filterEmail.trim()) ||
+      Boolean(filterUserId.trim()) ||
       filterKyc !== "all" ||
       filterOnline !== "all" ||
       filterWallet !== "all" ||
@@ -650,6 +667,7 @@ const AdminPage = () => {
     [
       filterName,
       filterEmail,
+      filterUserId,
       filterKyc,
       filterOnline,
       filterWallet,
@@ -923,6 +941,35 @@ const AdminPage = () => {
           />
         </div>
         </EmployeeGate>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            User ID
+          </label>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 147"
+              value={filterUserId}
+              onChange={(e) => setFilterUserId(e.target.value.replace(/[^\d]/g, ""))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+            {filterUserId && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 text-xs text-slate-600 hover:bg-slate-50"
+                onClick={() => {
+                  setFilterUserId("");
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("userId");
+                  setSearchParams(next, { replace: true });
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
         <EmployeeGate perm="filter:users:email">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1508,7 +1555,25 @@ const AdminPage = () => {
                             })}
                           </span>
                         </div>
+                        <button
+                          type="button"
+                          className="mt-0.5 font-semibold text-[#B8860B] underline-offset-2 hover:underline"
+                          title="Open admin earnings for this user"
+                          onClick={() => navigate(`/admin/financial-stats?userId=${loc.id}`)}
+                        >
+                          Earnings →
+                        </button>
                       </div>
+                    )}
+                    {adminFeeLiveRow <= 0.01 && (
+                      <button
+                        type="button"
+                        className="mt-1 text-[11px] font-semibold text-[#B8860B] underline-offset-2 hover:underline"
+                        title="Open admin earnings for this user"
+                        onClick={() => navigate(`/admin/financial-stats?userId=${loc.id}`)}
+                      >
+                        Earnings →
+                      </button>
                     )}
                   </td>
                   )}

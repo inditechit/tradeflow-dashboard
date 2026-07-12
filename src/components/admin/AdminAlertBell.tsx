@@ -88,18 +88,8 @@ export function AdminAlertBell() {
   const onItemClick = async (a: AdminAlert) => {
     if (!a.read_at) await markRead(a.id);
     const cat = a.category || categoryFromType(a.alert_type);
-    if (a.link_url?.includes("/admin/alerts")) {
-      navigate(a.link_url);
-    } else if (
-      a.user_id &&
-      (a.alert_type === "user_stop_trading" || a.alert_type === "user_restart_trading")
-    ) {
-      navigate(`/admin/alerts?alert=${a.id}&category=start_stop`);
-    } else if (a.link_url) {
-      navigate(a.link_url);
-    } else {
-      navigate(`/admin/alerts?alert=${a.id}${cat ? `&category=${cat}` : ""}`);
-    }
+    // Always open Admin Alerts so missed pushes are still visible in the inbox.
+    navigate(`/admin/alerts?alert=${a.id}${cat ? `&category=${cat}` : ""}`);
   };
 
   return (

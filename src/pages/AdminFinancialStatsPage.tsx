@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
   RefreshCw,
@@ -10,6 +10,8 @@ import {
   Package,
   Users,
   Radio,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import {
   Bar,
@@ -26,6 +28,7 @@ import {
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 import {
   groupOpenRowsByUser,
   sumPlatformLiveLiability,
@@ -77,6 +80,50 @@ type FinancialStats = {
   };
 };
 
+type UserEarnings = {
+  generated_at: string;
+  user: {
+    id: number;
+    name: string | null;
+    email: string | null;
+    telegram: string | null;
+    profit_percentage: number;
+    kyc_status: string;
+  };
+  wallet_balance_usd: number;
+  deposit_baseline_usd: number;
+  equity_usd: number;
+  live_user_pl_usd: number;
+  open_positions: number;
+  admin_pending_share_live_usd: number;
+  pending_withdrawals_usd: number;
+  owe_if_stop_now_usd: number;
+  brokerage_fees_usd: number;
+  admin_profit_share_usd: number;
+  admin_absorbed_stop_trades_usd: number;
+  package_revenue_usd: number;
+  withdrawal_fees_usd: number;
+  admin_earned_from_user_usd: number;
+  facts: {
+    recharged_usd: number;
+    recharge_count: number;
+    withdrawn_usd: number;
+    withdraw_completed_count: number;
+    withdraw_pending_count: number;
+    package_sales_count: number;
+    settled_trades: number;
+  };
+  income_split: Array<{ name: string; value: number; key: string }>;
+  links: {
+    users: string;
+    profile: string;
+    trades: string;
+    withdrawals: string;
+    recharges: string;
+    pnl: string;
+  };
+};
+
 type Mt5Metrics = {
   balance?: number;
   equity?: number;
@@ -104,7 +151,7 @@ function HeroCard({
   value: string;
   sub?: string;
   icon: React.ElementType;
-  accent?: "red" | "gold" | "emerald" | "purple" | "blue";
+  accent?: "red" | "gold" | "emerald" | "purple" | "blue" | "slate";
   valueClass?: string;
   live?: boolean;
   to?: string;
@@ -136,9 +183,7 @@ function HeroCard({
         </div>
         <Icon className="h-6 w-6 shrink-0 text-slate-400" />
       </div>
-      {to && (
-        <p className="mt-3 text-xs font-semibold text-blue-700">View details →</p>
-      )}
+      {to && <p className="mt-3 text-xs font-semibold text-blue-700">View details →</p>}
     </>
   );
 
@@ -158,7 +203,14 @@ function HeroCard({
 
 const AdminFinancialStatsPage = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userIdParam = searchParams.get("userId")?.trim() ?? "";
+  const selectedUserId =
+    userIdParam && /^\d+$/.test(userIdParam) ? Number(userIdParam) : null;
+
   const [stats, setStats] = useState<FinancialStats | null>(null);
+  const [userEarnings, setUserEarnings] = useState<UserEarnings | null>(null);
+  const [userLoading, setUserLoading] = useState(false);
   const [financeUsers, setFinanceUsers] = useState<FinanceUserRow[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [mt5Metrics, setMt5Metrics] = useState<Mt5Metrics | null>(null);
@@ -167,32 +219,66 @@ const AdminFinancialStatsPage = () => {
   const [liveTick, setLiveTick] = useState(0);
   const walletPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadStatic = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/admin/financial-stats`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to load");
-      setStats(data.stats);
-      if (data.mt5_live_metrics) {
-        setMt5Metrics({
-          balance: data.mt5_live_metrics.balance,
-          equity: data.mt5_live_metrics.equity,
-          updated_at: data.mt5_live_metrics.updated_at,
-        });
+  const setSelectedUser = (id: number | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (id == null) next.delete("userId");
+    else next.set("userId", String(id));
+    setSearchParams(next, { replace: true });
+  };
+
+  const loadStatic = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/admin/financial-stats`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Failed to load");
+        setStats(data.stats);
+        if (data.mt5_live_metrics) {
+          setMt5Metrics({
+            balance: data.mt5_live_metrics.balance,
+            equity: data.mt5_live_metrics.equity,
+            updated_at: data.mt5_live_metrics.updated_at,
+          });
+        }
+      } catch (e) {
+        if (!quiet) {
+          toast({
+            title: "Error",
+            description: e instanceof Error ? e.message : "Could not load stats",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!quiet) setLoading(false);
       }
-    } catch (e) {
-      if (!quiet) {
+    },
+    [toast],
+  );
+
+  const loadUserEarnings = useCallback(
+    async (userId: number) => {
+      setUserLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/admin/financial-stats?userId=${userId}`);
+        const data = await res.json();
+        if (!data.success || !data.user_earnings) {
+          throw new Error(data.error || "Could not load user earnings");
+        }
+        setUserEarnings(data.user_earnings);
+      } catch (e) {
+        setUserEarnings(null);
         toast({
-          title: "Error",
-          description: e instanceof Error ? e.message : "Could not load stats",
+          title: "User earnings",
+          description: e instanceof Error ? e.message : "Failed to load",
           variant: "destructive",
         });
+      } finally {
+        setUserLoading(false);
       }
-    } finally {
-      if (!quiet) setLoading(false);
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
 
   const loadLiveContext = useCallback(async () => {
     try {
@@ -227,6 +313,11 @@ const AdminFinancialStatsPage = () => {
       if (walletPollRef.current) clearInterval(walletPollRef.current);
     };
   }, [loadStatic, loadLiveContext]);
+
+  useEffect(() => {
+    if (selectedUserId != null) void loadUserEarnings(selectedUserId);
+    else setUserEarnings(null);
+  }, [selectedUserId, loadUserEarnings]);
 
   useEffect(() => {
     const applyTicketProfit = (payload: { ticket?: unknown; profit?: unknown }) => {
@@ -311,11 +402,19 @@ const AdminFinancialStatsPage = () => {
 
   const monthly = stats?.charts.monthly_revenue ?? [];
   const incomeSplit = stats?.charts.admin_income_split ?? [];
+  const userSplit = userEarnings?.income_split ?? [];
 
   const refreshAll = () => {
     void loadStatic();
     void loadLiveContext();
+    if (selectedUserId != null) void loadUserEarnings(selectedUserId);
   };
+
+  const selectedLabel = userEarnings?.user
+    ? `${userEarnings.user.name || "User"} (#${userEarnings.user.id})`
+    : selectedUserId
+      ? `#${selectedUserId}`
+      : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-8">
@@ -323,7 +422,7 @@ const AdminFinancialStatsPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Admin finances</h1>
           <p className="mt-1 text-sm text-slate-500">
-            What you owe users and what you earned — open P/L updates live from MT5 socket.
+            What you owe users and what you earned — filter by user for per-user admin earnings.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
             {stats?.generated_at && (
@@ -338,13 +437,230 @@ const AdminFinancialStatsPage = () => {
         <button
           type="button"
           onClick={refreshAll}
-          disabled={loading}
+          disabled={loading || userLoading}
           className="inline-flex items-center gap-2 rounded-lg bg-[#FFD700] px-4 py-2 text-sm font-semibold text-black hover:bg-[#E6C200] disabled:opacity-60"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {loading || userLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
           Refresh
         </button>
       </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[260px] flex-1">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Per-user admin earnings
+            </label>
+            <UserSearchSelect
+              value={selectedUserId}
+              onChange={(id) => setSelectedUser(id)}
+              selectedLabel={selectedLabel}
+              placeholder="Type name, email, or ID…"
+              showClearOption
+              clearOptionLabel="All users (platform totals)"
+            />
+          </div>
+          {selectedUserId != null && (
+            <button
+              type="button"
+              onClick={() => setSelectedUser(null)}
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <X className="h-4 w-4" />
+              Clear user
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Select a user to see brokerage fees, profit share, packages, and withdraw fees earned from
+          them. Linked from Users → Earnings.
+        </p>
+      </div>
+
+      {selectedUserId != null && (
+        <section className="space-y-4 rounded-2xl border border-yellow-200 bg-[#FFF9E6]/40 p-4 shadow-sm">
+          {userLoading && !userEarnings ? (
+            <div className="flex justify-center py-10 text-slate-500">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading user earnings…
+            </div>
+          ) : userEarnings ? (
+            <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {userEarnings.user.name || "User"}{" "}
+                    <span className="font-mono text-base text-slate-500">#{userEarnings.user.id}</span>
+                  </h2>
+                  <p className="text-sm text-slate-600">{userEarnings.user.email || "—"}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    User share {userEarnings.user.profit_percentage}% · KYC {userEarnings.user.kyc_status} ·
+                    baseline ${fmt(userEarnings.deposit_baseline_usd)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to={userEarnings.links.users}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Users filter <ExternalLink className="h-3 w-3" />
+                  </Link>
+                  <Link
+                    to={userEarnings.links.trades}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Trades
+                  </Link>
+                  <Link
+                    to={userEarnings.links.profile}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    to={userEarnings.links.withdrawals}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Withdrawals
+                  </Link>
+                  <Link
+                    to={userEarnings.links.recharges}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    Recharges
+                  </Link>
+                  <Link
+                    to={userEarnings.links.pnl}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  >
+                    P/L report
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <HeroCard
+                  title="Earned from this user"
+                  value={fmt(userEarnings.admin_earned_from_user_usd)}
+                  sub="Fees + profit share + packages + withdraw fees"
+                  icon={TrendingUp}
+                  accent="gold"
+                />
+                <HeroCard
+                  title="Brokerage fees"
+                  value={fmt(userEarnings.brokerage_fees_usd)}
+                  sub="Assign fees collected from this user"
+                  icon={Percent}
+                  accent="gold"
+                />
+                <HeroCard
+                  title="Profit share"
+                  value={fmt(userEarnings.admin_profit_share_usd)}
+                  sub="Admin cut on closed copy trades"
+                  icon={TrendingUp}
+                  accent="purple"
+                />
+                <HeroCard
+                  title="Package revenue"
+                  value={fmt(userEarnings.package_revenue_usd)}
+                  sub={`${userEarnings.facts.package_sales_count} package payment(s)`}
+                  icon={Package}
+                  accent="emerald"
+                />
+                <HeroCard
+                  title="Withdraw fees"
+                  value={fmt(userEarnings.withdrawal_fees_usd)}
+                  sub={`${userEarnings.facts.withdraw_completed_count} completed withdraw(s)`}
+                  icon={Wallet}
+                  accent="blue"
+                />
+                <HeroCard
+                  title="Owe if they stop now"
+                  value={fmt(userEarnings.owe_if_stop_now_usd)}
+                  sub={`Wallet $${fmt(userEarnings.wallet_balance_usd)} + pending $${fmt(userEarnings.pending_withdrawals_usd)} + open P/L $${fmt(userEarnings.live_user_pl_usd)}`}
+                  icon={Wallet}
+                  accent="red"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+                  <p className="font-semibold text-slate-700">User snapshot</p>
+                  <ul className="mt-3 space-y-2 text-slate-600">
+                    <li className="flex justify-between">
+                      <span>Wallet</span>
+                      <span className="font-medium tabular-nums">${fmt(userEarnings.wallet_balance_usd)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Equity</span>
+                      <span className="font-medium tabular-nums">${fmt(userEarnings.equity_usd)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Open positions</span>
+                      <span className="font-medium tabular-nums">{userEarnings.open_positions}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Recharged</span>
+                      <span className="font-medium tabular-nums">
+                        ${fmt(userEarnings.facts.recharged_usd)} ({userEarnings.facts.recharge_count}×)
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Withdrawn</span>
+                      <span className="font-medium tabular-nums">${fmt(userEarnings.facts.withdrawn_usd)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Settled trades</span>
+                      <span className="font-medium tabular-nums">{userEarnings.facts.settled_trades}</span>
+                    </li>
+                    {userEarnings.admin_absorbed_stop_trades_usd > 0.01 && (
+                      <li className="flex justify-between">
+                        <span>Stop absorb P/L</span>
+                        <span className="font-medium tabular-nums">
+                          ${fmt(userEarnings.admin_absorbed_stop_trades_usd)}
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-800">Income from this user</h3>
+                  <div className="mt-3 h-52">
+                    {userSplit.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={userSplit}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={72}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {userSplit.map((_, i) => (
+                              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `$${fmt(v)}`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="py-16 text-center text-sm text-slate-400">No earnings from this user yet</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="py-8 text-center text-sm text-slate-500">Could not load earnings for this user.</p>
+          )}
+        </section>
+      )}
 
       {loading && !stats ? (
         <div className="flex justify-center py-24 text-slate-500">
@@ -353,6 +669,7 @@ const AdminFinancialStatsPage = () => {
         </div>
       ) : stats ? (
         <>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Platform totals</h2>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <HeroCard
               title="Pay users if all stop now"
@@ -507,9 +824,7 @@ const AdminFinancialStatsPage = () => {
                         cx="50%"
                         cy="50%"
                         outerRadius={88}
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
-                        }
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
                         {incomeSplit.map((_, i) => (
                           <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
