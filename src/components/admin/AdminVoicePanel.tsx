@@ -205,7 +205,6 @@ const AdminVoicePanel: React.FC<Props> = ({ apiBase, adminUserId, user, onClose 
         <div className="flex items-center justify-between px-5 py-3">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Past recordings</h3>
-            <p className="text-xs text-slate-500">Kept for 14 days, then auto-deleted.</p>
           </div>
           <button
             type="button"

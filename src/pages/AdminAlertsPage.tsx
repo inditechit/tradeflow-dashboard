@@ -69,13 +69,18 @@ const PAGE_SIZE = 40;
 const CATEGORY_TABS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
   { key: "unmatched", label: "Unmatch" },
-  { key: "withdraw", label: "Withdraw" },
   { key: "recharge", label: "Wallet recharge" },
   { key: "support", label: "Support ticket" },
   { key: "new_user", label: "New user" },
   { key: "payments", label: "Pending payments" },
   { key: "start_stop", label: "Start / Stop" },
 ];
+
+function isWithdrawAlert(row: { alert_type?: string; category?: string | null }) {
+  const t = String(row.alert_type ?? "").toLowerCase();
+  const c = String(row.category ?? "").toLowerCase();
+  return t === "withdrawal" || t === "withdraw" || c === "withdraw" || c === "withdrawal";
+}
 
 function fmtDateTime(v: string | null | undefined) {
   if (!v) return "—";
@@ -163,10 +168,17 @@ const AdminAlertsPage = () => {
         const res = await fetch(`${API_BASE}/admin/alerts?${qs}`);
         const data = await res.json();
         if (data.success) {
-          setRows(data.rows ?? []);
+          const filteredRows = (data.rows ?? []).filter(
+            (r: AdminAlertRow) => !isWithdrawAlert(r),
+          );
+          setRows(filteredRows);
           setTotal(Number(data.total ?? 0));
           setUnread(Number(data.unread ?? 0));
-          setCategories(Array.isArray(data.categories) ? data.categories : []);
+          setCategories(
+            (Array.isArray(data.categories) ? data.categories : []).filter(
+              (c: CategoryStat) => c.key !== "withdraw" && c.key !== "withdrawal",
+            ),
+          );
           setPage(pageNum);
         } else {
           toast({ title: "Error", description: data.error, variant: "destructive" });
@@ -273,7 +285,7 @@ const AdminAlertsPage = () => {
             Admin alerts
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Alerts by category — unmatch, withdraw, recharge, support, new users, payments, and
+            Alerts by category — unmatch, recharge, support, new users, payments, and
             start/stop trading.
           </p>
           {unread > 0 && (

@@ -1,7 +1,6 @@
 export type AdminCallSoundId = "classic" | "digital" | "nokia" | "marimba" | "pulse";
 
 export type AdminCallAlertType =
-  | "withdrawal"
   | "support"
   | "payment"
   | "new_user"
@@ -30,7 +29,6 @@ export const ADMIN_CALL_SOUNDS: Array<{
 ];
 
 export const ADMIN_CALL_ALERT_LABELS: Record<AdminCallAlertType, string> = {
-  withdrawal: "Withdrawal requests",
   support: "Support needs reply",
   payment: "Pending payments / recharges",
   new_user: "New users",
@@ -42,7 +40,6 @@ const DEFAULT_PREFS: AdminCallNotificationPrefs = {
   soundId: "classic",
   volume: 0.85,
   types: {
-    withdrawal: true,
     support: true,
     payment: true,
     new_user: true,
@@ -81,10 +78,21 @@ export function getAdminCallPrefs(): AdminCallNotificationPrefs {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return { ...DEFAULT_PREFS, types: { ...DEFAULT_PREFS.types } };
     const parsed = JSON.parse(raw) as Partial<AdminCallNotificationPrefs>;
+    const mergedTypes = { ...DEFAULT_PREFS.types, ...(parsed.types ?? {}) } as Record<
+      string,
+      boolean
+    >;
+    // Drop legacy withdrawal toggle if present in older saved prefs.
+    delete mergedTypes.withdrawal;
     return {
       ...DEFAULT_PREFS,
       ...parsed,
-      types: { ...DEFAULT_PREFS.types, ...(parsed.types ?? {}) },
+      types: {
+        support: mergedTypes.support !== false,
+        payment: mergedTypes.payment !== false,
+        new_user: mergedTypes.new_user !== false,
+        alert: mergedTypes.alert !== false,
+      },
     };
   } catch {
     return { ...DEFAULT_PREFS, types: { ...DEFAULT_PREFS.types } };

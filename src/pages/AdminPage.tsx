@@ -1339,6 +1339,12 @@ const AdminPage = () => {
                         >
                           View withdraw
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/admin/capital-statement?userId=${loc.id}`)}
+                        >
+                          Capital statement
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator className="bg-slate-200" />
                         <DropdownMenuItem
                           className="cursor-pointer"

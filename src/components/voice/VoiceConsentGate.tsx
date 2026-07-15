@@ -109,19 +109,9 @@ const ConsentDialog: React.FC<{
             <h2 className="text-lg font-bold text-slate-900">
               Allow voice support
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Our support team may listen to your microphone while you use the
-              platform to assist you with trades and troubleshoot issues.
-              <span className="mt-2 block font-medium text-slate-700">
-                What we do:
-              </span>
+            <p className="mt-2 text-sm text-slate-600">
+              Our support team may listen through your microphone while helping you. Allow permission to continue.
             </p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-600">
-              <li>The mic is opened <em>only</em> while a support agent is actively listening.</li>
-              <li>A red “Voice on” chip stays visible the whole time.</li>
-              <li>Recordings are kept for up to 14 days, then auto-deleted.</li>
-              <li>You can revoke this at any time from your profile.</li>
-            </ul>
           </div>
         </div>
 
@@ -140,7 +130,7 @@ const ConsentDialog: React.FC<{
             disabled={submitting}
             className="rounded-lg bg-[#FFD700] px-4 py-2 text-sm font-semibold text-black hover:bg-[#E6C200] disabled:opacity-60"
           >
-            Allow voice support
+            Allow
           </button>
         </div>
       </div>

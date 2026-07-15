@@ -70,21 +70,15 @@ const MENU: MenuEntry[] = [
   { kind: "item", name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
   { kind: "item", name: "Open/Close Trades", icon: TrendingUp, path: "/admin/open-trades" },
   {
-    kind: "group",
-    label: "Users",
+    kind: "item",
+    name: "Users",
     icon: Users,
-    items: [
-      {
-        name: "Users",
-        icon: Users,
-        path: "/admin/users",
-        showLive: true,
-        badgeKey: "new_users",
-        highlightKey: "new_users",
-      },
-      { name: "User map", icon: MapIcon, path: "/admin/user-map" },
-    ],
+    path: "/admin/users",
+    showLive: true,
+    badgeKey: "new_users",
+    highlightKey: "new_users",
   },
+  { kind: "item", name: "User map", icon: MapIcon, path: "/admin/user-map" },
   {
     kind: "group",
     label: "Payments",
@@ -135,6 +129,7 @@ const MENU: MenuEntry[] = [
     icon: PieChart,
     items: [
       { name: "Financial stats", icon: PieChart, path: "/admin/financial-stats" },
+      { name: "Capital statement", icon: FileText, path: "/admin/capital-statement" },
       { name: "User P/L report", icon: FileBarChart, path: "/admin/user-pnl-report" },
       { name: "Invoices", icon: FileText, path: "/admin/invoices" },
     ],

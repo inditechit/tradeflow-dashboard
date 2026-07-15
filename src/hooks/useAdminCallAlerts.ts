@@ -20,14 +20,6 @@ export type IncomingAdminCall = {
   link: string;
 };
 
-type PendingWithdrawalPeek = {
-  id: number;
-  user_id: number;
-  amount_usd: number | string;
-  user_name?: string | null;
-  created_at?: string;
-};
-
 export function useAdminCallAlerts(pollMs = 12_000) {
   const [prefs, setPrefsState] = useState(getAdminCallPrefs);
   const [incoming, setIncoming] = useState<IncomingAdminCall | null>(null);
@@ -92,26 +84,23 @@ export function useAdminCallAlerts(pollMs = 12_000) {
       const qs = new URLSearchParams();
       const seenAt = getAdminUsersSeenAt();
       if (seenAt) qs.set("users_since", seenAt);
-      const [badgeRes, withdrawRes, alertRes] = await Promise.all([
+      const [badgeRes, alertRes] = await Promise.all([
         fetch(`${API_BASE}/admin/sidebar-badges?${qs.toString()}`),
-        fetch(`${API_BASE}/admin/withdrawals?status=pending&limit=10&page=1`),
         fetch(`${API_BASE}/admin/alerts?limit=5&unread=1`),
       ]);
       const badgeJson = await badgeRes.json();
-      const withdrawJson = await withdrawRes.json();
       const alertJson = await alertRes.json();
 
       if (badgeJson?.success && badgeJson.badges) {
         badges = badgeJson.badges as AdminSidebarBadges;
       }
 
-      const pendingRows: PendingWithdrawalPeek[] = Array.isArray(withdrawJson?.withdrawals)
-        ? withdrawJson.withdrawals
-        : [];
-      const maxWithdrawId = pendingRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
-      const newestWithdraw = pendingRows.sort((a, b) => Number(b.id) - Number(a.id))[0];
-
-      const alertRows = Array.isArray(alertJson?.rows) ? alertJson.rows : [];
+      const alertRows = (Array.isArray(alertJson?.rows) ? alertJson.rows : []).filter(
+        (r: { alert_type?: string; type?: string; category?: string }) => {
+          const t = String(r.alert_type ?? r.type ?? r.category ?? "").toLowerCase();
+          return t !== "withdrawal" && t !== "withdraw";
+        },
+      );
       const maxAlertId = alertRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
       const newestAlert = alertRows.sort((a, b) => Number(b.id) - Number(a.id))[0];
 
@@ -119,7 +108,6 @@ export function useAdminCallAlerts(pollMs = 12_000) {
         initializedRef.current = true;
         watermarksRef.current = {
           ...wm,
-          lastWithdrawalId: Math.max(wm.lastWithdrawalId, maxWithdrawId),
           lastAlertId: Math.max(wm.lastAlertId, maxAlertId),
           support_needs_reply: badges?.support_needs_reply ?? wm.support_needs_reply,
           pending_recharges: badges?.pending_recharges ?? wm.pending_recharges,
@@ -130,25 +118,6 @@ export function useAdminCallAlerts(pollMs = 12_000) {
           unread_alerts: badges?.unread_alerts ?? wm.unread_alerts,
         };
         saveAdminCallWatermarks(watermarksRef.current);
-        return;
-      }
-
-      if (
-        prefs.types.withdrawal &&
-        maxWithdrawId > wm.lastWithdrawalId &&
-        newestWithdraw
-      ) {
-        const amt = Number(newestWithdraw.amount_usd ?? 0);
-        triggerCall(
-          {
-            key: `withdrawal-${newestWithdraw.id}`,
-            type: "withdrawal",
-            title: "Incoming withdrawal request",
-            subtitle: `${newestWithdraw.user_name ?? `User #${newestWithdraw.user_id}`} · $${amt.toFixed(2)} USDT`,
-            link: "/admin/withdrawals",
-          },
-          { lastWithdrawalId: maxWithdrawId, pending_withdrawals: badges?.pending_withdrawals ?? wm.pending_withdrawals },
-        );
         return;
       }
 

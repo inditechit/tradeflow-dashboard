@@ -114,6 +114,15 @@ const AdminWithdrawalsPage = () => {
   const [createTxHash, setCreateTxHash] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
 
+  const [userHistoryOpen, setUserHistoryOpen] = useState(false);
+  const [userHistoryLoading, setUserHistoryLoading] = useState(false);
+  const [userHistoryRows, setUserHistoryRows] = useState<WithdrawalRow[]>([]);
+  const [userHistoryMeta, setUserHistoryMeta] = useState<{
+    userId: number;
+    name: string | null;
+    totalPayout: number;
+  } | null>(null);
+
   const load = useCallback(
     async (pageNum = 1, status: StatusFilter = filter, userId: number | null = activeUserId) => {
       setLoading(true);
@@ -196,11 +205,38 @@ const AdminWithdrawalsPage = () => {
     setSearchParams(next);
   };
 
-  const filterUserAllWithdrawals = (userId: number) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("userId", String(userId));
-    next.set("status", "all");
-    setSearchParams(next);
+  const openUserWithdrawals = async (row: WithdrawalRow) => {
+    const userId = Number(row.user_id);
+    if (!Number.isFinite(userId) || userId <= 0) return;
+    setUserHistoryOpen(true);
+    setUserHistoryLoading(true);
+    setUserHistoryMeta({
+      userId,
+      name: row.user_name ?? null,
+      totalPayout: Number(row.user_total_payout_usd ?? 0),
+    });
+    setUserHistoryRows([]);
+    try {
+      const qs = new URLSearchParams({
+        status: "all",
+        userId: String(userId),
+        page: "1",
+        limit: "200",
+      });
+      const res = await fetch(`${API_BASE}/admin/withdrawals?${qs}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to load");
+      setUserHistoryRows(Array.isArray(data.withdrawals) ? data.withdrawals : []);
+    } catch (e) {
+      toast({
+        title: "Could not load withdrawals",
+        description: e instanceof Error ? e.message : "Network error",
+        variant: "destructive",
+      });
+      setUserHistoryOpen(false);
+    } finally {
+      setUserHistoryLoading(false);
+    }
   };
 
   const titleSuffix = useMemo(() => {
@@ -580,27 +616,26 @@ const confirmApprove = async () => {
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm text-slate-700 sm:px-6">{r.id}</td>
                     <td className="px-4 py-3 sm:px-6">
-                      <button
-                        type="button"
-                        onClick={() => filterUserAllWithdrawals(r.user_id)}
+                      <Link
+                        to={`/admin/user-profile/${r.user_id}`}
                         className="text-left hover:underline"
-                        title="Show all withdrawals for this user"
+                        title="Open user profile"
                       >
                         <div className="font-semibold text-slate-900">{r.user_name ?? "—"}</div>
                         <div className="text-xs text-slate-500">#{r.user_id}</div>
-                      </button>
+                      </Link>
                       <div className="break-all text-xs text-slate-600">{r.user_email}</div>
                     </td>
                     <td className="px-4 py-3 sm:px-6">
                       <button
                         type="button"
-                        onClick={() => filterUserAllWithdrawals(r.user_id)}
+                        onClick={() => void openUserWithdrawals(r)}
                         className="font-semibold tabular-nums text-emerald-800 underline-offset-2 hover:underline"
-                        title="Show all withdrawals for this user"
+                        title="View all withdrawals for this user"
                       >
                         ${userTotal.toFixed(2)}
                       </button>
-                      <div className="text-[11px] text-slate-500">completed · click to filter</div>
+                      <div className="text-[11px] text-slate-500">completed · click to view</div>
                     </td>
                     <td className="px-4 py-3 font-semibold tabular-nums text-neutral-800 sm:px-6">
                       ${payout.toFixed(2)}
@@ -879,6 +914,92 @@ const confirmApprove = async () => {
               {txFixBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={userHistoryOpen} onOpenChange={setUserHistoryOpen}>
+        <DialogContent className="max-h-[85vh] border-slate-200 bg-white sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-black">
+              Withdrawals
+              {userHistoryMeta
+                ? ` · ${userHistoryMeta.name ?? `User #${userHistoryMeta.userId}`}`
+                : ""}
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {userHistoryMeta
+                ? `User #${userHistoryMeta.userId} · completed total ${money(userHistoryMeta.totalPayout)}`
+                : "All withdrawal requests for this user"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] overflow-auto rounded-lg border border-slate-200">
+            {userHistoryLoading ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              </div>
+            ) : userHistoryRows.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500">No withdrawals found</div>
+            ) : (
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="sticky top-0 bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">ID</th>
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">Payout</th>
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">Fee</th>
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">Total</th>
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">Status</th>
+                    <th className="px-3 py-2 text-xs font-bold uppercase text-slate-600">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userHistoryRows.map((hr) => {
+                    const payout = Number(hr.amount_usd);
+                    const fee = Number(hr.fee_usd ?? 0);
+                    const rowTotal = Math.round((payout + fee) * 100) / 100;
+                    return (
+                      <tr key={hr.id} className="border-b border-slate-100">
+                        <td className="px-3 py-2 font-mono text-slate-700">{hr.id}</td>
+                        <td className="px-3 py-2 font-semibold tabular-nums">${payout.toFixed(2)}</td>
+                        <td className="px-3 py-2 tabular-nums text-slate-600">
+                          {fee > 0 ? `$${fee.toFixed(2)}` : "—"}
+                        </td>
+                        <td className="px-3 py-2 font-semibold tabular-nums">${rowTotal.toFixed(2)}</td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${statusClass(hr.status)}`}
+                          >
+                            {hr.status}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                          {hr.created_at
+                            ? new Date(String(hr.created_at).replace(" ", "T")).toLocaleString()
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setUserHistoryOpen(false)}>
+              Close
+            </Button>
+            {userHistoryMeta ? (
+              <Button
+                type="button"
+                className="bg-[#FFD700] text-black hover:bg-[#E6C200]"
+                onClick={() => {
+                  applyUserFilter(userHistoryMeta.userId);
+                  setUserHistoryOpen(false);
+                }}
+              >
+                Filter main table
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
