@@ -248,6 +248,11 @@ const UserTransactions = () => {
             <span className="text-xs text-slate-400">{ledgerTotal.toLocaleString()} entries</span>
           )}
         </div>
+        <p className="mb-3 text-xs text-slate-500">
+          Newest first in apply order. Recharges always post as their own row — if the balance drops
+          right after, the next lines are trading fees/settlements, not a missing recharge.
+          Account balance must match the top Balance after row.
+        </p>
         {ledgerLoading && ledger.length === 0 ? (
           <p className="py-8 text-center text-slate-400">Loading wallet log…</p>
         ) : ledger.length === 0 ? (

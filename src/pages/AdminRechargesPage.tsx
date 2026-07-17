@@ -28,6 +28,9 @@ type TempBalances = {
   trx: number;
   usdt: number;
   wallet?: string;
+  signingAddress?: string;
+  keyMatchesWallet?: boolean;
+  signingTrx?: number;
   loading?: boolean;
   error?: string;
 };
@@ -252,9 +255,20 @@ const AdminRechargesPage = () => {
           trx: Number(b.trx ?? 0),
           usdt: Number(b.usdt ?? 0),
           wallet: b.wallet,
+          signingAddress: b.signingAddress,
+          keyMatchesWallet: b.keyMatchesWallet !== false,
+          signingTrx: Number(b.signingTrx ?? 0),
+          error: b.error || undefined,
           loading: false,
         },
       }));
+      if (b.keyMatchesWallet === false) {
+        toast({
+          title: "Private key mismatch",
+          description: b.error || "Stored wallet and private key do not match — reclaim will fail until fixed.",
+          variant: "destructive",
+        });
+      }
     } catch {
       setBalancesById((prev) => ({
         ...prev,
@@ -643,6 +657,11 @@ const AdminRechargesPage = () => {
                           <div className="tabular-nums text-slate-800">
                             <div>{Number(bal.trx).toFixed(4)} TRX</div>
                             <div>{Number(bal.usdt).toFixed(2)} USDT</div>
+                            {bal.keyMatchesWallet === false ? (
+                              <div className="mt-1 text-[10px] font-semibold text-red-600">
+                                Key mismatch — reclaim blocked
+                              </div>
+                            ) : null}
                             {bal.error ? <div className="text-xs text-red-500">{bal.error}</div> : null}
                           </div>
                         ) : (

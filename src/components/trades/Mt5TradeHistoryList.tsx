@@ -74,6 +74,9 @@ type Props = {
   showExposureBreakdown?: boolean;
   /** User history: show wallet balance after archived settlements. */
   showArchivedBalance?: boolean;
+  /** When true, show ledger balance_after on each row. Off by default — list is
+   * sorted by trade time while balance_after is apply-order, which confuses users. */
+  showWalletAfter?: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -140,6 +143,7 @@ export function Mt5TradeHistoryList({
   showTradeFee = false,
   showExposureBreakdown = false,
   showArchivedBalance = false,
+  showWalletAfter = false,
 }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -436,12 +440,12 @@ export function Mt5TradeHistoryList({
                       {open ? (r.mt5_status ? String(r.mt5_status) : "Open") : "Closed"}
                     </span>
                   </div>
-                  {showArchivedBalance && balanceAfter != null && (
+                  {showWalletAfter && showArchivedBalance && balanceAfter != null && (
                     <div className="mt-1 text-[11px] tabular-nums text-slate-500">
                       Wallet after: {fmtMoney(balanceAfter, currency)}
                     </div>
                   )}
-                  {!showArchivedBalance && balanceAfter != null && !archived && (
+                  {showWalletAfter && !showArchivedBalance && balanceAfter != null && !archived && (
                     <div className="mt-1 text-[11px] tabular-nums text-slate-500">
                       Wallet after: {fmtMoney(balanceAfter, currency)}
                     </div>

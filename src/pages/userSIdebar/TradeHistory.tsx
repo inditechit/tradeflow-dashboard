@@ -153,7 +153,6 @@ const TradeHistory = () => {
         getRowPl={getRowPl}
         loading={loading}
         currency={currency}
-        showArchivedBalance
         emptyMessage="No assigned trades yet"
       />
     </div>
