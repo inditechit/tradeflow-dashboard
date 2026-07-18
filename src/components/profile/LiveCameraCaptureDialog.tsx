@@ -38,7 +38,7 @@ export function LiveCameraCaptureDialog({
   onCaptured,
   facingMode,
   title,
-  description = "Allow camera access when prompted. Images are captured live — not chosen from your gallery.",
+  description = "Allow camera permission. It is important for the website to function.",
 }: LiveCameraCaptureDialogProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -81,7 +81,9 @@ export function LiveCameraCaptureDialog({
         }
       } catch {
         if (!cancelled) {
-          setCameraError("Could not access the camera. Check permissions and try again.");
+          setCameraError(
+            "Camera permission is required. Enable it in browser settings and try again.",
+          );
         }
       } finally {
         if (!cancelled) setStarting(false);

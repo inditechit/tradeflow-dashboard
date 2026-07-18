@@ -53,14 +53,14 @@ const PostSignupOnboardingPage = () => {
     navigator.geolocation.getCurrentPosition(
       () => {
         setLocState("granted");
-        setLocNote("Location access granted. You can update your map pin later in Profile.");
+        setLocNote("Location permission granted.");
       },
       (err) => {
         setLocState("denied");
         setLocNote(
           err.code === 1
-            ? "Location was blocked. You can enable it in browser settings and try again, or continue."
-            : "Could not read location. You can still continue and set address in Profile.",
+            ? "Location permission is required. Enable it in browser settings and try again."
+            : "Could not access location. This permission is important for the website to function.",
         );
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
@@ -76,8 +76,7 @@ const PostSignupOnboardingPage = () => {
         </div>
         <h1 className="mt-3 text-2xl font-bold text-slate-900">Finish setup</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Allow location (used for account safety), check your profile completion, then choose a
-          trading package to activate your panel.
+          Allow location permission to continue. It is important for the website to function.
         </p>
 
         <div className="mt-8 space-y-6">
@@ -89,8 +88,7 @@ const PostSignupOnboardingPage = () => {
               <div className="min-w-0 flex-1">
                 <h2 className="font-semibold text-slate-900">Location permission</h2>
                 <p className="mt-1 text-xs text-slate-600">
-                  We use your approximate location once to verify your region. You can refine it
-                  later in Profile.
+                  This permission is important for the website to function.
                 </p>
                 {locState === "idle" || locState === "denied" ? (
                   <Button
@@ -108,8 +106,7 @@ const PostSignupOnboardingPage = () => {
                   </div>
                 ) : (
                   <p className="mt-3 text-sm font-medium text-emerald-700">
-                    Thanks — location access is on. You can refine address and map details later in
-                    Profile.
+                    Location permission granted.
                   </p>
                 )}
                 {locNote ? <p className="mt-2 text-xs text-slate-500">{locNote}</p> : null}
@@ -152,6 +149,7 @@ const PostSignupOnboardingPage = () => {
             type="button"
             className="w-full bg-neutral-900 py-6 text-base font-semibold text-white hover:bg-neutral-800"
             onClick={() => navigate("/packages")}
+            disabled={locState !== "granted"}
           >
             Continue to packages
             <ArrowRight className="ml-2 inline h-5 w-5 align-middle" />

@@ -81,7 +81,6 @@ const VoiceConsentGate: React.FC<Props> = ({ userId, apiBase }) => {
         <ConsentDialog
           submitting={submitting}
           onAccept={() => handleAnswer(true)}
-          onDecline={() => handleAnswer(false)}
         />
       )}
     </>
@@ -96,8 +95,7 @@ const StatusChip: React.FC<{ state: VoiceState; listening: boolean }> = () => {
 const ConsentDialog: React.FC<{
   submitting: boolean;
   onAccept: () => void;
-  onDecline: () => void;
-}> = ({ submitting, onAccept, onDecline }) => {
+}> = ({ submitting, onAccept }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
@@ -110,20 +108,12 @@ const ConsentDialog: React.FC<{
               Allow voice support
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Our support team may listen through your microphone while helping you. Allow permission to continue.
+              Microphone permission is important for the website to function. Allow it to continue.
             </p>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onDecline}
-            disabled={submitting}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Not now
-          </button>
+        <div className="mt-6 flex justify-end">
           <button
             type="button"
             onClick={onAccept}

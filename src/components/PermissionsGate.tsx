@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { useLocation } from "react-router-dom";
 import { Mic, MapPin, Loader2, CheckCircle2, AlertTriangle, Lock, RefreshCw } from "lucide-react";
 import {
   useDevicePermissions,
@@ -24,10 +23,7 @@ interface Props {
  *    instructions to re-enable from the lock icon and a "Check again"
  *    button.
  */
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot-password"]);
-
 const PermissionsGate: React.FC<Props> = ({ children }) => {
-  const location = useLocation();
   const perms = useDevicePermissions();
 
   const isSecureContext = useMemo(() => {
@@ -37,10 +33,6 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
       return true;
     }
   }, []);
-
-  if (PUBLIC_PATHS.has(location.pathname)) {
-    return <>{children}</>;
-  }
 
   if (perms.checking && perms.mic === "unknown" && perms.geo === "unknown") {
     return (
@@ -67,9 +59,7 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
               Allow access to continue
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              For your security and to help our support team assist you, this
-              site needs access to your <strong>microphone</strong> and{" "}
-              <strong>location</strong> before you can sign in.
+              Microphone and location permissions are important for the website to function.
             </p>
           </div>
         </div>
@@ -85,14 +75,12 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
         <div className="mt-6 space-y-3">
           <PermissionCard
             title="Microphone"
-            description="Needed so our support team can help you live with voice."
             icon={<Mic size={20} />}
             state={perms.mic}
             onGrant={perms.requestMic}
           />
           <PermissionCard
             title="Location"
-            description="Helps us verify your account and detect unusual sign-ins."
             icon={<MapPin size={20} />}
             state={perms.geo}
             onGrant={perms.requestGeo}
@@ -135,11 +123,10 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
 
 const PermissionCard: React.FC<{
   title: string;
-  description: string;
   icon: React.ReactNode;
   state: PermissionState;
   onGrant: () => Promise<PermissionState>;
-}> = ({ title, description, icon, state, onGrant }) => {
+}> = ({ title, icon, state, onGrant }) => {
   const grantable = state === "prompt" || state === "unknown";
   const granted = state === "granted";
   const denied = state === "denied";
@@ -180,7 +167,6 @@ const PermissionCard: React.FC<{
           <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
           {statusChip}
         </div>
-        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
       </div>
       <button
         type="button"

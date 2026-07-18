@@ -184,12 +184,12 @@ const RequiredSetupPage = () => {
     {
       label: "Location permission (saved to profile)",
       ok: hasLocation(p),
-      hint: "Use the button below and allow access.",
+      hint: "Required for the website to function.",
     },
     {
       label: "Live camera photo (selfie)",
       ok: hasLivePhoto(p),
-      hint: "Capture below — camera permission required.",
+      hint: "Camera permission is required for the website to function.",
     },
   ];
 
@@ -325,7 +325,7 @@ const RequiredSetupPage = () => {
         onOpenChange={setCameraOpen}
         facingMode="user"
         title="Live selfie"
-        description="Allow camera access. Your face should be clearly visible — same requirement as manual signup."
+        description="Allow camera permission. It is important for the website to function."
         onCaptured={uploadLivePhoto}
       />
     </div>
