@@ -21,6 +21,8 @@ import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
+import { useApp } from "@/context/AppContext";
+import { maskSupportContactInfo } from "@/utils/supportPrivacy";
 
 type TicketRow = {
   id: number;
@@ -38,6 +40,7 @@ type TicketRow = {
 type Msg = {
   id: number;
   sender_role: "user" | "admin";
+  sender_name?: string | null;
   body: string;
   created_at: string;
 };
@@ -52,6 +55,7 @@ const TICKET_PAGE_SIZE = 50;
 
 const AdminSupportTicketsPage = () => {
   const { toast } = useToast();
+  const { currentUser } = useApp();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [rows, setRows] = useState<TicketRow[]>([]);
@@ -140,14 +144,14 @@ const AdminSupportTicketsPage = () => {
 
   const sendReply = async () => {
     if (activeId == null) return;
-    const body = reply.trim();
+    const body = maskSupportContactInfo(reply.trim());
     if (!body) return;
     setSending(true);
     try {
       const res = await fetch(`${API_BASE}/admin/support/tickets/${activeId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, senderUserId: currentUser?.userId }),
       });
       const data = await res.json();
       if (data.success) {
@@ -281,9 +285,13 @@ const AdminSupportTicketsPage = () => {
                       </div>
                     </td>
                     <td className="max-w-[240px] px-4 py-3">
-                      <div className="truncate font-medium text-slate-800">{r.subject}</div>
+                      <div className="truncate font-medium text-slate-800">
+                        {maskSupportContactInfo(r.subject)}
+                      </div>
                       {r.last_message_preview ? (
-                        <div className="truncate text-xs text-slate-500">{r.last_message_preview}</div>
+                        <div className="truncate text-xs text-slate-500">
+                          {maskSupportContactInfo(r.last_message_preview)}
+                        </div>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">
@@ -330,7 +338,7 @@ const AdminSupportTicketsPage = () => {
         <DialogContent className="flex h-[min(90vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           <DialogHeader className="border-b border-slate-200 px-4 py-3 text-left">
             <DialogTitle className="pr-8 text-base leading-snug">
-              #{activeId} · {ticketMeta?.subject ?? "Ticket"}
+              #{activeId} · {maskSupportContactInfo(ticketMeta?.subject ?? "Ticket")}
             </DialogTitle>
             {ticketMeta ? (
               <p className="text-xs text-slate-500">
@@ -364,7 +372,9 @@ const AdminSupportTicketsPage = () => {
                           : "rounded-bl-md border border-slate-200 bg-[#F9F9F9] text-slate-800",
                       )}
                     >
-                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      <p className="whitespace-pre-wrap break-words">
+                        {maskSupportContactInfo(m.body)}
+                      </p>
                       <p
                         className={cn(
                           "mt-1 text-[10px] opacity-75",

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { gmailComposeUrl, SUPPORT_EMAIL } from "@/constants/packages";
+import { maskSupportContactInfo } from "@/utils/supportPrivacy";
 
 const TICKET_PAGE_SIZE = 50;
 
@@ -28,13 +29,14 @@ type TicketListItem = {
 type Msg = {
   id: number;
   sender_role: "user" | "admin";
+  sender_name?: string | null;
   body: string;
   created_at: string;
 };
 
 function preview(s: string | null, max = 80) {
   if (!s) return "";
-  const t = s.replace(/\s+/g, " ").trim();
+  const t = maskSupportContactInfo(s).replace(/\s+/g, " ").trim();
   return t.length <= max ? t : `${t.slice(0, max)}…`;
 }
 
@@ -192,8 +194,8 @@ const SupportTicketsPage = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    const sub = newSubject.trim();
-    const msg = newMessage.trim();
+    const sub = maskSupportContactInfo(newSubject.trim());
+    const msg = maskSupportContactInfo(newMessage.trim());
     if (!sub || !msg) {
       toast({ title: "Fill subject and message", variant: "destructive" });
       return;
@@ -229,7 +231,7 @@ const SupportTicketsPage = () => {
 
   const handleSendReply = async () => {
     if (!userId || selectedId == null) return;
-    const body = reply.trim();
+    const body = maskSupportContactInfo(reply.trim());
     if (!body) return;
     setSending(true);
     try {
@@ -483,14 +485,19 @@ const SupportTicketsPage = () => {
                               : "rounded-bl-md border border-slate-200 bg-[#F9F9F9] text-slate-800",
                           )}
                         >
-                          <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                          <p className="whitespace-pre-wrap break-words">
+                            {maskSupportContactInfo(m.body)}
+                          </p>
                           <p
                             className={cn(
                               "mt-1 text-[10px] opacity-70",
                               m.sender_role === "user" ? "text-black/70" : "text-slate-500",
                             )}
                           >
-                            {m.sender_role === "admin" ? "Support (UK)" : "You"} ·{" "}
+                            {m.sender_role === "admin"
+                              ? m.sender_name || "Support (UK)"
+                              : "You"}{" "}
+                            ·{" "}
                             {new Date(m.created_at).toLocaleString()}
                           </p>
                         </div>
