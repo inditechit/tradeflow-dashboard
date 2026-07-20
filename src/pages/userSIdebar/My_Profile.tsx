@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   Plane,
@@ -9,11 +9,13 @@ import {
   Clock,
   Plus,
   ArrowRight,
+  CalendarDays,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
 import { getPackageById, packageDisplayName } from "@/constants/packages";
 import { API_BASE } from "@/config/api";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 type PaymentTxn = {
   id: number | string;
@@ -25,6 +27,13 @@ type PaymentTxn = {
   tx_hash?: string;
 };
 
+function daysRemainingUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const endMs = new Date(iso).getTime();
+  if (!Number.isFinite(endMs)) return null;
+  return Math.max(0, Math.ceil((endMs - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
 const getPackageIcon = (name: string) => {
   const lowerName = name.toLowerCase();
   if (lowerName.includes("india")) return <Plane size={24} />;
@@ -35,10 +44,16 @@ const getPackageIcon = (name: string) => {
 const My_Profile = () => {
   const { currentUser, setSelectedPackage } = useApp();
   const navigate = useNavigate();
+  const subscription = useSubscriptionStatus();
 
   const [transactions, setTransactions] = useState<PaymentTxn[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const packageDaysLeft = useMemo(
+    () => daysRemainingUntil(subscription.expiresAt),
+    [subscription.expiresAt],
+  );
 
   useEffect(() => {
     if (!currentUser?.userId) return;
@@ -99,8 +114,23 @@ const My_Profile = () => {
 
       {/* Active packages */}
       <section className="mt-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">Your Active Packages</h2>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Your Active Packages</h2>
+            {!subscription.loading && subscription.isActive && packageDaysLeft != null ? (
+              <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                <CalendarDays className="h-4 w-4 text-yellow-700" />
+                {packageDaysLeft === 0
+                  ? "Package ends today"
+                  : `${packageDaysLeft} day${packageDaysLeft === 1 ? "" : "s"} remaining`}
+                {subscription.activeSegment?.packageName
+                  ? ` · ${subscription.activeSegment.packageName}`
+                  : ""}
+              </p>
+            ) : !subscription.loading && subscription.isExpired ? (
+              <p className="mt-1 text-sm font-medium text-amber-700">Package expired — renew to continue.</p>
+            ) : null}
+          </div>
           <button
             onClick={() => navigate("/packages")}
             className="flex items-center gap-1 text-sm font-bold text-neutral-900 hover:text-neutral-800"
@@ -140,6 +170,14 @@ const My_Profile = () => {
               const pkgMeta = getPackageById(txn.package_id);
               const isPending = txn.status !== "success";
               const title = packageDisplayName(txn.package_id, txn.package_name);
+              const segment = subscription.segments.find(
+                (s) => String(s.paymentId) === String(txn.id),
+              );
+              const segDaysLeft = daysRemainingUntil(segment?.periodEnd);
+              const isCurrentActive =
+                txn.status === "success" &&
+                Boolean(subscription.activeSegment) &&
+                String(subscription.activeSegment?.paymentId) === String(txn.id);
 
               return (
                 <div
@@ -154,7 +192,12 @@ const My_Profile = () => {
                     </div>
                     {txn.status === "success" ? (
                       <span className="flex items-center gap-1.5 rounded-full border border-yellow-200 bg-[#FFF9E6] px-3 py-1.5 text-xs font-bold text-yellow-700">
-                        <CheckCircle2 size={14} /> Active
+                        <CheckCircle2 size={14} />{" "}
+                        {isCurrentActive
+                          ? "Active"
+                          : segment && segDaysLeft != null && segDaysLeft > 0
+                            ? "Scheduled"
+                            : "Completed"}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-600">
@@ -170,6 +213,14 @@ const My_Profile = () => {
                         ? "Payment not completed"
                         : `TXN: ${txn.tx_hash ? txn.tx_hash.slice(0, 10) + "..." : "—"}`}
                     </p>
+                    {!isPending && isCurrentActive && packageDaysLeft != null && (
+                      <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                        <CalendarDays className="h-4 w-4 text-yellow-700" />
+                        {packageDaysLeft === 0
+                          ? "Ends today"
+                          : `${packageDaysLeft} day${packageDaysLeft === 1 ? "" : "s"} left`}
+                      </p>
+                    )}
                     <div className="mt-auto flex items-end justify-between">
                       <p className="text-3xl font-extrabold text-slate-900">
                         ${Number(txn.amount).toFixed(0)}

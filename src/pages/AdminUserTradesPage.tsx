@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
+import { packageDisplayName } from "@/constants/packages";
+import { isSubscriptionPackageId } from "@/utils/packageDuration";
 
 const PAGE_SIZE = 50;
 import {
@@ -42,6 +44,17 @@ type UserTradeRow = UserTradeRowLike & {
 };
 
 type StatusFilter = "all" | "open" | "closed";
+
+type PaymentRow = {
+  id: number | string;
+  package_id: string;
+  package_name?: string;
+  status: string;
+  amount: number | string;
+  payment_method?: string;
+  tx_hash?: string | null;
+  created_at?: string | null;
+};
 
 function fmtUsd(n: number) {
   return new Intl.NumberFormat("en-US", {
@@ -98,6 +111,7 @@ const AdminUserTradesPage = () => {
       rejection_reason?: string | null;
     }>
   >([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -105,13 +119,15 @@ const AdminUserTradesPage = () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesData, summaryRes] = await Promise.all([
+      const [profileRes, tradesData, summaryRes, paymentsRes] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
         fetchAllUserTrades(userId, { admin: true }),
         fetch(`${API_BASE}/user/summary/${userId}`),
+        fetch(`${API_BASE}/user/payments/${userId}?limit=2000&offset=0`),
       ]);
       const profileData = await profileRes.json();
       const summaryData = await summaryRes.json();
+      const paymentsData = await paymentsRes.json();
       if (summaryData?.success) {
         const wBal = Number(summaryData.wallet_balance ?? 0);
         setWalletBalance(wBal);
@@ -129,6 +145,11 @@ const AdminUserTradesPage = () => {
       }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
+      }
+      if (paymentsData?.success && Array.isArray(paymentsData.data)) {
+        setPayments(paymentsData.data as PaymentRow[]);
+      } else {
+        setPayments([]);
       }
       setRows(tradesData.trades as UserTradeRow[]);
       setTotalLoaded(tradesData.total);
@@ -176,6 +197,28 @@ const AdminUserTradesPage = () => {
     () => sumUserFacingPlTotals(sortedRows, facingMap),
     [sortedRows, facingMap],
   );
+
+  const paymentTotals = useMemo(() => {
+    const success = payments.filter((p) => String(p.status).toLowerCase() === "success");
+    let packageAmount = 0;
+    let rechargeAmount = 0;
+    const packages: PaymentRow[] = [];
+    for (const p of success) {
+      const amt = Number(p.amount) || 0;
+      if (String(p.package_id) === "recharge") {
+        rechargeAmount += amt;
+      } else if (isSubscriptionPackageId(p.package_id) || String(p.package_id || "").trim()) {
+        packageAmount += amt;
+        packages.push(p);
+      }
+    }
+    return {
+      packages,
+      packageAmount,
+      rechargeAmount,
+      totalAmount: packageAmount + rechargeAmount,
+    };
+  }, [payments]);
 
   const handleExportExcel = useCallback(async () => {
     if (!userId) return;
@@ -496,6 +539,18 @@ const AdminUserTradesPage = () => {
           </div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Total amount (packages + recharges)
+          </div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
+            {fmtUsd(paymentTotals.totalAmount)}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Packages {fmtUsd(paymentTotals.packageAmount)} · Recharges{" "}
+            {fmtUsd(paymentTotals.rechargeAmount)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total deposited</div>
           <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
             {fmtUsd(totalDeposited)}
@@ -521,6 +576,74 @@ const AdminUserTradesPage = () => {
           </div>
           <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">{fmtUsd(equity)}</div>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-1 text-sm font-bold text-slate-800">
+          All packages ({paymentTotals.packages.length})
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Successful package purchases for this user. Total amount includes packages + recharges:{" "}
+          <span className="font-semibold text-slate-700">{fmtUsd(paymentTotals.totalAmount)}</span>
+        </p>
+        {paymentTotals.packages.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-500">No successful package purchases.</p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-500">
+                  <th className="py-2 pr-2">Date</th>
+                  <th className="py-2 pr-2">Package</th>
+                  <th className="py-2 pr-2">Method</th>
+                  <th className="py-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentTotals.packages.map((p) => (
+                  <tr key={`pkg-${p.id}`} className="border-b border-slate-50">
+                    <td className="py-2 pr-2 tabular-nums text-slate-600">
+                      {p.created_at ? formatIsoDateTime(p.created_at) : "—"}
+                    </td>
+                    <td className="py-2 pr-2 font-medium text-slate-800">
+                      {packageDisplayName(p.package_id, p.package_name)}
+                    </td>
+                    <td className="py-2 pr-2 text-slate-600">{p.payment_method || "—"}</td>
+                    <td className="py-2 text-right font-semibold tabular-nums text-emerald-700">
+                      {fmtUsd(Number(p.amount) || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200">
+                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-700">
+                    Package total
+                  </td>
+                  <td className="py-2 text-right font-bold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.packageAmount)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-700">
+                    Recharge total
+                  </td>
+                  <td className="py-2 text-right font-bold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.rechargeAmount)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-800">
+                    Grand total (packages + recharges)
+                  </td>
+                  <td className="py-2 text-right font-extrabold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.totalAmount)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </div>
 
       {(depositHistory.length > 0 || withdrawalHistory.length > 0) && (
