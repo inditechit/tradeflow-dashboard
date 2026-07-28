@@ -18,6 +18,7 @@ import WalletModal from '../components/admin/WalletModal';
 import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
 import ExtendSubscriptionModal from '../components/admin/ExtendSubscriptionModal';
+import { FilterCheckboxDropdown } from '../components/admin/FilterCheckboxDropdown';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -153,7 +154,7 @@ const AdminPage = () => {
   const [error, setError] = useState('');
   const [labelsVersion, setLabelsVersion] = useState(0);
 
-  const [filterName, setFilterName] = useState('');
+  const [filterSelectedUserIds, setFilterSelectedUserIds] = useState<string[]>([]);
   const [filterEmail, setFilterEmail] = useState('');
   const [filterUserId, setFilterUserId] = useState(() => {
     const raw = new URLSearchParams(window.location.search).get('userId')?.trim() ?? '';
@@ -513,6 +514,40 @@ const AdminPage = () => {
     );
   }, []);
 
+  const toggleFilterUser = useCallback((value: string) => {
+    setFilterSelectedUserIds((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  }, []);
+
+  const userNameFilterOptions = useMemo(() => {
+    return [...locations]
+      .map((loc) => {
+        const id = String(loc.id ?? "");
+        const name = String(loc.name || "").trim() || `User #${id}`;
+        return { value: id, label: `${name} (#${id})` };
+      })
+      .filter((opt) => opt.value)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [locations]);
+
+  const packageFilterOptions = useMemo(
+    () => [
+      { value: "none", label: "No active plan" },
+      { value: "expired", label: "Expired plan" },
+      ...SUBSCRIPTION_PACKAGES.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+    ],
+    [],
+  );
+
+  const riskFilterOptions = useMemo(
+    () => [
+      { value: "none", label: "No risk set" },
+      ...RISK_PROFILES.map((risk) => ({ value: risk.id, label: risk.title })),
+    ],
+    [],
+  );
+
   const referrerFilterOptions = useMemo(() => {
     const byId = new Map<number, { id: number; label: string }>();
     for (const loc of locations) {
@@ -525,11 +560,12 @@ const AdminPage = () => {
   }, [locations]);
 
   const filteredLocations = useMemo(() => {
+    const selectedUserIdSet = new Set(filterSelectedUserIds);
     const filtered = locations.filter((loc) => {
-      const nameStr = String(loc.name || "").toLowerCase();
       const emailStr = String(loc.email || "").toLowerCase();
 
-      const matchName = nameStr.includes(filterName.toLowerCase());
+      const matchName =
+        selectedUserIdSet.size === 0 || selectedUserIdSet.has(String(loc.id));
       const matchEmail = emailStr.includes(filterEmail.toLowerCase());
       const matchUserId =
         !filterUserId.trim() || String(loc.id) === filterUserId.trim();
@@ -635,7 +671,7 @@ const AdminPage = () => {
     });
   }, [
     locations,
-    filterName,
+    filterSelectedUserIds,
     filterEmail,
     filterUserId,
     filterKyc,
@@ -681,7 +717,7 @@ const AdminPage = () => {
   );
   const hasActiveFilters = useMemo(
     () =>
-      Boolean(filterName.trim()) ||
+      filterSelectedUserIds.length > 0 ||
       Boolean(filterEmail.trim()) ||
       Boolean(filterUserId.trim()) ||
       filterKyc !== "all" ||
@@ -697,7 +733,7 @@ const AdminPage = () => {
       Boolean(filterJoinTo) ||
       userSort !== "wallet_high",
     [
-      filterName,
+      filterSelectedUserIds,
       filterEmail,
       filterUserId,
       filterKyc,
@@ -766,7 +802,7 @@ const AdminPage = () => {
   useEffect(() => {
     setUserPage(1);
   }, [
-    filterName,
+    filterSelectedUserIds,
     filterEmail,
     filterKyc,
     filterOnline,
@@ -953,18 +989,17 @@ const AdminPage = () => {
 
       <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-8">
         <EmployeeGate perm="filter:users:name">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Search Name
-          </label>
-          <input
-            type="text"
-            placeholder="Filter by name..."
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          />
-        </div>
+        <FilterCheckboxDropdown
+          label="Search Name"
+          options={userNameFilterOptions}
+          selected={filterSelectedUserIds}
+          onToggle={toggleFilterUser}
+          onClear={() => setFilterSelectedUserIds([])}
+          searchable
+          searchPlaceholder="Search users…"
+          emptyLabel="All users"
+          contentClassName="min-w-[280px]"
+        />
         </EmployeeGate>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1058,50 +1093,15 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div className="sm:col-span-2">
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Package
-            {filterPackages.length > 0 ? (
-              <span className="ml-1 font-normal normal-case text-slate-500">
-                ({filterPackages.length} selected)
-              </span>
-            ) : null}
-          </label>
-          <div className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                checked={filterPackages.includes("none")}
-                onChange={() => toggleFilterPackage("none")}
-              />
-              No active plan
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                checked={filterPackages.includes("expired")}
-                onChange={() => toggleFilterPackage("expired")}
-              />
-              Expired plan
-            </label>
-            {SUBSCRIPTION_PACKAGES.map((pkg) => (
-              <label
-                key={pkg.id}
-                className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
-              >
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={filterPackages.includes(pkg.id)}
-                  onChange={() => toggleFilterPackage(pkg.id)}
-                />
-                {pkg.name}
-              </label>
-            ))}
-          </div>
-        </div>
+        <FilterCheckboxDropdown
+          label="Package"
+          options={packageFilterOptions}
+          selected={filterPackages}
+          onToggle={toggleFilterPackage}
+          onClear={() => setFilterPackages([])}
+          emptyLabel="All packages"
+          className="sm:col-span-2"
+        />
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Trade
@@ -1133,41 +1133,17 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div className="sm:col-span-2">
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Risk
-            {filterRisks.length > 0 ? (
-              <span className="ml-1 font-normal normal-case text-slate-500">
-                ({filterRisks.length} selected)
-              </span>
-            ) : null}
-          </label>
-          <div className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                checked={filterRisks.includes("none")}
-                onChange={() => toggleFilterRisk("none")}
-              />
-              No risk set
-            </label>
-            {RISK_PROFILES.map((risk) => (
-              <label
-                key={risk.id}
-                className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
-              >
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={filterRisks.includes(risk.id)}
-                  onChange={() => toggleFilterRisk(risk.id)}
-                />
-                {risk.title}
-              </label>
-            ))}
-          </div>
-        </div>
+        <EmployeeGate perm="filter:users:risk">
+        <FilterCheckboxDropdown
+          label="Risk"
+          options={riskFilterOptions}
+          selected={filterRisks}
+          onToggle={(value) => toggleFilterRisk(value as "none" | RiskId)}
+          onClear={() => setFilterRisks([])}
+          emptyLabel="All risks"
+          className="sm:col-span-2"
+        />
+        </EmployeeGate>
         <EmployeeGate perm="filter:users:referrer">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1246,7 +1222,7 @@ const AdminPage = () => {
             type="button"
             variant="outline"
             onClick={() => {
-              setFilterName('');
+              setFilterSelectedUserIds([]);
               setFilterEmail('');
               setFilterKyc('all');
               setFilterOnline('all');
