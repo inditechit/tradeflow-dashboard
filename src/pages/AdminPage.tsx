@@ -162,12 +162,12 @@ const AdminPage = () => {
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
-  const [filterPackage, setFilterPackage] = useState<string>('all');
+  const [filterPackages, setFilterPackages] = useState<string[]>([]);
   const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
   const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterReferrer, setFilterReferrer] = useState<string>('all');
   const [filterTag, setFilterTag] = useState('all');
-  const [filterRisk, setFilterRisk] = useState<'all' | 'none' | RiskId>('all');
+  const [filterRisks, setFilterRisks] = useState<Array<'none' | RiskId>>([]);
   const [filterJoinFrom, setFilterJoinFrom] = useState('');
   const [filterJoinTo, setFilterJoinTo] = useState('');
   const [userPageSize, setUserPageSize] = useState<number>(DEFAULT_USER_PAGE_SIZE);
@@ -501,6 +501,18 @@ const AdminPage = () => {
     fetchLocations({ silent: true });
   };
 
+  const toggleFilterPackage = useCallback((value: string) => {
+    setFilterPackages((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  }, []);
+
+  const toggleFilterRisk = useCallback((value: 'none' | RiskId) => {
+    setFilterRisks((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  }, []);
+
   const referrerFilterOptions = useMemo(() => {
     const byId = new Map<number, { id: number; label: string }>();
     for (const loc of locations) {
@@ -535,9 +547,10 @@ const AdminPage = () => {
 
       const userRisks = parseUserRiskIds(loc.risk);
       const matchRisk =
-        filterRisk === "all" ||
-        (filterRisk === "none" && userRisks.length === 0) ||
-        (filterRisk !== "none" && userRisks.includes(filterRisk));
+        filterRisks.length === 0 ||
+        filterRisks.some((selected) =>
+          selected === "none" ? userRisks.length === 0 : userRisks.includes(selected),
+        );
 
       const bal = walletBalanceOf(loc);
       const matchWallet =
@@ -547,10 +560,12 @@ const AdminPage = () => {
 
       const activePkg = String(loc.active_package_id ?? "").trim();
       const matchPackage =
-        filterPackage === "all" ||
-        (filterPackage === "none" && !activePkg) ||
-        (filterPackage === "expired" && userPackageExpired(loc)) ||
-        activePkg === filterPackage;
+        filterPackages.length === 0 ||
+        filterPackages.some((selected) => {
+          if (selected === "none") return !activePkg;
+          if (selected === "expired") return userPackageExpired(loc);
+          return activePkg === selected;
+        });
 
       const copyActive = isTradeActive(loc);
       const matchTrading =
@@ -626,12 +641,12 @@ const AdminPage = () => {
     filterKyc,
     filterOnline,
     filterWallet,
-    filterPackage,
+    filterPackages,
     filterTrading,
     filterOpenPl,
     filterReferrer,
     filterTag,
-    filterRisk,
+    filterRisks,
     filterJoinFrom,
     filterJoinTo,
     userSort,
@@ -672,12 +687,12 @@ const AdminPage = () => {
       filterKyc !== "all" ||
       filterOnline !== "all" ||
       filterWallet !== "all" ||
-      filterPackage !== "all" ||
+      filterPackages.length > 0 ||
       filterTrading !== "all" ||
       filterOpenPl !== "all" ||
       filterReferrer !== "all" ||
       filterTag !== "all" ||
-      filterRisk !== "all" ||
+      filterRisks.length > 0 ||
       Boolean(filterJoinFrom) ||
       Boolean(filterJoinTo) ||
       userSort !== "wallet_high",
@@ -688,12 +703,12 @@ const AdminPage = () => {
       filterKyc,
       filterOnline,
       filterWallet,
-      filterPackage,
+      filterPackages,
       filterTrading,
       filterOpenPl,
       filterReferrer,
       filterTag,
-      filterRisk,
+      filterRisks,
       filterJoinFrom,
       filterJoinTo,
       userSort,
@@ -756,12 +771,12 @@ const AdminPage = () => {
     filterKyc,
     filterOnline,
     filterWallet,
-    filterPackage,
+    filterPackages,
     filterTrading,
     filterOpenPl,
     filterReferrer,
     filterTag,
-    filterRisk,
+    filterRisks,
     filterJoinFrom,
     filterJoinTo,
     filterUserId,
@@ -1043,24 +1058,49 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div>
+        <div className="sm:col-span-2">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Package
+            {filterPackages.length > 0 ? (
+              <span className="ml-1 font-normal normal-case text-slate-500">
+                ({filterPackages.length} selected)
+              </span>
+            ) : null}
           </label>
-          <select
-            value={filterPackage}
-            onChange={(e) => setFilterPackage(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          >
-            <option value="all">All packages</option>
-            <option value="none">No active plan</option>
-            <option value="expired">Expired plan</option>
+          <div className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                checked={filterPackages.includes("none")}
+                onChange={() => toggleFilterPackage("none")}
+              />
+              No active plan
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                checked={filterPackages.includes("expired")}
+                onChange={() => toggleFilterPackage("expired")}
+              />
+              Expired plan
+            </label>
             {SUBSCRIPTION_PACKAGES.map((pkg) => (
-              <option key={pkg.id} value={pkg.id}>
+              <label
+                key={pkg.id}
+                className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+              >
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={filterPackages.includes(pkg.id)}
+                  onChange={() => toggleFilterPackage(pkg.id)}
+                />
                 {pkg.name}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1093,23 +1133,40 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div>
+        <div className="sm:col-span-2">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Risk
+            {filterRisks.length > 0 ? (
+              <span className="ml-1 font-normal normal-case text-slate-500">
+                ({filterRisks.length} selected)
+              </span>
+            ) : null}
           </label>
-          <select
-            value={filterRisk}
-            onChange={(e) => setFilterRisk(e.target.value as "all" | "none" | RiskId)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          >
-            <option value="all">All risk levels</option>
-            <option value="none">No risk set</option>
+          <div className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                checked={filterRisks.includes("none")}
+                onChange={() => toggleFilterRisk("none")}
+              />
+              No risk set
+            </label>
             {RISK_PROFILES.map((risk) => (
-              <option key={risk.id} value={risk.id}>
+              <label
+                key={risk.id}
+                className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+              >
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={filterRisks.includes(risk.id)}
+                  onChange={() => toggleFilterRisk(risk.id)}
+                />
                 {risk.title}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         <EmployeeGate perm="filter:users:referrer">
         <div>
@@ -1194,12 +1251,12 @@ const AdminPage = () => {
               setFilterKyc('all');
               setFilterOnline('all');
               setFilterWallet('all');
-              setFilterPackage('all');
+              setFilterPackages([]);
               setFilterTrading('all');
               setFilterOpenPl('all');
               setFilterReferrer('all');
               setFilterTag('all');
-              setFilterRisk('all');
+              setFilterRisks([]);
               setFilterJoinFrom('');
               setFilterJoinTo('');
               setUserSort('wallet_high');
