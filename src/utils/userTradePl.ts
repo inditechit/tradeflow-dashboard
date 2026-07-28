@@ -41,6 +41,8 @@ export type UserTradeRowLike = {
   history_archived?: unknown;
   balance_after_usd?: unknown;
   stop_snapshot_at?: unknown;
+  /** Mark/last price frozen when the user stopped this open trade. */
+  stop_snapshot_price?: unknown;
   user_stopped_trade?: unknown;
   user_stopped_at?: unknown;
   price?: unknown;
@@ -207,8 +209,10 @@ export function resolveMt5BuySellPrices(
   buyIsLive: boolean;
   sellIsLive: boolean;
 } {
-  const exit = parseMt5Price(r.price);
-  const closed = isTradeClosed(r);
+  const stopped = isUserStoppedTrade(r);
+  const stopPx = parseMt5Price(r.stop_snapshot_price);
+  const exit = stopped && stopPx != null ? stopPx : parseMt5Price(r.price);
+  const closed = isTradeClosed(r) || stopped;
   const isLong = isMt5BuyType(r.mt5_type);
   const ticket = String(r.ticket_id ?? "");
   const cached =
@@ -217,7 +221,11 @@ export function resolveMt5BuySellPrices(
       : null;
 
   const volumeLots = Number(r.mt5_volume || r.total_trade_volume || 0);
-  const mt5Profit = Number(r.mt5_total_profit ?? 0);
+  const mt5Profit = Number(
+    stopped && r.stop_snapshot_master_profit_usd != null
+      ? r.stop_snapshot_master_profit_usd
+      : r.mt5_total_profit ?? 0
+  );
 
   let entry = cached;
   if (entry == null && exit != null && volumeLots > 0 && Number.isFinite(mt5Profit)) {
@@ -239,14 +247,15 @@ export function resolveMt5BuySellPrices(
       buyPrice: entry,
       sellPrice: exit,
       buyIsLive: false,
-      sellIsLive: !closed && exit != null,
+      // Frozen at stop — never treat as live mark after user stop.
+      sellIsLive: !closed && !stopped && exit != null,
     };
   }
 
   return {
     buyPrice: exit,
     sellPrice: entry,
-    buyIsLive: !closed && exit != null,
+    buyIsLive: !closed && !stopped && exit != null,
     sellIsLive: false,
   };
 }

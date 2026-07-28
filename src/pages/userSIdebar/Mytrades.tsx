@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import {
   isOpenTrade,
+  isTradeClosed,
+  isUserStoppedTrade,
   rowUserFacingPl,
   buildSequentialUserFacingPlMap,
   type UserTradeRowLike,
@@ -85,14 +87,18 @@ const Mytrades = () => {
 
     const applyLiveProfit = (ticket: string, raw: number) => {
       if (!myTicketIdsRef.current.has(ticket)) return;
-      setLiveRawByTicket((prev) => ({ ...prev, [ticket]: raw }));
-      setRows((prev) =>
-        prev.map((t) =>
+      setRows((prev) => {
+        const current = prev.find((t) => String(t.ticket_id ?? "") === ticket);
+        if (current && (isTradeClosed(current) || isUserStoppedTrade(current))) {
+          return prev;
+        }
+        setLiveRawByTicket((lp) => ({ ...lp, [ticket]: raw }));
+        return prev.map((t) =>
           String(t.ticket_id ?? "") === ticket
             ? { ...t, mt5_total_profit: raw }
             : t
-        )
-      );
+        );
+      });
     };
 
     socket.on("mt5live", (live: { ticket?: unknown; profit?: unknown }) => {

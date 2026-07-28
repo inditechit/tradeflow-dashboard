@@ -7,6 +7,7 @@ import {
   buildSequentialUserFacingPlMap,
   isOpenTrade,
   isTradeClosed,
+  isUserStoppedTrade,
   parseMt5Price,
   type UserTradeRowLike,
 } from "@/utils/userTradePl";
@@ -111,6 +112,8 @@ const ProfitLoss = () => {
       setRows((prev) =>
         prev.map((t) => {
           if (String(t.ticket_id ?? "") !== ticket) return t;
+          // Manual stop freezes P/L + price — do not overwrite with live feed.
+          if (isTradeClosed(t) || isUserStoppedTrade(t)) return t;
           const next = { ...t };
           if (Number.isFinite(raw)) next.mt5_total_profit = raw;
           if (livePx != null) next.price = livePx;

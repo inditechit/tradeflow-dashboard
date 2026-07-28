@@ -15,6 +15,7 @@ import { io } from 'socket.io-client';
 import {
   resolveEffectiveSlice,
   isTradeClosed,
+  isUserStoppedTrade,
   recomputeOpenUserLivePl,
   buildSequentialUserFacingPlMap,
   rowUserFacingPl,
@@ -253,9 +254,12 @@ const DashboardPage = () => {
           if (isTradeClosed(row)) continue;
           openCount += 1;
           if (!ticket) continue;
-          const entryPx = parseMt5Price((row as UserTradeRowLike).price);
-          if (entryPx != null && entryPriceByTicketRef.current[ticket] == null) {
-            entryPriceByTicketRef.current[ticket] = entryPx;
+          // Don't cache stop/exit price as the entry price.
+          if (!(row as UserTradeRowLike & { stop_snapshot_at?: unknown }).stop_snapshot_at) {
+            const entryPx = parseMt5Price((row as UserTradeRowLike).price);
+            if (entryPx != null && entryPriceByTicketRef.current[ticket] == null) {
+              entryPriceByTicketRef.current[ticket] = entryPx;
+            }
           }
           const slice = resolveEffectiveSlice(row as UserTradeRowLike);
           nextSlice[ticket] = {
@@ -365,7 +369,7 @@ const DashboardPage = () => {
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
     const ok = window.confirm(
-      'Stop trading? Your share of each open position will be settled to your wallet now at the current live price. You will not receive new copy trades until you start again.',
+      'Stop trading? Your share of each open position will be settled to your wallet now at the current live price. Exit prices will freeze at that stop rate. You will not receive new copy trades until you start again.',
     );
     if (!ok) return;
     setTradingActionLoading(true);
@@ -418,6 +422,8 @@ const DashboardPage = () => {
     if (tradingStopReason === 'manual_stop') return;
     const ctx = liveTicketRef.current[ticket];
     if (!ctx || !(ctx.V > 0 && ctx.v_i > 0)) return;
+    const existing = allTradeRowsRef.current.find((row) => String(row.ticket_id ?? '') === ticket);
+    if (existing && (isTradeClosed(existing) || isUserStoppedTrade(existing))) return;
     liveRawByTicketRef.current = { ...liveRawByTicketRef.current, [ticket]: rawProfit };
     allTradeRowsRef.current = allTradeRowsRef.current.map((row) =>
       String(row.ticket_id ?? '') === ticket
