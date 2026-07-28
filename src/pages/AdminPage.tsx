@@ -30,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE, SOCKET_URL } from "@/config/api";
 import { SUBSCRIPTION_PACKAGES, packageDisplayName } from "@/constants/packages";
+import { RISK_PROFILES, type RiskId } from "@/constants/riskProfiles";
+import { parseUserRiskIds } from "@/utils/userRiskProfile";
 import {
   buildFinanceOverlay,
   groupOpenRowsByUser,
@@ -165,6 +167,7 @@ const AdminPage = () => {
   const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterReferrer, setFilterReferrer] = useState<string>('all');
   const [filterTag, setFilterTag] = useState('all');
+  const [filterRisk, setFilterRisk] = useState<'all' | 'none' | RiskId>('all');
   const [filterJoinFrom, setFilterJoinFrom] = useState('');
   const [filterJoinTo, setFilterJoinTo] = useState('');
   const [userPageSize, setUserPageSize] = useState<number>(DEFAULT_USER_PAGE_SIZE);
@@ -530,6 +533,12 @@ const AdminPage = () => {
         matchTag = userTags.includes(filterTag);
       }
 
+      const userRisks = parseUserRiskIds(loc.risk);
+      const matchRisk =
+        filterRisk === "all" ||
+        (filterRisk === "none" && userRisks.length === 0) ||
+        (filterRisk !== "none" && userRisks.includes(filterRisk));
+
       const bal = walletBalanceOf(loc);
       const matchWallet =
         filterWallet === "all" ||
@@ -579,6 +588,7 @@ const AdminPage = () => {
         matchKyc &&
         matchOnline &&
         matchTag &&
+        matchRisk &&
         matchWallet &&
         matchPackage &&
         matchTrading &&
@@ -621,6 +631,7 @@ const AdminPage = () => {
     filterOpenPl,
     filterReferrer,
     filterTag,
+    filterRisk,
     filterJoinFrom,
     filterJoinTo,
     userSort,
@@ -666,6 +677,7 @@ const AdminPage = () => {
       filterOpenPl !== "all" ||
       filterReferrer !== "all" ||
       filterTag !== "all" ||
+      filterRisk !== "all" ||
       Boolean(filterJoinFrom) ||
       Boolean(filterJoinTo) ||
       userSort !== "wallet_high",
@@ -681,6 +693,7 @@ const AdminPage = () => {
       filterOpenPl,
       filterReferrer,
       filterTag,
+      filterRisk,
       filterJoinFrom,
       filterJoinTo,
       userSort,
@@ -748,6 +761,7 @@ const AdminPage = () => {
     filterOpenPl,
     filterReferrer,
     filterTag,
+    filterRisk,
     filterJoinFrom,
     filterJoinTo,
     filterUserId,
@@ -1079,6 +1093,24 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Risk
+          </label>
+          <select
+            value={filterRisk}
+            onChange={(e) => setFilterRisk(e.target.value as "all" | "none" | RiskId)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All risk levels</option>
+            <option value="none">No risk set</option>
+            {RISK_PROFILES.map((risk) => (
+              <option key={risk.id} value={risk.id}>
+                {risk.title}
+              </option>
+            ))}
+          </select>
+        </div>
         <EmployeeGate perm="filter:users:referrer">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1167,6 +1199,7 @@ const AdminPage = () => {
               setFilterOpenPl('all');
               setFilterReferrer('all');
               setFilterTag('all');
+              setFilterRisk('all');
               setFilterJoinFrom('');
               setFilterJoinTo('');
               setUserSort('wallet_high');
