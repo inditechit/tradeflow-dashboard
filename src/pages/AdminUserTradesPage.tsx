@@ -430,6 +430,144 @@ const AdminUserTradesPage = () => {
         ))}
       </div>
 
+      <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+        <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 shadow-sm">
+          <div className="flex items-start gap-2 border-b border-amber-200/80 px-4 py-3 sm:px-5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div>
+              <h2 className="text-sm font-bold text-amber-950">Mistake review</h2>
+              <p className="mt-0.5 text-xs text-amber-900/80">
+                Heuristics from drawdown vs baseline and early Stop vs holding to master close.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 px-4 py-3 sm:px-5">
+            {mistakeInsights.length === 0 ? (
+              <p className="text-sm text-amber-900/70">
+                No clear mistakes flagged right now (wallet not deeply underwater, and no early-stop
+                opportunity cost detected).
+              </p>
+            ) : (
+              mistakeInsights.map((m: MistakeInsight) => (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "rounded-xl border px-3 py-2.5",
+                    m.severity === "high"
+                      ? "border-red-200 bg-red-50/80"
+                      : m.severity === "medium"
+                        ? "border-amber-300 bg-white/80"
+                        : "border-slate-200 bg-white/70",
+                  )}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p
+                      className={cn(
+                        "text-sm font-semibold",
+                        m.severity === "high"
+                          ? "text-red-900"
+                          : m.severity === "medium"
+                            ? "text-amber-950"
+                            : "text-slate-800",
+                      )}
+                    >
+                      {m.title}
+                    </p>
+                    {m.amountUsd != null ? (
+                      <span className="text-xs font-bold tabular-nums text-slate-700">
+                        {fmtUsd(m.amountUsd)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-700">{m.detail}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                Deposit baseline
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">Recovery baseline for profit share</p>
+            </div>
+            {!editingBaseline ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 px-2"
+                onClick={() => {
+                  setBaselineDraft(String(depositBaseline));
+                  setEditingBaseline(true);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Button>
+            ) : null}
+          </div>
+          {!editingBaseline ? (
+            <p className="mt-3 text-2xl font-extrabold tabular-nums text-slate-900">
+              {fmtUsd(depositBaseline)}
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={baselineDraft}
+                onChange={(e) => setBaselineDraft(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm tabular-nums outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-slate-900 text-white hover:bg-slate-800"
+                  disabled={savingBaseline}
+                  onClick={() => void saveBaseline()}
+                >
+                  {savingBaseline ? "Saving…" : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={savingBaseline}
+                  onClick={() => {
+                    setEditingBaseline(false);
+                    setBaselineDraft(String(depositBaseline));
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+          <dl className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-600">
+            <div className="flex justify-between gap-2">
+              <dt>Wallet</dt>
+              <dd className="font-semibold tabular-nums text-slate-800">{fmtUsd(walletBalance)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Equity</dt>
+              <dd className="font-semibold tabular-nums text-slate-800">{fmtUsd(equity)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Recovery remaining</dt>
+              <dd className="font-semibold tabular-nums text-amber-800">
+                {fmtUsd(Math.max(0, depositBaseline - walletBalance))}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
         <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
