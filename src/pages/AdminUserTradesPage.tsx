@@ -16,6 +16,7 @@ import {
   type ManualStopSettlementRow,
   type MistakeInsight,
 } from "@/utils/adminUserMistakeInsights";
+import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -373,7 +374,7 @@ const AdminUserTradesPage = () => {
           </Button>
           <div>
             <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              {userName || "User"} — assigned trades
+              <MaskedPii value={userName || "User"} kind="name" /> — assigned trades
             </h1>
             <p className="mt-1 text-sm text-slate-500">
               User #{userId} · {openCount} open · {closedCount} closed · {rows.length} assigned
