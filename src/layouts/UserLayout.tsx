@@ -15,9 +15,14 @@ import BlockedUserGuard from "@/components/block/BlockedUserGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { API_BASE } from "@/config/api";
 import { AppLegalFooter } from "@/components/layout/AppLegalFooter";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { cn } from "@/lib/utils";
 
 const UserLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { collapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsed(
+    "tradeflow.user.sidebarCollapsed",
+  );
   const { currentUser } = useApp();
   usePresenceHeartbeat(
     currentUser?.userId,
@@ -55,15 +60,37 @@ const UserLayout = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileNavOpen]);
 
+  const handleMenuClick = () => {
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      toggleCollapsed();
+    } else {
+      setMobileNavOpen(true);
+    }
+  };
+
   return (
     <ThemeProvider>
     <SubscriptionProvider>
       <ProfileComplianceProvider>
         <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
-          <UserSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+          <UserSidebar
+            mobileOpen={mobileNavOpen}
+            onClose={() => setMobileNavOpen(false)}
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed(true)}
+          />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
-            <AppHeader variant="user" onMenuClick={() => setMobileNavOpen(true)} />
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-300 ease-out",
+              collapsed ? "md:ml-0" : "md:ml-64",
+            )}
+          >
+            <AppHeader
+              variant="user"
+              onMenuClick={handleMenuClick}
+              sidebarCollapsed={collapsed}
+            />
             <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
               <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
                 <SubscriptionExpiredGuard>

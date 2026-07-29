@@ -5,9 +5,16 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AdminCallNotificationProvider } from "@/components/admin/AdminCallNotificationLayer";
+import { AdminPiiRevealProvider } from "@/components/admin/AdminPiiReveal";
 import { AppLegalFooter } from "@/components/layout/AppLegalFooter";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { cn } from "@/lib/utils";
+
 const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { collapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsed(
+    "tradeflow.admin.sidebarCollapsed",
+  );
 
   useEffect(() => {
     if (mobileNavOpen) {
@@ -38,14 +45,37 @@ const AdminLayout = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileNavOpen]);
 
+  const handleMenuClick = () => {
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      toggleCollapsed();
+    } else {
+      setMobileNavOpen(true);
+    }
+  };
+
   return (
     <ThemeProvider>
     <AdminCallNotificationProvider>
+    <AdminPiiRevealProvider>
     <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
-      <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <AdminSidebar
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(true)}
+      />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
-        <AppHeader variant="admin" onMenuClick={() => setMobileNavOpen(true)} />
+      <div
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-300 ease-out",
+          collapsed ? "md:ml-0" : "md:ml-64",
+        )}
+      >
+        <AppHeader
+          variant="admin"
+          onMenuClick={handleMenuClick}
+          sidebarCollapsed={collapsed}
+        />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
           <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
             <EmployeeTabGuard>
@@ -56,6 +86,7 @@ const AdminLayout = () => {
         <AppLegalFooter />
       </div>
     </div>
+    </AdminPiiRevealProvider>
     </AdminCallNotificationProvider>
     </ThemeProvider>
   );

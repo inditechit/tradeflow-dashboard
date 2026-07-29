@@ -462,16 +462,6 @@ const WithdrawPage = () => {
                 : `USD ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
-          {!loading && !finance.loading && finance.adminPendingShare > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-medium text-slate-600">
-                Performance fee{finance.userSharePct ? ` (admin ${100 - finance.userSharePct}% of profit)` : ""}
-              </span>
-              <p className="text-sm font-semibold tabular-nums text-slate-500">
-                − USD {finance.adminPendingShare.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium text-slate-700">Your withdrawable (USDT)</span>
             <p
@@ -496,10 +486,8 @@ const WithdrawPage = () => {
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Your deposit always belongs to you. Admin profit share and assign fees are settled when
-            each trade closes — not again at withdrawal. You can withdraw your full settled wallet
-            (minus the ${WITHDRAW_FEE} processing fee). While trades are open, equity preview may
-            show estimated fees on unrealized profit only.
+            You can withdraw your settled wallet balance (minus the ${WITHDRAW_FEE} processing fee).
+            While trades are open, withdrawable amount stays unavailable until positions are closed.
           </p>
         </div>
 

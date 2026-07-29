@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, MicOff, Play, RefreshCw, X } from "lucide-react";
+import { piiDisplay, useAdminPiiReveal } from "@/components/admin/AdminPiiReveal";
 
 interface Session {
   id: string;
@@ -27,6 +28,12 @@ const AdminVoicePanel: React.FC<Props> = ({ apiBase, adminUserId, user, onClose 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const { revealed: piiRevealed } = useAdminPiiReveal();
+  const voiceTitle = user.name
+    ? piiDisplay(user.name, "name", piiRevealed)
+    : user.email
+      ? piiDisplay(user.email, "email", piiRevealed)
+      : `User #${user.id}`;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const heartbeatTimer = useRef<number | null>(null);
@@ -144,7 +151,7 @@ const AdminVoicePanel: React.FC<Props> = ({ apiBase, adminUserId, user, onClose 
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="min-w-0">
             <h2 className="truncate text-base font-bold text-slate-900">
-              Voice — {user.name || user.email || `User #${user.id}`}
+              Voice — {voiceTitle}
             </h2>
             <p className="truncate text-xs text-slate-500">
               {isListening ? "Listening live" : "Idle — press Listen to hear them"}

@@ -30,6 +30,7 @@ import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
 import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { EmployeeAccessModal } from "@/components/admin/EmployeeAccessModal";
+import { MaskedPii, piiDisplay, useAdminPiiReveal } from "@/components/admin/AdminPiiReveal";
 
 type UserDetailDialogProps = {
   user: Record<string, unknown> | null;
@@ -69,6 +70,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
   const { toast } = useToast();
   const { can, isAdmin } = useEmployeeAccess();
   const { currentUser } = useApp();
+  const { revealed: piiRevealed } = useAdminPiiReveal();
   const adminId = Number(currentUser?.userId);
   const [converting, setConverting] = useState(false);
   const [employeeAccessOpen, setEmployeeAccessOpen] = useState(false);
@@ -270,9 +272,11 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-left">{String(user.name ?? "User")}</DialogTitle>
+          <DialogTitle className="text-left">
+            <MaskedPii value={user.name ?? "User"} kind="name" />
+          </DialogTitle>
           <DialogDescription className="text-left break-all">
-            {String(user.email ?? "")}
+            <MaskedPii value={user.email} kind="email" empty="" />
           </DialogDescription>
         </DialogHeader>
 
@@ -533,7 +537,9 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
             </DetailBlock>
 
             <DetailBlock title="Contact">
-              <p className="text-sm text-slate-800">{String(user.mobile ?? "—")}</p>
+              <p className="text-sm text-slate-800">
+                <MaskedPii value={user.mobile} kind="mobile" />
+              </p>
               <p className="text-xs text-neutral-800">@{String(user.telegram ?? "—")}</p>
             </DetailBlock>
 
@@ -630,7 +636,12 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
         setEmployeeAccessOpen(false);
         setConvertUserId(null);
       }}
-      employeeName={employeeAccessName || (user ? String(user.name || user.email || `User #${userId}`) : "Employee")}
+      employeeName={
+        employeeAccessName ||
+        (user
+          ? piiDisplay(user.name || user.email || `User #${userId}`, user.email && !user.name ? "email" : "name", piiRevealed)
+          : "Employee")
+      }
       initialPermissions={employeePerms}
       onSave={saveEmployeeAccess}
       saving={savingEmployeeAccess}

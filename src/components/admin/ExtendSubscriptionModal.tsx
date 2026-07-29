@@ -15,6 +15,7 @@ import {
   fetchUserSubscription,
   type SubscriptionStatus,
 } from "@/utils/adminSubscription";
+import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 
 const PRESET_DAYS = [7, 30, 90, 180, 365];
 
@@ -94,7 +95,12 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
             Extend package
           </DialogTitle>
           <DialogDescription className="text-left">
-            {user.name ?? "User"} — {user.email ?? `ID ${user.id}`}
+            <MaskedPii value={user.name ?? "User"} kind="name" /> —{" "}
+            {user.email ? (
+              <MaskedPii value={user.email} kind="email" />
+            ) : (
+              `ID ${user.id}`
+            )}
           </DialogDescription>
         </DialogHeader>
 

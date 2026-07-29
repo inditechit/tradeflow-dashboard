@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, AlertTriangle, Pencil } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
@@ -11,6 +11,12 @@ import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
 import { packageDisplayName } from "@/constants/packages";
 import { isSubscriptionPackageId } from "@/utils/packageDuration";
+import {
+  buildUserMistakeInsights,
+  type ManualStopSettlementRow,
+  type MistakeInsight,
+} from "@/utils/adminUserMistakeInsights";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 import {
@@ -112,6 +118,10 @@ const AdminUserTradesPage = () => {
     }>
   >([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [stopSettlements, setStopSettlements] = useState<ManualStopSettlementRow[]>([]);
+  const [baselineDraft, setBaselineDraft] = useState("");
+  const [editingBaseline, setEditingBaseline] = useState(false);
+  const [savingBaseline, setSavingBaseline] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -119,21 +129,25 @@ const AdminUserTradesPage = () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesData, summaryRes, paymentsRes] = await Promise.all([
+      const [profileRes, tradesData, summaryRes, paymentsRes, stopsRes] = await Promise.all([
         fetch(`${API_BASE}/user/profile/${userId}`),
         fetchAllUserTrades(userId, { admin: true }),
         fetch(`${API_BASE}/user/summary/${userId}`),
         fetch(`${API_BASE}/user/payments/${userId}?limit=2000&offset=0`),
+        fetch(`${API_BASE}/admin/users/${userId}/manual-stop-settlements`),
       ]);
       const profileData = await profileRes.json();
       const summaryData = await summaryRes.json();
       const paymentsData = await paymentsRes.json();
+      const stopsData = await stopsRes.json().catch(() => null);
       if (summaryData?.success) {
         const wBal = Number(summaryData.wallet_balance ?? 0);
         setWalletBalance(wBal);
-        setDepositBaseline(
-          Number(summaryData.deposit_baseline ?? summaryData.total_invested ?? 0),
+        const baseline = Number(
+          summaryData.deposit_baseline ?? summaryData.total_invested ?? 0,
         );
+        setDepositBaseline(baseline);
+        setBaselineDraft(String(baseline));
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
         setDepositHistory(Array.isArray(summaryData.deposit_history) ? summaryData.deposit_history : []);
@@ -150,6 +164,11 @@ const AdminUserTradesPage = () => {
         setPayments(paymentsData.data as PaymentRow[]);
       } else {
         setPayments([]);
+      }
+      if (stopsData?.success && Array.isArray(stopsData.settlements)) {
+        setStopSettlements(stopsData.settlements as ManualStopSettlementRow[]);
+      } else {
+        setStopSettlements([]);
       }
       setRows(tradesData.trades as UserTradeRow[]);
       setTotalLoaded(tradesData.total);
@@ -219,6 +238,69 @@ const AdminUserTradesPage = () => {
       totalAmount: packageAmount + rechargeAmount,
     };
   }, [payments]);
+
+  const mistakeInsights = useMemo(
+    () =>
+      buildUserMistakeInsights({
+        depositBaseline,
+        walletBalance,
+        equity,
+        totalDeposited,
+        depositHistory,
+        trades: rows,
+        stopSettlements,
+      }),
+    [
+      depositBaseline,
+      walletBalance,
+      equity,
+      totalDeposited,
+      depositHistory,
+      rows,
+      stopSettlements,
+    ],
+  );
+
+  const saveBaseline = useCallback(async () => {
+    if (!userId || savingBaseline) return;
+    const next = Number(baselineDraft);
+    if (!Number.isFinite(next) || next < 0) {
+      toast({
+        title: "Invalid baseline",
+        description: "Enter a non-negative USD amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setSavingBaseline(true);
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/deposit-baseline`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ depositBaselineUsd: next }),
+      });
+      const data = await res.json();
+      if (!data?.success) {
+        throw new Error(data?.error || "Failed to update baseline");
+      }
+      setDepositBaseline(Number(data.deposit_baseline_usd ?? next));
+      setBaselineDraft(String(data.deposit_baseline_usd ?? next));
+      setEditingBaseline(false);
+      toast({
+        title: "Baseline updated",
+        description: `Deposit baseline set to ${fmtUsd(Number(data.deposit_baseline_usd ?? next))}.`,
+      });
+      await refresh();
+    } catch (err) {
+      toast({
+        title: "Baseline update failed",
+        description: err instanceof Error ? err.message : "Could not save baseline.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBaseline(false);
+    }
+  }, [userId, baselineDraft, savingBaseline, toast, refresh]);
 
   const handleExportExcel = useCallback(async () => {
     if (!userId) return;

@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { MaskedPii, piiDisplay, useAdminPiiReveal } from "@/components/admin/AdminPiiReveal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type AdminUserOption = {
@@ -50,6 +51,7 @@ export function UserSearchSelect({
   const [users, setUsers] = useState<AdminUserOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const { revealed: piiRevealed } = useAdminPiiReveal();
 
   const loadUsers = useCallback(async () => {
     if (loaded) return;
@@ -90,7 +92,9 @@ export function UserSearchSelect({
 
   const display =
     selected != null
-      ? `${selected.name || "User"} · #${selected.id}${selected.email ? ` · ${selected.email}` : ""}`
+      ? `${piiDisplay(selected.name || "User", "name", piiRevealed)} · #${selected.id}${
+          selected.email ? ` · ${piiDisplay(selected.email, "email", piiRevealed)}` : ""
+        }`
       : value != null && selectedLabel
         ? selectedLabel
         : value != null
@@ -154,10 +158,12 @@ export function UserSearchSelect({
                           )}
                         />
                         <span className="truncate">
-                          {user.name || "—"}
+                          <MaskedPii value={user.name || "—"} kind="name" />
                           <span className="ml-1 text-slate-500">#{user.id}</span>
                           {user.email ? (
-                            <span className="ml-1 text-slate-400">· {user.email}</span>
+                            <span className="ml-1 text-slate-400">
+                              · <MaskedPii value={user.email} kind="email" />
+                            </span>
                           ) : null}
                         </span>
                       </CommandItem>

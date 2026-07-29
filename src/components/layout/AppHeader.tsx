@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { LogOut, User, Menu, Moon, Sun } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { LogOut, User, Menu, Moon, Sun, PanelLeftOpen, PanelLeftClose, SlidersHorizontal } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { AdminCallSettingsButton, useAdminCallContext } from "@/components/admin/AdminCallNotificationLayer";
@@ -19,6 +19,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmployeeExploreSwitch } from "@/components/layout/EmployeeExploreSwitch";
 import { useEmployeeExploreMode } from "@/hooks/useEmployeeExploreMode";
+import {
+  loadAdminUsersFiltersCollapsed,
+  toggleAdminUsersFiltersCollapsed,
+  ADMIN_USERS_FILTERS_COLLAPSED_EVENT,
+} from "@/utils/adminUsersFiltersCollapsed";
+import { cn } from "@/lib/utils";
 
 const API_BASE = "https://api.copytradeengine.org/api";
 
@@ -34,18 +40,44 @@ function getInitials(name?: string, telegram?: string) {
 
 type AppHeaderProps = {
   variant: "user" | "admin";
-  /** Opens the mobile navigation drawer (shown as hamburger on &lt; md) */
+  /**
+   * Mobile: open drawer. Desktop: toggle sidebar collapsed/expanded.
+   */
   onMenuClick?: () => void;
+  /** When true on desktop, header shows "expand sidebar" affordance */
+  sidebarCollapsed?: boolean;
 };
 
-export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
+export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: AppHeaderProps) {
   const { currentUser, logout } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
   const { openSettings: openCallSettings, ringing: callRinging } = useAdminCallContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const finance = useUserFinance(variant === "user" ? currentUser?.userId : undefined);
+  const showUsersFiltersToggle =
+    variant === "admin" &&
+    (location.pathname === "/admin/users" || location.pathname === "/admin/users/");
+  const [usersFiltersCollapsed, setUsersFiltersCollapsed] = useState(
+    loadAdminUsersFiltersCollapsed,
+  );
+
+  useEffect(() => {
+    if (!showUsersFiltersToggle) return;
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ collapsed?: boolean }>).detail;
+      if (typeof detail?.collapsed === "boolean") {
+        setUsersFiltersCollapsed(detail.collapsed);
+      } else {
+        setUsersFiltersCollapsed(loadAdminUsersFiltersCollapsed());
+      }
+    };
+    window.addEventListener(ADMIN_USERS_FILTERS_COLLAPSED_EVENT, onChange);
+    setUsersFiltersCollapsed(loadAdminUsersFiltersCollapsed());
+    return () => window.removeEventListener(ADMIN_USERS_FILTERS_COLLAPSED_EVENT, onChange);
+  }, [showUsersFiltersToggle]);
 
   useEffect(() => {
     if (!currentUser?.userId) {
@@ -97,12 +129,38 @@ export function AppHeader({ variant, onMenuClick }: AppHeaderProps) {
             type="button"
             variant="ghost"
             size="icon"
-            className="shrink-0 touch-manipulation md:hidden"
-            aria-label="Open navigation menu"
+            className="shrink-0 touch-manipulation"
+            aria-label={
+              sidebarCollapsed ? "Show navigation sidebar" : "Hide navigation sidebar"
+            }
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
             onClick={onMenuClick}
           >
-            <Menu className="h-6 w-6 text-slate-700" />
+            <span className="md:hidden">
+              <Menu className="h-6 w-6 text-slate-700" />
+            </span>
+            <span className="hidden md:inline-flex">
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-5 w-5 text-slate-700" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5 text-slate-700" />
+              )}
+            </span>
           </Button>
+        ) : null}
+        {showUsersFiltersToggle ? (
+          <button
+            type="button"
+            onClick={() => toggleAdminUsersFiltersCollapsed()}
+            className={cn(
+              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-transparent hover:text-slate-500",
+              !usersFiltersCollapsed && "text-slate-400",
+            )}
+            aria-label={usersFiltersCollapsed ? "Show user filters" : "Hide user filters"}
+            title={usersFiltersCollapsed ? "Show filters" : "Hide filters"}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 opacity-60" strokeWidth={1.5} />
+          </button>
         ) : null}
         <div className="font-sans min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">

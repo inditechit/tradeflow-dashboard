@@ -347,7 +347,10 @@ export function Mt5TradeHistoryList({
                         {Math.round((100 - split.userSharePct) * 100) / 100}% admin
                       </span>
                     )}
-                    {poolTotal != null && poolTotal > 0 && poolSharePct > 0 && (
+                    {showProfitShare &&
+                      poolTotal != null &&
+                      poolTotal > 0 &&
+                      poolSharePct > 0 && (
                       <span>
                         · Pool {fmtMoney(poolTotal, currency)} · your share{" "}
                         {(poolSharePct * 100).toFixed(2)}%
@@ -356,7 +359,10 @@ export function Mt5TradeHistoryList({
                         )}
                       </span>
                     )}
-                    {showExposureBreakdown && tradeExposure != null && tradeExposure > 0 && (
+                    {showProfitShare &&
+                      showExposureBreakdown &&
+                      tradeExposure != null &&
+                      tradeExposure > 0 && (
                       <span className="text-slate-500">
                         · Trade exp. {fmtMoney(tradeExposure, currency)}
                         {userExposure != null && userExposure > 0 && (
@@ -499,15 +505,6 @@ export function Mt5TradeHistoryList({
                 {fmtMoney(accountSummary.balance, currency)}
               </dd>
             </div>
-            {accountSummary.recoveryRemaining != null &&
-              accountSummary.recoveryRemaining > 0.01 && (
-                <div className="flex items-center justify-between">
-                  <dt className="text-sm font-medium text-amber-800">Recovery remaining</dt>
-                  <dd className="text-sm font-semibold tabular-nums text-amber-800">
-                    {fmtMoney(accountSummary.recoveryRemaining, currency)}
-                  </dd>
-                </div>
-              )}
             {accountSummary.equity != null && (
               <div className="flex items-center justify-between">
                 <dt className="text-sm font-bold text-slate-800">Equity</dt>
@@ -516,29 +513,51 @@ export function Mt5TradeHistoryList({
                 </dd>
               </div>
             )}
-            {accountSummary.adminFee != null && accountSummary.adminFee > 0.01 && (
-              <>
-                <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
-                  <dt className="text-sm font-medium text-slate-600">
-                    Performance fee
-                    {accountSummary.userSharePct
-                      ? ` (admin ${100 - accountSummary.userSharePct}%)`
-                      : ""}
-                  </dt>
-                  <dd className="text-sm font-semibold tabular-nums text-slate-500">
-                    − {fmtMoney(accountSummary.adminFee, currency)}
+            {showProfitShare &&
+              accountSummary.recoveryRemaining != null &&
+              accountSummary.recoveryRemaining > 0.01 && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-sm font-medium text-amber-800">Recovery remaining</dt>
+                  <dd className="text-sm font-semibold tabular-nums text-amber-800">
+                    {fmtMoney(accountSummary.recoveryRemaining, currency)}
                   </dd>
                 </div>
-                {accountSummary.userShare != null && (
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm font-bold text-emerald-800">Your share</dt>
-                    <dd className="text-sm font-bold tabular-nums text-emerald-800">
-                      {fmtMoney(accountSummary.userShare, currency)}
-                    </dd>
-                  </div>
+              )}
+            <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
+              <dt className="text-sm font-medium text-slate-600">
+                Performance fee
+                {accountSummary.userSharePct != null && accountSummary.userSharePct > 0
+                  ? ` (admin ${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%)`
+                  : ""}
+              </dt>
+              <dd className="text-sm font-semibold tabular-nums text-slate-500">
+                {accountSummary.adminFee != null && accountSummary.adminFee > 0.01
+                  ? `− ${fmtMoney(accountSummary.adminFee, currency)}`
+                  : accountSummary.userSharePct != null && accountSummary.userSharePct > 0
+                    ? `${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%`
+                    : "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-sm font-bold text-emerald-800">
+                Your share
+                {accountSummary.userSharePct != null && accountSummary.userSharePct > 0
+                  ? ` (${accountSummary.userSharePct}%)`
+                  : ""}
+              </dt>
+              <dd className="text-sm font-bold tabular-nums text-emerald-800">
+                {fmtMoney(
+                  accountSummary.userShare != null
+                    ? accountSummary.userShare
+                    : Math.max(
+                        0,
+                        Number(accountSummary.equity ?? accountSummary.balance ?? 0) -
+                          Number(accountSummary.adminFee ?? 0),
+                      ),
+                  currency,
                 )}
-              </>
-            )}
+              </dd>
+            </div>
           </dl>
         </div>
       ) : filtered.length > 0 ? (

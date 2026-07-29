@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
+import { useAdminPiiReveal } from "@/components/admin/AdminPiiReveal";
+import { maskPii } from "@/utils/maskPii";
 
 interface User {
   id?: number;
@@ -30,6 +32,7 @@ const EditUserModal: React.FC<Props> = ({
   onUpdate,
 }) => {
   const [formData, setFormData] = useState<User>({});
+  const { revealed: piiRevealed, requestUnlock, lock } = useAdminPiiReveal();
 
   useEffect(() => {
     if (user) setFormData(user);
@@ -47,6 +50,10 @@ const EditUserModal: React.FC<Props> = ({
   };
 
   const handleSubmit = () => {
+    if (!piiRevealed) {
+      requestUnlock();
+      return;
+    }
     // email and mobile are permanent fields and must never be sent on update,
     // even by admin.
     const { email: _email, mobile: _mobile, ...safePayload } = formData;
@@ -78,31 +85,72 @@ const EditUserModal: React.FC<Props> = ({
           {/* Name */}
           <div>
             <label className="label">Full Name</label>
-            <input name="name" value={formData.name ?? ""} onChange={handleChange} className="input" />
+            <input
+              name="name"
+              value={
+                piiRevealed
+                  ? (formData.name ?? "")
+                  : maskPii(formData.name, "name") === "—"
+                    ? ""
+                    : maskPii(formData.name, "name")
+              }
+              onChange={handleChange}
+              readOnly={!piiRevealed}
+              onDoubleClick={() => {
+                if (piiRevealed) lock();
+                else requestUnlock();
+              }}
+              title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
+              className={`input ${!piiRevealed ? "cursor-pointer bg-slate-50" : "cursor-pointer"}`}
+            />
           </div>
 
           {/* Email (locked: cannot be changed once registered) */}
-          <div>
+          <div
+            onDoubleClick={() => {
+              if (piiRevealed) lock();
+              else requestUnlock();
+            }}
+            title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
+          >
             <label className="label">Email</label>
             <input
               name="email"
-              value={formData.email ?? ""}
+              value={
+                piiRevealed
+                  ? (formData.email ?? "")
+                  : maskPii(formData.email, "email") === "—"
+                    ? ""
+                    : maskPii(formData.email, "email")
+              }
               readOnly
               disabled
-              className="input bg-slate-100 cursor-not-allowed"
+              className="input cursor-pointer bg-slate-100"
             />
             <p className="text-xs text-slate-500 mt-1">Permanent — cannot be changed.</p>
           </div>
 
           {/* Mobile (locked: cannot be changed once registered) */}
-          <div>
+          <div
+            onDoubleClick={() => {
+              if (piiRevealed) lock();
+              else requestUnlock();
+            }}
+            title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
+          >
             <label className="label">Mobile</label>
             <input
               name="mobile"
-              value={formData.mobile ?? ""}
+              value={
+                piiRevealed
+                  ? (formData.mobile ?? "")
+                  : maskPii(formData.mobile, "mobile") === "—"
+                    ? ""
+                    : maskPii(formData.mobile, "mobile")
+              }
               readOnly
               disabled
-              className="input bg-slate-100 cursor-not-allowed"
+              className="input cursor-pointer bg-slate-100"
             />
             <p className="text-xs text-slate-500 mt-1">Permanent — cannot be changed.</p>
           </div>

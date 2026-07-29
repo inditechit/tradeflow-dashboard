@@ -26,6 +26,7 @@ import {
   UserCog,
   AlertTriangle,
   ChevronDown,
+  PanelLeftClose,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,10 @@ import type { AdminSidebarBadgeKey } from "@/utils/adminSidebarSeen";
 type AdminSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
+  /** Desktop only — when true, sidebar slides off-screen */
+  collapsed?: boolean;
+  /** Desktop collapse control (hide sidebar) */
+  onToggleCollapse?: () => void;
 };
 
 type IconType = LucideIcon;
@@ -189,7 +194,12 @@ function groupHasHighlight(items: MenuItem[], badges: Record<AdminSidebarBadgeKe
   );
 }
 
-const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
+const AdminSidebar = ({
+  mobileOpen,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: AdminSidebarProps) => {
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const { badges, refresh: refreshBadges } = useAdminSidebarBadges();
   const { isAdmin, can } = useEmployeeAccess();
@@ -334,21 +344,35 @@ const AdminSidebar = ({ mobileOpen, onClose }: AdminSidebarProps) => {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:translate-x-0 md:shadow-sm",
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:shadow-sm",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "md:-translate-x-full md:pointer-events-none" : "md:translate-x-0",
         )}
       >
         <div className="relative min-h-0 flex-1">
-          <button
-            type="button"
-            className="absolute right-0 top-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
-            aria-label="Close menu"
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="absolute right-0 top-0 flex items-center gap-0.5">
+            {onToggleCollapse ? (
+              <button
+                type="button"
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:inline-flex"
+                aria-label="Hide sidebar"
+                title="Hide sidebar"
+                onClick={onToggleCollapse}
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+              aria-label="Close menu"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-          <div className="mb-8 pr-10 md:pr-0">
+          <div className="mb-8 pr-10">
             <h1 className="font-sans text-lg font-bold text-neutral-900 sm:text-xl">
               {isAdmin ? "Admin Panel" : "Employee Panel"}
             </h1>

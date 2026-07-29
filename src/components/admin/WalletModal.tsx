@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 
 interface Props {
   isOpen: boolean;
@@ -58,7 +59,10 @@ const WalletModal: React.FC<Props> = ({
           <div className="space-y-4">
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Editing User</p>
-              <p className="text-slate-800 font-medium">{user?.name} ({user?.email})</p>
+              <p className="text-slate-800 font-medium">
+                <MaskedPii value={user?.name} kind="name" /> (
+                <MaskedPii value={user?.email} kind="email" />)
+              </p>
             </div>
 
             <div>

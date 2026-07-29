@@ -19,6 +19,8 @@ import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
 import ExtendSubscriptionModal from '../components/admin/ExtendSubscriptionModal';
 import { FilterCheckboxDropdown } from '../components/admin/FilterCheckboxDropdown';
+import { AdminUsersColumnPicker } from '../components/admin/AdminUsersColumnPicker';
+import { MaskedPii, useAdminPiiReveal, piiDisplay } from '../components/admin/AdminPiiReveal';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,6 +52,7 @@ import {
   parseUserJoinMs,
   compareUsersByJoin,
   referrerDisplayLabel,
+  renderRiskBadges,
   walletBalanceOf,
 } from "@/utils/adminUserDisplay";
 import { endOfDayMs, startOfDayMs } from "@/utils/mt5TradeDates";
@@ -58,15 +61,37 @@ import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { useEmployeeAccess } from "@/hooks/useEmployeeAccess";
 import { exportUsersToExcel } from "@/utils/exportUsersExcel";
 import { EmployeeGate } from "@/components/auth/EmployeeGate";
-import { fetchAllUsedTags, parseUserLabels } from "@/utils/adminUserLabels";
+import { fetchAllUsedTags, parseUserLabels, tagColorClass } from "@/utils/adminUserLabels";
 import { markAdminUsersSeen } from "@/utils/adminSidebarSeen";
 import {
   fetchReferrerByUserIdMap,
   mergeUserReferrerFields,
 } from "@/utils/adminReferrerEnrichment";
+import {
+  ADMIN_USERS_TABLE_COLUMNS,
+  fmtUsdCell,
+  loadAdminUsersColumnVisibility,
+  saveAdminUsersColumnVisibility,
+  sumOpenAdminShareUsd,
+  type AdminUsersColumnId,
+  type AdminUsersColumnVisibility,
+} from "@/utils/adminUsersTableColumns";
+import { useAdminUsersFiltersCollapsed } from "@/utils/adminUsersFiltersCollapsed";
 
 const USER_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 const DEFAULT_USER_PAGE_SIZE = 10;
+
+/** Paid packs matched by the Package filter "Active plan" shortcut. */
+const ACTIVE_PLAN_PACKAGE_IDS = new Set(
+  SUBSCRIPTION_PACKAGES.filter((pkg) => !pkg.isTrial).map((pkg) => pkg.id),
+);
+
+/** Default package filter: paid active plans only (1m / 3m / 6m / 1y). */
+const DEFAULT_FILTER_PACKAGES = ["active"] as const;
+
+function isDefaultPackageFilter(packages: string[]): boolean {
+  return packages.length === 1 && packages[0] === "active";
+}
 
 /** Whole days remaining until a package end date (null if no/invalid date). */
 function daysLeftUntil(value: unknown): number | null {
@@ -163,7 +188,7 @@ const AdminPage = () => {
   const [filterKyc, setFilterKyc] = useState('all');
   const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
-  const [filterPackages, setFilterPackages] = useState<string[]>([]);
+  const [filterPackages, setFilterPackages] = useState<string[]>([...DEFAULT_FILTER_PACKAGES]);
   const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
   const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
   const [filterReferrer, setFilterReferrer] = useState<string>('all');
@@ -176,9 +201,34 @@ const AdminPage = () => {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
+  const [columnVisibility, setColumnVisibility] = useState<AdminUsersColumnVisibility>(() =>
+    loadAdminUsersColumnVisibility(),
+  );
 
   const { currentUser } = useApp();
   const { can, isAdmin } = useEmployeeAccess();
+  const { filtersCollapsed } = useAdminUsersFiltersCollapsed();
+  const { revealed: piiRevealed } = useAdminPiiReveal();
+
+  const canShowColumn = useCallback(
+    (id: AdminUsersColumnId) => {
+      const def = ADMIN_USERS_TABLE_COLUMNS.find((c) => c.id === id);
+      if (!def) return false;
+      if (def.perm && !can(def.perm)) return false;
+      return true;
+    },
+    [can],
+  );
+
+  const showCol = useCallback(
+    (id: AdminUsersColumnId) => canShowColumn(id) && columnVisibility[id] === true,
+    [canShowColumn, columnVisibility],
+  );
+
+  const handleColumnVisibilityChange = useCallback((next: AdminUsersColumnVisibility) => {
+    setColumnVisibility(next);
+    saveAdminUsersColumnVisibility(next);
+  }, []);
   const isVoiceAdmin = can("action:users:voice");
   const adminListenerId = Number(currentUser?.userId);
   const [voiceUser, setVoiceUser] = useState<any>(null);
@@ -524,16 +574,18 @@ const AdminPage = () => {
     return [...locations]
       .map((loc) => {
         const id = String(loc.id ?? "");
-        const name = String(loc.name || "").trim() || `User #${id}`;
+        const nameRaw = String(loc.name || "").trim() || `User #${id}`;
+        const name = piiDisplay(nameRaw, "name", piiRevealed);
         return { value: id, label: `${name} (#${id})` };
       })
       .filter((opt) => opt.value)
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [locations]);
+  }, [locations, piiRevealed]);
 
   const packageFilterOptions = useMemo(
     () => [
       { value: "none", label: "No active plan" },
+      { value: "active", label: "Active plan" },
       { value: "expired", label: "Expired plan" },
       ...SUBSCRIPTION_PACKAGES.map((pkg) => ({ value: pkg.id, label: pkg.name })),
     ],
@@ -599,6 +651,7 @@ const AdminPage = () => {
         filterPackages.length === 0 ||
         filterPackages.some((selected) => {
           if (selected === "none") return !activePkg;
+          if (selected === "active") return ACTIVE_PLAN_PACKAGE_IDS.has(activePkg);
           if (selected === "expired") return userPackageExpired(loc);
           return activePkg === selected;
         });
@@ -723,7 +776,7 @@ const AdminPage = () => {
       filterKyc !== "all" ||
       filterOnline !== "all" ||
       filterWallet !== "all" ||
-      filterPackages.length > 0 ||
+      !isDefaultPackageFilter(filterPackages) ||
       filterTrading !== "all" ||
       filterOpenPl !== "all" ||
       filterReferrer !== "all" ||
@@ -822,16 +875,8 @@ const AdminPage = () => {
   ]);
 
   const visibleUserCols = useMemo(
-    () =>
-      [
-        "col:users:name",
-        "col:users:status",
-        "col:users:wallet",
-        "col:users:equity",
-        "col:users:live_pl",
-        "col:users:kyc",
-      ].filter((k) => can(k)).length,
-    [can],
+    () => ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).length,
+    [showCol],
   );
 
   return (
@@ -842,6 +887,8 @@ const AdminPage = () => {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Users
             </h1>
+            {!filtersCollapsed ? (
+              <>
             <EmployeeGate perm="filter:users:online">
               <button
                 type="button"
@@ -925,7 +972,10 @@ const AdminPage = () => {
                 ? `${filteredUserCount.toLocaleString()} of ${totalUserCount.toLocaleString()} users`
                 : `${totalUserCount.toLocaleString()} users`}
             </span>
+              </>
+            ) : null}
           </div>
+          {!filtersCollapsed ? (
           <p className="mt-1 text-sm text-slate-600">
             Manage accounts, wallets, addresses &amp; KYC · sorted by {sortLabel}
             {filterOpenPl === "profit"
@@ -940,6 +990,7 @@ const AdminPage = () => {
               </span>
             ) : null}
           </p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -987,6 +1038,7 @@ const AdminPage = () => {
         </div>
       </div>
 
+      {!filtersCollapsed ? (
       <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-8">
         <EmployeeGate perm="filter:users:name">
         <FilterCheckboxDropdown
@@ -1227,7 +1279,7 @@ const AdminPage = () => {
               setFilterKyc('all');
               setFilterOnline('all');
               setFilterWallet('all');
-              setFilterPackages([]);
+              setFilterPackages([...DEFAULT_FILTER_PACKAGES]);
               setFilterTrading('all');
               setFilterOpenPl('all');
               setFilterReferrer('all');
@@ -1243,6 +1295,7 @@ const AdminPage = () => {
           </Button>
         </div>
       </div>
+      ) : null}
 
       {error && (
         <div className="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-red-600">
@@ -1250,7 +1303,7 @@ const AdminPage = () => {
         </div>
       )}
 
-      {totals && (
+      {/* {totals && (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1277,7 +1330,7 @@ const AdminPage = () => {
             </p>
           </div>
         </div>
-      )}
+      )} */}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/90 px-4 py-3 sm:px-6">
@@ -1296,6 +1349,11 @@ const AdminPage = () => {
             )}
           </p>
           <div className="flex flex-wrap items-center gap-2">
+            <AdminUsersColumnPicker
+              visibility={columnVisibility}
+              onChange={handleColumnVisibilityChange}
+              canShowColumn={canShowColumn}
+            />
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               Rows
               <select
@@ -1321,46 +1379,32 @@ const AdminPage = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
-                {can("col:users:name") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  User
-                </th>
-                )}
-                {can("col:users:status") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Status
-                </th>
-                )}
-                {can("col:users:wallet") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Wallet
-                </th>
-                )}
-                {can("col:users:equity") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Equity (wallet + open P/L)
-                </th>
-                )}
-                {can("col:users:live_pl") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  Open P/L (unrealized)
-                </th>
-                )}
-                {can("col:users:kyc") && (
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4">
-                  KYC
-                </th>
-                )}
+                {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => (
+                  <th
+                    key={col.id}
+                    className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4"
+                  >
+                    {col.label}
+                  </th>
+                ))}
               </tr>
             </thead>
 
             <tbody>
               {pagedLocations.map((loc) => {
-                const fin = financeOverlay[Number(loc.id)];
+                const uid = Number(loc.id);
+                const fin = financeOverlay[uid];
                 const walletBal = Number(loc.wallet_balance ?? 0);
                 const livePl = fin?.live_pl ?? Number(loc.live_pl ?? 0);
                 const equityVal = fin?.equity ?? Number(loc.equity ?? walletBal);
+                const withdrawableVal =
+                  fin?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
                 const openPos = Number(loc.open_positions ?? 0);
+                const adminShare = sumOpenAdminShareUsd(
+                  (openRowsByUser[uid] ?? []) as AdminOpenAssignRow[],
+                );
+                const equityPl = rowPlVsBaseline(loc, financeOverlay);
+                const labels = parseUserLabels(loc);
 
                 return (
                 <tr
@@ -1372,7 +1416,7 @@ const AdminPage = () => {
                       "bg-amber-50/40",
                   )}
                 >
-                  {can("col:users:name") && (
+                  {showCol("name") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1380,7 +1424,9 @@ const AdminPage = () => {
                           type="button"
                           className="inline-flex max-w-full items-center gap-1 text-left font-semibold text-yellow-900 underline-offset-2 hover:underline"
                         >
-                          <span className="truncate">{loc.name}</span>
+                          <span className="truncate">
+                            <MaskedPii value={loc.name} kind="name" />
+                          </span>
                           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
@@ -1435,7 +1481,7 @@ const AdminPage = () => {
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
-                    {loc.active_package_id ? (
+                    {!showCol("package") && loc.active_package_id ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[11px] font-medium text-slate-600">
                           {packageDisplayName(String(loc.active_package_id))}
@@ -1456,15 +1502,15 @@ const AdminPage = () => {
                           );
                         })()}
                       </div>
-                    ) : (
+                    ) : !showCol("package") ? (
                       <div className="mt-1.5 text-[11px] font-medium text-slate-400">
                         No active plan
                       </div>
-                    )}
+                    ) : null}
                   </td>
                   )}
 
-                  {can("col:users:status") && (
+                  {showCol("status") && (
                   <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
                     <div className="flex items-center gap-2">
                       <span
@@ -1485,25 +1531,24 @@ const AdminPage = () => {
                         {lastSeenLabel(loc.last_seen_at, loc.is_online)}
                       </span>
                     </div>
-                    <p
-                      className={cn(
-                        "mt-1 text-[11px] font-medium",
-                        isTradeActive(loc) ? "text-emerald-600" : "text-amber-700",
-                      )}
-                    >
-                      Trade: {isTradeActive(loc) ? "Active" : "Stop"}
-                    </p>
+                    {!showCol("trading") ? (
+                      <p
+                        className={cn(
+                          "mt-1 text-[11px] font-medium",
+                          isTradeActive(loc) ? "text-emerald-600" : "text-amber-700",
+                        )}
+                      >
+                        Trade: {isTradeActive(loc) ? "Active" : "Stop"}
+                      </p>
+                    ) : null}
                   </td>
                   )}
 
-                  {can("col:users:wallet") && (
+                  {showCol("wallet") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
                       {loc.wallet_currency ?? "USD"}{" "}
-                      {Number(loc.wallet_balance ?? 0).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {fmtUsdCell(walletBal)}
                     </div>
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
@@ -1511,14 +1556,10 @@ const AdminPage = () => {
                   </td>
                   )}
 
-                  {can("col:users:equity") && (
+                  {showCol("equity") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
-                      USD{" "}
-                      {equityVal.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      USD {fmtUsdCell(equityVal)}
                     </div>
                     {openPos > 0 && (
                       <span className="text-[11px] text-slate-500">{openPos} open</span>
@@ -1529,24 +1570,38 @@ const AdminPage = () => {
                   </td>
                   )}
 
-                  {can("col:users:live_pl") && (
+                  {showCol("live_pl") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`font-semibold tabular-nums ${
                         livePl >= 0 ? "text-emerald-700" : "text-red-700"
                       }`}
                     >
-                      {openPos > 0 || loc.live_pl != null
-                        ? livePl.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })
+                      {openPos > 0 || loc.live_pl != null ? fmtUsdCell(livePl) : "—"}
+                    </span>
+                  </td>
+                  )}
+
+                  {showCol("admin_share") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        adminShare > 0.01
+                          ? "text-emerald-700"
+                          : adminShare < -0.01
+                            ? "text-red-700"
+                            : "text-slate-500"
+                      }`}
+                      title="Estimated admin share on open trades (frontend)"
+                    >
+                      {openPos > 0 || Math.abs(adminShare) > 0.005
+                        ? fmtUsdCell(adminShare)
                         : "—"}
                     </span>
                   </td>
                   )}
 
-                  {can("col:users:kyc") && (
+                  {showCol("kyc") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
@@ -1556,6 +1611,187 @@ const AdminPage = () => {
                       }`}
                     >
                       {loc.kyc_status ?? "pending"}
+                    </span>
+                  </td>
+                  )}
+
+                  {showCol("email") && (
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    <MaskedPii value={loc.email} kind="email" className="break-all" />
+                  </td>
+                  )}
+
+                  {showCol("mobile") && (
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-700 sm:px-6 sm:py-4">
+                    <MaskedPii value={loc.mobile} kind="mobile" />
+                  </td>
+                  )}
+
+                  {showCol("telegram") && (
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {String(loc.telegram ?? "—")}
+                  </td>
+                  )}
+
+                  {showCol("joined") && (
+                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {formatAdminDate(String(loc.created_at ?? ""))}
+                  </td>
+                  )}
+
+                  {showCol("package") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    {loc.active_package_id ? (
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">
+                          {packageDisplayName(String(loc.active_package_id))}
+                        </div>
+                        {(() => {
+                          const days = daysLeftUntil(loc.package_expires_at);
+                          if (days == null) return null;
+                          return (
+                            <span
+                              className={cn(
+                                "mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                daysLeftBadgeClass(days),
+                              )}
+                            >
+                              {days <= 0 ? "Expired" : `${days}d left`}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">No active plan</span>
+                    )}
+                  </td>
+                  )}
+
+                  {showCol("referrer") && (
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {Number(loc.referrer_id) > 0 ? (
+                      <div>
+                        <div className="font-medium">{referrerDisplayLabel(loc)}</div>
+                        <div className="font-mono text-[11px] text-slate-400">
+                          #{loc.referrer_id}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  )}
+
+                  {showCol("risk") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    {renderRiskBadges(loc.risk)}
+                  </td>
+                  )}
+
+                  {showCol("label") && (
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {labels.label ? labels.label : <span className="text-slate-400">—</span>}
+                  </td>
+                  )}
+
+                  {showCol("tags") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    {labels.tags.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {labels.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                              tagColorClass(tag),
+                            )}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">—</span>
+                    )}
+                  </td>
+                  )}
+
+                  {showCol("deposit_baseline") && (
+                  <td className="align-top px-4 py-3 font-semibold tabular-nums text-slate-900 sm:px-6 sm:py-4">
+                    {fmtUsdCell(Number(loc.deposit_baseline ?? NaN))}
+                  </td>
+                  )}
+
+                  {showCol("open_positions") && (
+                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                    {openPos}
+                  </td>
+                  )}
+
+                  {showCol("withdrawable") && (
+                  <td className="align-top px-4 py-3 font-semibold tabular-nums text-slate-900 sm:px-6 sm:py-4">
+                    {fmtUsdCell(withdrawableVal)}
+                  </td>
+                  )}
+
+                  {showCol("equity_pl") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        equityPl >= 0 ? "text-emerald-700" : "text-red-700"
+                      }`}
+                    >
+                      {fmtUsdCell(equityPl)}
+                    </span>
+                  </td>
+                  )}
+
+                  {showCol("country") && (
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {[loc.city, loc.state, loc.country]
+                      .map((v) => (v != null ? String(v).trim() : ""))
+                      .filter(Boolean)
+                      .join(", ") || "—"}
+                  </td>
+                  )}
+
+                  {showCol("experience") && (
+                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                    {String(loc.experience ?? "—")}
+                  </td>
+                  )}
+
+                  {showCol("profit_pct") && (
+                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                    {loc.profit_percentage != null && Number.isFinite(Number(loc.profit_percentage))
+                      ? `${Number(loc.profit_percentage).toFixed(2)}%`
+                      : "—"}
+                  </td>
+                  )}
+
+                  {showCol("fee_lot") && (
+                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                    {fmtUsdCell(Number(loc.dollar_amount ?? NaN))}
+                  </td>
+                  )}
+
+                  {showCol("recharge_total") && (
+                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                    {fmtUsdCell(Number(loc.recharge_total_usd ?? NaN))}
+                  </td>
+                  )}
+
+                  {showCol("trading") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                        isTradeActive(loc)
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-amber-200 bg-amber-50 text-amber-800",
+                      )}
+                    >
+                      {isTradeActive(loc) ? "Active" : "Stop"}
                     </span>
                   </td>
                   )}

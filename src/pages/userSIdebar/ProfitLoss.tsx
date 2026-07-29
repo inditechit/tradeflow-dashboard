@@ -178,7 +178,7 @@ const ProfitLoss = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">History</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your closed trades — entry/exit, volume and settled P/L after profit rules.
+            Your closed trades — entry/exit, volume and settled P/L.
           </p>
         </div>
 

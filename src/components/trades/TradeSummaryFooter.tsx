@@ -115,29 +115,6 @@ export function TradeSummaryFooter({
               {trailingColSpan > 0 && <td colSpan={trailingColSpan} />}
             </tr>
           )}
-          {capital?.adminPendingShare != null && capital.adminPendingShare > 0.01 && (
-            <>
-              <tr className="border-t border-slate-200">
-                <td colSpan={colSpan} className="px-6 py-3 text-right text-sm font-semibold text-slate-600">
-                  Performance fee (admin
-                  {capital.userSharePct ? ` ${100 - capital.userSharePct}%` : ""})
-                </td>
-                <td className="px-6 py-3 text-sm font-semibold tabular-nums text-slate-500">
-                  − {fmtUsd(capital.adminPendingShare)}
-                </td>
-                {trailingColSpan > 0 && <td colSpan={trailingColSpan} />}
-              </tr>
-              <tr>
-                <td colSpan={colSpan} className="px-6 py-3 text-right text-sm font-bold text-emerald-800">
-                  User share (withdrawable preview)
-                </td>
-                <td className="px-6 py-3 text-sm font-extrabold tabular-nums text-emerald-800">
-                  {fmtUsd(capital.userEquityShare ?? 0)}
-                </td>
-                {trailingColSpan > 0 && <td colSpan={trailingColSpan} />}
-              </tr>
-            </>
-          )}
         </>
       )}
     </tfoot>

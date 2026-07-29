@@ -98,7 +98,7 @@ const DashboardPage = () => {
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
   const [adminFeeLive, setAdminFeeLive] = useState(0);
   const [userShareLive, setUserShareLive] = useState(0);
-  const [userSharePct, setUserSharePct] = useState(0);
+  const [userSharePct, setUserSharePct] = useState(50);
   const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
   const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
@@ -110,7 +110,6 @@ const DashboardPage = () => {
   const [historyRows, setHistoryRows] = useState<UserTradeRowLike[]>([]);
   const [liveRawByTicket, setLiveRawByTicket] = useState<Record<string, number>>({});
   const [depositBaseline, setDepositBaseline] = useState(0);
-  const [recoveryRemaining, setRecoveryRemaining] = useState(0);
   const [acctTotals, setAcctTotals] = useState<{
     profit: number;
     deposit: number;
@@ -158,9 +157,8 @@ const DashboardPage = () => {
       adminFee: adminFeeLive,
       userShare: userShareLive > 0 ? userShareLive : Math.max(0, equity - adminFeeLive),
       userSharePct,
-      recoveryRemaining,
     }),
-    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct, recoveryRemaining],
+    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct],
   );
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
@@ -227,11 +225,6 @@ const DashboardPage = () => {
           summaryData?.total_invested ??
           0,
       );
-      const recoveryRemainingUsd = Number(
-        summaryAfter?.recovery_remaining_usd ??
-          summaryData?.recovery_remaining_usd ??
-          0,
-      );
       const nextSlice: Record<string, { v_i: number; V: number; fee: number; pct: number }> = {};
       let openCount = 0;
       const allRows: UserTradeRowLike[] = [];
@@ -275,7 +268,6 @@ const DashboardPage = () => {
       setHistoryRows(allRows);
       setLiveRawByTicket({ ...liveRawByTicketRef.current });
       setDepositBaseline(depositBaselineRef.current);
-      setRecoveryRemaining(Math.max(0, recoveryRemainingUsd));
       setOpenPositionCount(openCount);
       const wBal = Number(
         summaryAfter?.wallet_balance ??
@@ -350,7 +342,12 @@ const DashboardPage = () => {
         }
         setAdminFeeLive(Math.max(0, Number(effectiveSummary.admin_pending_share_live_usd ?? 0)));
         setUserShareLive(Math.max(0, Number(effectiveSummary.user_equity_share_usd ?? 0)));
-        setUserSharePct(Number(effectiveSummary.user_share_pct ?? 0));
+        {
+          const pct = Number(
+            effectiveSummary.user_share_pct ?? effectiveSummary.admin_profit_percentage ?? NaN,
+          );
+          setUserSharePct(Number.isFinite(pct) && pct > 0 ? pct : 50);
+        }
       } else {
         setIsBusted(false);
         setPendingClosedPl(0);
@@ -358,6 +355,7 @@ const DashboardPage = () => {
         setWithdrawableFromApi(walletBalance + openPlSum);
         setAdminFeeLive(0);
         setUserShareLive(0);
+        setUserSharePct(50);
       }
     } catch (err) {
       console.error('Finance load error:', err);
@@ -369,7 +367,7 @@ const DashboardPage = () => {
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
     const ok = window.confirm(
-      'Stop trading? Your share of each open position will be settled to your wallet now at the current live price. Exit prices will freeze at that stop rate. You will not receive new copy trades until you start again.',
+      'Stop trading? Open positions will be settled to your wallet at the current live price. Exit prices will freeze at that stop rate. You will not receive new copy trades until you start again.',
     );
     if (!ok) return;
     setTradingActionLoading(true);

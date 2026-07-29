@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   FileText,
   Bell,
+  PanelLeftClose,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -27,6 +28,8 @@ import { API_BASE } from "@/config/api";
 type UserSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 };
 
 const REQUIRED_SETUP_PATH = "/user/required-setup";
@@ -37,7 +40,12 @@ type SidebarWallet = {
   balance: number;
 };
 
-const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
+const UserSidebar = ({
+  mobileOpen,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: UserSidebarProps) => {
   const [accountWallet, setAccountWallet] = useState<SidebarWallet | null>(null);
   const [supportUnread, setSupportUnread] = useState<number | null>(null);
   const navigate = useNavigate();
@@ -132,21 +140,35 @@ const UserSidebar = ({ mobileOpen, onClose }: UserSidebarProps) => {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:translate-x-0 md:shadow-sm",
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(17rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:shadow-sm",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "md:-translate-x-full md:pointer-events-none" : "md:translate-x-0",
         )}
       >
         <div className="relative min-h-0 flex-1">
-          <button
-            type="button"
-            className="absolute right-0 top-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
-            aria-label="Close menu"
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="absolute right-0 top-0 flex items-center gap-0.5">
+            {onToggleCollapse ? (
+              <button
+                type="button"
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:inline-flex"
+                aria-label="Hide sidebar"
+                title="Hide sidebar"
+                onClick={onToggleCollapse}
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+              aria-label="Close menu"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-          <div className="mb-6 pr-10 md:pr-0">
+          <div className="mb-6 pr-10">
             <h1 className="text-lg font-bold text-neutral-900 sm:text-xl">User Panel</h1>
           </div>
 
