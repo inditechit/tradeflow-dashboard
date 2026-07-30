@@ -24,6 +24,7 @@ import {
 } from '@/utils/userTradePl';
 import { Mt5TradeHistoryList, type Mt5HistoryRow } from '@/components/trades/Mt5TradeHistoryList';
 import { isAdminImpersonating } from '@/utils/adminImpersonation';
+import { WalletTransferPanel } from '@/components/wallet/WalletTransferPanel';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -97,6 +98,7 @@ const DashboardPage = () => {
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
+  const [safeWalletUsd, setSafeWalletUsd] = useState(0);
   const [adminFeeLive, setAdminFeeLive] = useState(0);
   const [userShareLive, setUserShareLive] = useState(0);
   const [userSharePct, setUserSharePct] = useState(50);
@@ -283,6 +285,7 @@ const DashboardPage = () => {
         summaryAfter?.success === true ? summaryAfter : summaryData;
 
       if (effectiveSummary?.success) {
+        setSafeWalletUsd(Number(effectiveSummary.safe_wallet_usd ?? 0));
         setAcctTotals({
           profit: Number(effectiveSummary.realised_net ?? 0),
           deposit: Number(effectiveSummary.total_deposited_usd ?? 0),
@@ -315,8 +318,13 @@ const DashboardPage = () => {
           setLivePl(Number(effectiveSummary.live_pl ?? openPlSum));
           setWithdrawableFromApi(
             Number(
-              effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? wBal : 0,
+              effectiveSummary.can_withdraw
+                ? effectiveSummary.safe_wallet_usd ??
+                    effectiveSummary.user_withdrawable_usd ??
+                    0
+                : 0,
             ),
+          );
           );
           setTradingActive(false);
         } else {
@@ -590,6 +598,16 @@ const DashboardPage = () => {
             </button>
           </div>
         </div>
+
+        {currentUser?.role !== 'admin' && (
+          <WalletTransferPanel
+            userId={currentUser?.userId}
+            tradingWallet={walletBalance}
+            safeWallet={safeWalletUsd}
+            currency={currency}
+            onTransferred={() => void loadFinance()}
+          />
+        )}
 
         {/* Chart + active trades: 50/50 on desktop, stacked (chart above) on mobile */}
         {currentUser?.role !== 'admin' && (

@@ -4,7 +4,12 @@ import { API_BASE } from "@/config/api";
 export type UserFinanceState = {
   loading: boolean;
   currency: string;
+  /** Trading Wallet (at-risk) */
   walletBalance: number;
+  tradingWallet: number;
+  /** Safe Wallet (no trading loss; withdraw from here) */
+  safeWallet: number;
+  /** @deprecated alias — Safe Wallet withdrawable when canWithdraw */
   withdrawable: number;
   equity: number;
   livePl: number;
@@ -13,15 +18,11 @@ export type UserFinanceState = {
   softBust: boolean;
   openPositions: number;
   canWithdraw: boolean;
-  /** Admin performance-fee share still pending on SETTLED profit above base. */
+  /** Pending admin profit buffer (not yet locked). */
   adminPendingShare: number;
-  /** Profit above base that is subject to sharing (settled). */
   shareableProfit: number;
-  /** User's profit-share percentage (e.g. 40, 50). */
   userSharePct: number;
-  /** Live admin fee preview incl. open-trade P/L (display only, not withdrawable yet). */
   adminPendingShareLive: number;
-  /** Live user share of equity incl. open-trade P/L (display only). */
   userEquityShare: number;
 };
 
@@ -29,6 +30,8 @@ const empty: UserFinanceState = {
   loading: true,
   currency: "USD",
   walletBalance: 0,
+  tradingWallet: 0,
+  safeWallet: 0,
   withdrawable: 0,
   equity: 0,
   livePl: 0,
@@ -44,7 +47,7 @@ const empty: UserFinanceState = {
   userEquityShare: 0,
 };
 
-/** Withdrawable = wallet only when no open trades; equity = wallet + live P/L (display). */
+/** Trading = at-risk; Safe = recharge/withdraw park (no trading loss). */
 export function useUserFinance(userId: number | undefined) {
   const [state, setState] = useState<UserFinanceState>(empty);
 
@@ -62,39 +65,50 @@ export function useUserFinance(userId: number | undefined) {
       const wData = await wRes.json();
       const sData = await sRes.json();
 
-      const walletBalance = Math.max(
+      const tradingWallet = Math.max(
         0,
-        Number(sData?.wallet_balance ?? wData?.wallet?.balance ?? 0),
+        Number(sData?.trading_wallet_usd ?? sData?.wallet_balance ?? wData?.wallet?.balance ?? 0),
       );
+      const safeWallet = Math.max(0, Number(sData?.safe_wallet_usd ?? 0));
       const openPositions = Number(sData?.open_positions ?? 0);
       const canWithdraw = sData?.can_withdraw === true && openPositions === 0;
-      const adminPendingShare = Math.max(0, Number(sData?.admin_pending_share_usd ?? 0));
-      // Per-trade model: settled wallet is fully withdrawable (admin share taken at trade close).
+      const adminPendingShare = Math.max(
+        0,
+        Number(sData?.pending_admin_profit_usd ?? sData?.admin_pending_share_usd ?? 0),
+      );
       const userWithdrawable = Math.max(
         0,
-        Number(sData?.user_withdrawable_usd ?? walletBalance),
+        Number(sData?.user_withdrawable_usd ?? safeWallet),
       );
       const withdrawable = canWithdraw ? userWithdrawable : 0;
 
       setState({
         loading: false,
         currency: String(sData?.currency ?? wData?.wallet?.currency ?? "USD"),
-        walletBalance,
+        walletBalance: tradingWallet,
+        tradingWallet,
+        safeWallet,
         withdrawable,
-        equity: Math.max(0, Number(sData?.equity ?? walletBalance + Number(sData?.live_pl ?? 0))),
+        equity: Math.max(0, Number(sData?.equity ?? tradingWallet + Number(sData?.live_pl ?? 0))),
         livePl: Number(sData?.live_pl ?? 0),
         depositBaseline: Number(sData?.deposit_baseline ?? 0),
-        busted: sData?.busted === true && walletBalance <= 0.01,
+        busted: sData?.busted === true && tradingWallet <= 0.01,
         softBust: sData?.soft_bust === true && openPositions > 0,
         openPositions,
         canWithdraw,
         adminPendingShare,
         shareableProfit: Math.max(0, Number(sData?.shareable_profit_usd ?? 0)),
         userSharePct: Number(sData?.user_share_pct ?? 0),
-        adminPendingShareLive: Math.max(0, Number(sData?.admin_pending_share_live_usd ?? adminPendingShare)),
+        adminPendingShareLive: Math.max(
+          0,
+          Number(sData?.admin_pending_share_live_usd ?? adminPendingShare),
+        ),
         userEquityShare: Math.max(
           0,
-          Number(sData?.user_equity_share_usd ?? walletBalance + Number(sData?.live_pl ?? 0) - adminPendingShare),
+          Number(
+            sData?.user_equity_share_usd ??
+              tradingWallet + Number(sData?.live_pl ?? 0) - adminPendingShare,
+          ),
         ),
       });
     } catch {
