@@ -10,6 +10,8 @@ type Props = {
   tradingWallet: number;
   safeWallet: number;
   currency?: string;
+  /** When true, transfers are disabled until the user stops trading. */
+  tradingActive?: boolean;
   onTransferred?: () => void;
 };
 
@@ -23,6 +25,7 @@ export function WalletTransferPanel({
   tradingWallet,
   safeWallet,
   currency = "USD",
+  tradingActive = false,
   onTransferred,
 }: Props) {
   const { toast } = useToast();
@@ -32,12 +35,21 @@ export function WalletTransferPanel({
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const transferLocked = tradingActive === true;
   const max =
     direction === "safe_to_trading" ? Math.max(0, safeWallet) : Math.max(0, tradingWallet);
 
   const submit = async () => {
     const uid = Number(userId);
     const amt = Number(amount);
+    if (transferLocked) {
+      toast({
+        title: "Trading is active",
+        description: "Stop trading first, then transfer between wallets.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!uid || !(amt > 0)) {
       toast({
         title: "Enter an amount",
@@ -83,81 +95,98 @@ export function WalletTransferPanel({
     }
   };
 
+  const directionToggle = (
+    <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 px-1">
+      <button
+        type="button"
+        disabled={transferLocked}
+        onClick={() => setDirection("safe_to_trading")}
+        className={cn(
+          "whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition sm:px-3",
+          transferLocked && "cursor-not-allowed opacity-50",
+          direction === "safe_to_trading"
+            ? "border-amber-300 bg-amber-50 text-amber-950"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+        )}
+      >
+        Safe → Trading
+      </button>
+      <button
+        type="button"
+        disabled={transferLocked}
+        onClick={() => setDirection("trading_to_safe")}
+        className={cn(
+          "whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition sm:px-3",
+          transferLocked && "cursor-not-allowed opacity-50",
+          direction === "trading_to_safe"
+            ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+        )}
+      >
+        Trading → Safe
+      </button>
+    </div>
+  );
+
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-lg shadow-neutral-900/5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-slate-900">Wallets</h2>
-        <p className="text-xs text-slate-500">Recharge → Safe · Trade from Trading</p>
+    <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-md shadow-neutral-900/5 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold text-slate-900 sm:text-base">Wallets</h2>
+        <p className="text-[10px] text-slate-500 sm:text-xs">Recharge → Safe · Trade from Trading</p>
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Trading Wallet
+      {/* Trading | transfer buttons | Safe */}
+      <div className="mb-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+        <div className="min-w-0 flex-1 rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
+          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+            <TrendingUp className="h-3 w-3" />
+            Trading
           </div>
-          <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+          <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(tradingWallet)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-500">At risk · P/L applies here</p>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-900">
-            <Shield className="h-3.5 w-3.5" />
-            Safe Wallet
+
+        <div className="flex justify-center sm:contents">{directionToggle}</div>
+
+        <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2.5">
+          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+            <Shield className="h-3 w-3" />
+            Safe
           </div>
-          <p className="text-2xl font-extrabold tabular-nums text-slate-900">
+          <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(safeWallet)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-500">Protected · withdraw from here</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        <button
-          type="button"
-          onClick={() => setDirection("safe_to_trading")}
-          className={cn(
-            "rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
-            direction === "safe_to_trading"
-              ? "border-amber-300 bg-amber-50 text-amber-950"
-              : "border-slate-200 text-slate-600 hover:bg-slate-50",
-          )}
-        >
-          Safe → Trading
-        </button>
-        <button
-          type="button"
-          onClick={() => setDirection("trading_to_safe")}
-          className={cn(
-            "rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
-            direction === "trading_to_safe"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-950"
-              : "border-slate-200 text-slate-600 hover:bg-slate-50",
-          )}
-        >
-          Trading → Safe
-        </button>
-      </div>
+      {transferLocked ? (
+        <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-950">
+          Stop trading to unlock transfers.
+        </p>
+      ) : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
-          <label className="mb-1 block text-xs font-semibold text-slate-500">Amount</label>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Amount
+          </label>
           <input
             type="number"
             min={0}
             step="0.01"
             value={amount}
+            disabled={transferLocked}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={`Max ${fmt(max)}`}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-100"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
           />
         </div>
         <Button
           type="button"
-          disabled={busy || !userId}
+          disabled={busy || !userId || transferLocked}
           onClick={() => void submit()}
-          className="gap-2 bg-yellow-900 text-white hover:bg-yellow-800"
+          className="h-[38px] shrink-0 gap-1.5 bg-yellow-900 px-3 text-white hover:bg-yellow-800"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
           Transfer

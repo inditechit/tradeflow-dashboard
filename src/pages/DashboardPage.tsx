@@ -44,7 +44,7 @@ const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }
     script.async = true;
     script.innerHTML = JSON.stringify({
       width: "100%",
-      height: 400,
+      height: 280,
       symbol: XAUUSD_SYMBOL,
       interval: "15",
       timezone: "Etc/UTC",
@@ -69,7 +69,7 @@ const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }
     <div
       className="tradingview-widget-container"
       ref={container}
-      style={{ height: "520px", width: "100%", overflow: "hidden" }}
+      style={{ height: "280px", width: "100%", overflow: "hidden" }}
     >
       <div
         className="tradingview-widget-container__widget"
@@ -550,30 +550,30 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-5 font-sans">
+      <div className="mx-auto max-w-6xl space-y-3 md:space-y-4">
         {currentUser?.role !== 'admin' && (
           <DashboardNotificationsBanner userId={currentUser?.userId} />
         )}
-        
-        {/* Header Profile Card */}
-        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl shadow-neutral-900/8 border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
+
+        {/* Compact header: Live P/L + actions */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-md shadow-neutral-900/5 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <div className="flex items-center gap-3">
             <div
-              className={`w-16 h-16 rounded-full flex items-center justify-center border ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
                 displayLivePl >= 0
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                  : 'border-red-200 bg-red-50 text-red-600'
               }`}
             >
-              {displayLivePl >= 0 ? <TrendingUp size={30} /> : <TrendingDown size={30} />}
+              {displayLivePl >= 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Live P/L (open)
               </p>
               <h1
-                className={`text-3xl font-extrabold tabular-nums ${
+                className={`text-2xl font-extrabold tabular-nums sm:text-3xl ${
                   displayLivePl >= 0 ? 'text-emerald-600' : 'text-red-600'
                 }`}
               >
@@ -587,19 +587,19 @@ const DashboardPage = () => {
               </h1>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 w-full md:w-auto">
+
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <button
               onClick={() => navigate('/user/recharge')}
-              className="flex-1 md:flex-none px-5 py-2.5 bg-[#FFD700] text-black rounded-xl border border-yellow-300 hover:bg-[#E6C200] transition-colors flex items-center justify-center gap-2 font-bold text-sm"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-yellow-300 bg-[#FFD700] px-3 py-2 text-sm font-bold text-black transition-colors hover:bg-[#E6C200] sm:flex-none"
             >
-              <Plus size={18} /> Add Fund
+              <Plus size={16} /> Add Fund
             </button>
-            <button 
-              onClick={handleLogout} 
-              className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
+            <button
+              onClick={handleLogout}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 sm:flex-none"
             >
-              <LogOut size={18} /> Logout
+              <LogOut size={16} /> Logout
             </button>
           </div>
         </div>
@@ -610,37 +610,86 @@ const DashboardPage = () => {
             tradingWallet={walletBalance}
             safeWallet={safeWalletUsd}
             currency={currency}
+            tradingActive={tradingActive}
             onTransferred={() => void loadFinance()}
           />
         )}
 
-        {/* Chart + active trades: 50/50 on desktop, stacked (chart above) on mobile */}
-        {currentUser?.role !== 'admin' && (
-          <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
-            {/* Left: live chart */}
-            <div className="flex min-w-0 flex-col">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="text-neutral-900" size={24} />
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-800">XAUUSD</h2>
-                    <p className="text-xs text-slate-500">
-                      Gold spot (XAU/USD) · OANDA feed
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800">
-                  XAUUSD
-                </span>
-              </div>
-              <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-lg">
-                <TradingViewChart theme={theme} />
-              </div>
-            </div>
+        {/* Compact stop/start strip */}
+        {currentUser?.role !== 'admin' && !isBusted && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm">
+            <p className="min-w-0 text-xs font-medium text-slate-700 sm:text-sm">
+              {tradingActive ? 'Copy trading running' : 'Copy trading paused'}
+            </p>
+            {tradingActive ? (
+              <button
+                type="button"
+                onClick={handleStopTrading}
+                disabled={tradingActionLoading}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+              >
+                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
+                Stop Trade
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestartTrading}
+                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#FFD700] px-3 py-1.5 text-xs font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+              >
+                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play size={14} />}
+                Start Trade
+              </button>
+            )}
+          </div>
+        )}
 
-            {/* Right: active trades + account summary */}
+        {currentUser?.role !== 'admin' && isBusted && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 sm:text-sm">
+            Account exhausted — add funds and restart trading to continue.
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && !isBusted && !subscriptionActive && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:text-sm">
+            Package expired —{' '}
+            <button
+              type="button"
+              className="font-semibold underline"
+              onClick={() => navigate('/packages')}
+            >
+              buy a new package
+            </button>{' '}
+            to receive trades.
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:text-sm">
+            Trading wallet empty —{' '}
+            <button
+              type="button"
+              className="font-semibold underline"
+              onClick={() => navigate('/user/recharge')}
+            >
+              add funds
+            </button>
+            {tradingActive ? ' and restart trading.' : ', then transfer Safe → Trading.'}
+          </div>
+        )}
+
+        {tradingActionError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 sm:text-sm">
+            {tradingActionError}
+          </div>
+        )}
+
+        {/* Active trades first (data), chart second — less scroll for key info */}
+        {currentUser?.role !== 'admin' && (
+          <section className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
             <div className="flex min-w-0 flex-col">
-              <h2 className="mb-4 text-xl font-bold text-slate-800">Active trades</h2>
+              <h2 className="mb-2 text-base font-bold text-slate-800">Active trades</h2>
               <Mt5TradeHistoryList
                 trades={activeTradeRows as Mt5HistoryRow[]}
                 getRowPl={getRowPl}
@@ -651,125 +700,42 @@ const DashboardPage = () => {
                 accountSummary={accountSummary}
               />
             </div>
-          </section>
-        )}
 
-        {currentUser?.role !== 'admin' && isBusted && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            <p className="font-medium">Account balance exhausted</p>
-            <p className="mt-1 text-red-800">
-              Your equity reached zero. Wallet and equity are now $0. Add funds and restart trading to continue.
-            </p>
-          </div>
-        )}
-
-        {currentUser?.role !== 'admin' && !isBusted && !subscriptionActive && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p className="font-medium">Copy trading stopped — package expired</p>
-            <p className="mt-1 text-amber-900">
-              Your trading package has ended. You will not receive new trades until you{' '}
-              <button
-                type="button"
-                className="font-semibold text-amber-950 underline decoration-amber-800"
-                onClick={() => navigate('/packages')}
-              >
-                buy a new package
-              </button>
-              . Any open positions are settled to your wallet at the time your package expires.
-            </p>
-          </div>
-        )}
-
-        {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p>
-              Wallet is empty — you will not receive new trades until you{' '}
-              <button
-                type="button"
-                className="font-semibold text-neutral-800 underline decoration-neutral-900"
-                onClick={() => navigate('/user/recharge')}
-              >
-                add funds
-              </button>
-              {tradingActive ? ' and restart trading.' : '.'}
-            </p>
-          </div>
-        )}
-
-        {tradingActionError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {tradingActionError}
-          </div>
-        )}
-
-        {currentUser?.role !== 'admin' && !isBusted && (
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm shadow-sm md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="font-semibold text-slate-900">
-                {tradingActive ? 'Copy trading is running' : 'Copy trading is paused'}
-              </p>
-              <p className="mt-1 text-slate-500">
-                {tradingActive
-                  ? 'Stop trading settles your open positions to your wallet now and blocks new copy trades.'
-                  : tradingStopReason === 'manual_stop'
-                    ? 'Your stopped trades are already settled. Start trading again to receive new copy trades.'
-                    : 'Start trading after your wallet and package are active.'}
-              </p>
+            <div className="flex min-w-0 flex-col">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-base font-bold text-slate-800">XAUUSD</h2>
+                <span className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[10px] font-semibold text-yellow-800">
+                  Live chart
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white p-2 shadow-md">
+                <TradingViewChart theme={theme} />
+              </div>
             </div>
-            {tradingActive ? (
-              <button
-                type="button"
-                onClick={handleStopTrading}
-                disabled={tradingActionLoading}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {tradingActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause size={16} />}
-                Stop Trade
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRestartTrading}
-                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-4 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {tradingActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play size={16} />}
-                Start Trade
-              </button>
-            )}
-          </div>
+          </section>
         )}
 
         {currentUser?.role !== 'admin' && supportUnreadTickets > 0 && (
           <button
             type="button"
             onClick={() => navigate('/user/support')}
-            className="flex w-full items-center justify-between gap-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-left text-sm text-sky-950 transition-colors hover:bg-sky-100"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-left text-xs text-sky-950 transition-colors hover:bg-sky-100 sm:text-sm"
           >
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-sky-100">
-                <LifeBuoy className="h-5 w-5 text-sky-700" />
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-sky-100">
+                <LifeBuoy className="h-4 w-4 text-sky-700" />
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] font-bold text-white">
                   {supportUnreadTickets}
                 </span>
               </span>
-              <div>
-                <p className="font-semibold">New support {supportUnreadMessages === 1 ? 'reply' : 'replies'}</p>
-                <p className="mt-0.5 text-sky-800">
-                  {supportUnreadTickets === 1
-                    ? 'You have 1 ticket with an unread reply'
-                    : `You have ${supportUnreadTickets} tickets with unread replies`}
-                  {supportUnreadMessages > supportUnreadTickets
-                    ? ` (${supportUnreadMessages} messages)`
-                    : ''}
-                  .
-                </p>
-              </div>
+              <p className="font-semibold">
+                {supportUnreadTickets} support{' '}
+                {supportUnreadTickets === 1 ? 'reply' : 'replies'} unread
+              </p>
             </div>
-            <ArrowRight className="h-5 w-5 shrink-0 text-sky-700" />
+            <ArrowRight className="h-4 w-4 shrink-0 text-sky-700" />
           </button>
         )}
-
       </div>
     </div>
   );
