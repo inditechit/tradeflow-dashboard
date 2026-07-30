@@ -109,7 +109,7 @@ export function WalletTransferPanel({
             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
         )}
       >
-        Safe → Trading
+        Trading ← Safe
       </button>
       <button
         type="button"
