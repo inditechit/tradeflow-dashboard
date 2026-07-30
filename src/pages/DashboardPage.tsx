@@ -325,7 +325,6 @@ const DashboardPage = () => {
                 : 0,
             ),
           );
-          );
           setTradingActive(false);
         } else {
           const summaryWallet = Number(effectiveSummary.wallet_balance ?? wBal);
@@ -346,7 +345,13 @@ const DashboardPage = () => {
               : apiLive,
           );
           setWithdrawableFromApi(
-            Number(effectiveSummary.can_withdraw ? effectiveSummary.wallet_balance ?? summaryWallet : 0),
+            Number(
+              effectiveSummary.can_withdraw
+                ? effectiveSummary.safe_wallet_usd ??
+                    effectiveSummary.user_withdrawable_usd ??
+                    0
+                : 0,
+            ),
           );
         }
         setAdminFeeLive(Math.max(0, Number(effectiveSummary.admin_pending_share_live_usd ?? 0)));
@@ -361,7 +366,7 @@ const DashboardPage = () => {
         setIsBusted(false);
         setPendingClosedPl(0);
         setLivePl(openPlSum);
-        setWithdrawableFromApi(walletBalance + openPlSum);
+        setWithdrawableFromApi(0);
         setAdminFeeLive(0);
         setUserShareLive(0);
         setUserSharePct(50);
