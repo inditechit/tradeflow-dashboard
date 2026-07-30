@@ -24,6 +24,7 @@ import {
   type ProfileRecord,
 } from "@/utils/profileCompliance";
 import { hasUserImageData } from "@/utils/userImageUrl";
+import { isAdminImpersonating } from "@/utils/adminImpersonation";
 
 function filled(val: unknown): boolean {
   if (val == null) return false;
@@ -92,6 +93,10 @@ const RequiredSetupPage = () => {
   const saveLocation = () => {
     const uid = currentUser?.userId;
     if (!uid) return;
+    if (isAdminImpersonating()) {
+      setError("Location updates are disabled while viewing as this user.");
+      return;
+    }
     if (!("geolocation" in navigator)) {
       setError("Location is not available in this browser.");
       return;
@@ -107,6 +112,8 @@ const RequiredSetupPage = () => {
             body: JSON.stringify({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
+              skipLocationUpdate: isAdminImpersonating(),
+              impersonating: isAdminImpersonating(),
             }),
           });
           const data = await res.json();

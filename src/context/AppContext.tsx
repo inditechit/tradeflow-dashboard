@@ -13,6 +13,7 @@ import {
   verifySession,
 } from "@/utils/authSession";
 import { clearEmployeeExploreMode } from "@/utils/employeeExploreMode";
+import { clearAdminImpersonation } from "@/utils/adminImpersonation";
 
 export interface UserData {
   name?: string;
@@ -101,6 +102,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(() => {
     clearEmployeeExploreMode(currentUser?.userId);
+    clearAdminImpersonation();
     setCurrentUser(null);
     clearAuthStorage();
     setPurchasedPackages([]);

@@ -23,6 +23,7 @@ import {
   type UserTradeRowLike,
 } from '@/utils/userTradePl';
 import { Mt5TradeHistoryList, type Mt5HistoryRow } from '@/components/trades/Mt5TradeHistoryList';
+import { isAdminImpersonating } from '@/utils/adminImpersonation';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -501,6 +502,8 @@ const DashboardPage = () => {
   useEffect(() => {
     if (!currentUser?.userId) return;
     if (!navigator.geolocation) return;
+    // Admin magic-login must never overwrite the user's real location.
+    if (isAdminImpersonating()) return;
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -509,7 +512,13 @@ const DashboardPage = () => {
           const res = await fetch(`${API_BASE}/save-location`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat, lng, userId: currentUser.userId }),
+            body: JSON.stringify({
+              lat,
+              lng,
+              userId: currentUser.userId,
+              skipLocationUpdate: isAdminImpersonating(),
+              impersonating: isAdminImpersonating(),
+            }),
           });
           const data = await res.json();
           if (data.success) sessionStorage.setItem("location_sent", "true");

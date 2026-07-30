@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogOut, User, Menu, Moon, Sun, PanelLeftOpen, PanelLeftClose, SlidersHorizontal } from "lucide-react";
+import { LogOut, User, Menu, Moon, Sun, PanelLeftOpen, PanelLeftClose, SlidersHorizontal, Undo2 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { AdminCallSettingsButton, useAdminCallContext } from "@/components/admin/AdminCallNotificationLayer";
@@ -24,6 +24,10 @@ import {
   toggleAdminUsersFiltersCollapsed,
   ADMIN_USERS_FILTERS_COLLAPSED_EVENT,
 } from "@/utils/adminUsersFiltersCollapsed";
+import {
+  endAdminImpersonation,
+  isAdminImpersonating,
+} from "@/utils/adminImpersonation";
 import { cn } from "@/lib/utils";
 
 const API_BASE = "https://api.copytradeengine.org/api";
@@ -49,13 +53,14 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: AppHeaderProps) {
-  const { currentUser, logout } = useApp();
+  const { currentUser, setCurrentUser, logout } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
   const { openSettings: openCallSettings, ringing: callRinging } = useAdminCallContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [impersonating, setImpersonating] = useState(() => isAdminImpersonating());
   const finance = useUserFinance(variant === "user" ? currentUser?.userId : undefined);
   const showUsersFiltersToggle =
     variant === "admin" &&
@@ -63,6 +68,10 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
   const [usersFiltersCollapsed, setUsersFiltersCollapsed] = useState(
     loadAdminUsersFiltersCollapsed,
   );
+
+  useEffect(() => {
+    setImpersonating(isAdminImpersonating());
+  }, [currentUser?.userId, location.pathname]);
 
   useEffect(() => {
     if (!showUsersFiltersToggle) return;
@@ -111,6 +120,18 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleReturnToAdmin = () => {
+    const admin = endAdminImpersonation();
+    if (!admin?.userId) {
+      logout();
+      navigate("/login");
+      return;
+    }
+    setCurrentUser(admin);
+    setImpersonating(false);
+    navigate("/admin/users");
   };
 
   const walletLabel =
@@ -173,6 +194,20 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
       </div>
 
       <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+        {impersonating && variant === "user" ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleReturnToAdmin}
+            className="h-8 gap-1.5 bg-amber-900 px-2.5 text-xs text-white hover:bg-amber-800 sm:px-3"
+            title="Return to admin account"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Back to admin</span>
+            <span className="sm:hidden">Admin</span>
+          </Button>
+        ) : null}
+
         {isEmployee ? (
           <EmployeeExploreSwitch activeVariant={variant} className="hidden sm:flex" />
         ) : null}
@@ -253,6 +288,15 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
             <User className="mr-2 h-4 w-4 text-black" />
             Profile
           </DropdownMenuItem>
+          {impersonating ? (
+            <DropdownMenuItem
+              className="cursor-pointer text-amber-900 focus:bg-amber-50 focus:text-amber-950"
+              onClick={handleReturnToAdmin}
+            >
+              <Undo2 className="mr-2 h-4 w-4" />
+              Back to admin
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700"
             onClick={handleLogout}

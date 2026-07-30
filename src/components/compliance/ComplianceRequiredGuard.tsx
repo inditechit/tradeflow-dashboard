@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useProfileCompliance } from "@/context/ProfileComplianceContext";
 import ComplianceOverlay from "./ComplianceOverlay";
+import { isAdminImpersonating } from "@/utils/adminImpersonation";
 
 const WITHDRAW_PATH = "/user/withdraw";
 const PROFILE_PATH = "/user/profile";
@@ -29,6 +30,7 @@ const ComplianceRequiredGuard = ({ children }: Props) => {
   const { loading: compLoading, fetchOk: compOk, complete } = useProfileCompliance();
 
   const needsCompliance =
+    !isAdminImpersonating() &&
     !subLoading &&
     subOk &&
     isActive &&

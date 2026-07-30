@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, UserPlus } from "lucide-react";
+import { Loader2, Search, UserMinus, UserPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { cn } from "@/lib/utils";
+import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 
 type Mt5TradeOption = {
   ticket: string | number;
@@ -28,12 +29,21 @@ type AdminUserOption = {
   wallet_balance?: number;
 };
 
+type AssignmentRow = {
+  user_id: number;
+  name?: string;
+  settled?: boolean;
+  pool_share_pct?: number;
+  allocated_volume?: number;
+  manual_stop?: boolean;
+};
+
 type AssignmentStatus = {
   ticket: string;
   symbol?: string;
   status?: string;
   master_closed?: boolean;
-  assignments?: Array<{ user_id: number; name?: string; settled?: boolean }>;
+  assignments?: AssignmentRow[];
 };
 
 export type AdminManualTicketAssignDialogProps = {
@@ -58,6 +68,7 @@ export function AdminManualTicketAssignDialog({
   const [userQ, setUserQ] = useState("");
   const [users, setUsers] = useState<AdminUserOption[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [unassignUserIds, setUnassignUserIds] = useState<number[]>([]);
   const [status, setStatus] = useState<AssignmentStatus | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
@@ -69,6 +80,7 @@ export function AdminManualTicketAssignDialog({
     setSelectedTicket(t);
     setTicketQ(t);
     setSelectedUserIds([]);
+    setUnassignUserIds([]);
     setUserQ("");
   }, [open, initialTicket]);
 
@@ -124,6 +136,7 @@ export function AdminManualTicketAssignDialog({
       setStatus(null);
       return;
     }
+    setUnassignUserIds([]);
     void loadStatus(selectedTicket);
   }, [open, selectedTicket, loadStatus]);
 
@@ -171,6 +184,12 @@ export function AdminManualTicketAssignDialog({
     );
   };
 
+  const toggleUnassign = (id: number) => {
+    setUnassignUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
   const handleAssign = async () => {
     const ticket = selectedTicket.trim();
     if (!ticket || selectedUserIds.length === 0) {
@@ -208,17 +227,55 @@ export function AdminManualTicketAssignDialog({
     }
   };
 
+  const handleUnassign = async () => {
+    const ticket = selectedTicket.trim();
+    if (!ticket || unassignUserIds.length === 0) {
+      toast({
+        title: "Select user(s) to unassign",
+        description: "Pick at least one currently assigned user.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/v2/unassign-ticket`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket, userIds: unassignUserIds, restoreOthers: true }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Unassign failed");
+      toast({
+        title: "Unassign complete",
+        description: String(data.message || `Removed user(s) from ticket ${ticket}.`),
+      });
+      setUnassignUserIds([]);
+      await loadStatus(ticket);
+      onAssigned?.();
+    } catch (err) {
+      toast({
+        title: "Unassign failed",
+        description: err instanceof Error ? err.message : "Could not unassign",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-yellow-800" />
-            Manual trade assignment
+            Manual trade assign / unassign
           </DialogTitle>
           <DialogDescription>
-            Assign any master trade (open or closed) to a user. Share = user wallet ÷ total
-            platform wallet. Closed trades settle immediately at master P/L × pool %.
+            Assign or remove users on a master trade. Shares rebalance by wallet weight. Unassign
+            refunds the removed user&apos;s assign fee and restores remaining users&apos; wallets if
+            they had already been settled at the reduced share.
           </DialogDescription>
         </DialogHeader>
 
@@ -270,16 +327,73 @@ export function AdminManualTicketAssignDialog({
             </div>
             {selectedTicket && (
               <p className="mt-2 text-xs text-slate-500">
-                Selected: <span className="font-mono font-semibold text-slate-800">#{selectedTicket}</span>
-                {loadingStatus ? " · loading…" : status ? ` · ${status.symbol ?? ""} · ${status.status ?? ""}` : ""}
+                Selected:{" "}
+                <span className="font-mono font-semibold text-slate-800">#{selectedTicket}</span>
+                {loadingStatus
+                  ? " · loading…"
+                  : status
+                    ? ` · ${status.symbol ?? ""} · ${status.status ?? ""}`
+                    : ""}
               </p>
             )}
           </div>
 
           {status && (status.assignments?.length ?? 0) > 0 && (
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
-              Already assigned:{" "}
-              {status.assignments!.map((a) => `${a.name ?? `#${a.user_id}`}`).join(", ")}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
+                Currently assigned — select to unassign
+              </label>
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-amber-100 bg-amber-50/40">
+                {status.assignments!.map((a) => {
+                  const id = Number(a.user_id);
+                  const checked = unassignUserIds.includes(id);
+                  const sharePct =
+                    a.pool_share_pct != null ? Math.round(Number(a.pool_share_pct) * 10000) / 100 : null;
+                  return (
+                    <label
+                      key={id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 border-b border-amber-100/80 px-3 py-2.5 last:border-0 hover:bg-amber-50",
+                        checked && "bg-rose-50",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleUnassign(id)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-slate-900">
+                          <MaskedPii value={a.name || `User #${id}`} kind="name" />
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          #{id}
+                          {sharePct != null ? ` · ${(sharePct).toFixed(2)}%` : ""}
+                          {a.settled ? " · settled" : " · open"}
+                          {a.manual_stop ? " · stop" : ""}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting || unassignUserIds.length === 0}
+                  className="gap-2 border-rose-200 text-rose-800 hover:bg-rose-50"
+                  onClick={() => void handleUnassign()}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserMinus className="h-4 w-4" />
+                  )}
+                  Unassign {unassignUserIds.length > 0 ? `(${unassignUserIds.length})` : ""}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -325,9 +439,15 @@ export function AdminManualTicketAssignDialog({
                           className="h-4 w-4 rounded border-slate-300"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium text-slate-900">{u.name}</div>
+                          <div className="font-medium text-slate-900">
+                            <MaskedPii value={u.name} kind="name" />
+                          </div>
                           <div className="text-xs text-slate-500">
-                            #{u.id} · wallet USD {(u.wallet_balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            #{u.id} · wallet USD{" "}
+                            {(u.wallet_balance ?? 0).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </div>
                         </div>
                       </label>

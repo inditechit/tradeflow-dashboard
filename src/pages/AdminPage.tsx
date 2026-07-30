@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import { API_BASE, SOCKET_URL } from "@/config/api";
+import { beginAdminImpersonation } from "@/utils/adminImpersonation";
 import { SUBSCRIPTION_PACKAGES, packageDisplayName } from "@/constants/packages";
 import { RISK_PROFILES, type RiskId } from "@/constants/riskProfiles";
 import { parseUserRiskIds } from "@/utils/userRiskProfile";
@@ -205,7 +206,7 @@ const AdminPage = () => {
     loadAdminUsersColumnVisibility(),
   );
 
-  const { currentUser } = useApp();
+  const { currentUser, setCurrentUser } = useApp();
   const { can, isAdmin } = useEmployeeAccess();
   const { filtersCollapsed } = useAdminUsersFiltersCollapsed();
   const { revealed: piiRevealed } = useAdminPiiReveal();
@@ -252,6 +253,54 @@ const AdminPage = () => {
 
   const tableTopRef = useRef<HTMLDivElement>(null);
   const prevUserCountRef = useRef(0);
+
+  const handleMagicLogin = useCallback(
+    async (loc: Record<string, unknown>) => {
+      const targetId = Number(loc.id);
+      const adminId = Number(currentUser?.userId);
+      if (!isAdmin || !adminId || !targetId) {
+        toast({
+          title: "Magic login unavailable",
+          description: "Only admins can open a user account this way.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/admin/impersonate/${targetId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminUserId: adminId }),
+        });
+        const data = await res.json();
+        if (!data?.success || !data?.user?.userId) {
+          throw new Error(data?.error || "Could not start magic login");
+        }
+        const next = beginAdminImpersonation(currentUser, {
+          userId: String(data.user.userId),
+          name: data.user.name ?? undefined,
+          email: data.user.email ?? undefined,
+          telegram: data.user.telegram ?? undefined,
+          role: "user",
+          createdAt: data.user.createdAt,
+        });
+        setCurrentUser(next);
+        toast({
+          title: "Viewing as user",
+          description: "Location will not be updated. Use Back to admin when done.",
+        });
+        navigate("/user/dashboard");
+      } catch (err) {
+        toast({
+          title: "Magic login failed",
+          description: err instanceof Error ? err.message : "Could not open user account",
+          variant: "destructive",
+        });
+      }
+    },
+    [currentUser, isAdmin, navigate, setCurrentUser, toast],
+  );
 
   const fetchOpenAssignments = useCallback(async () => {
     try {
@@ -1476,6 +1525,14 @@ const AdminPage = () => {
                             onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
                           >
                             View trades
+                          </DropdownMenuItem>
+                        )}
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-amber-900 focus:bg-amber-50 focus:text-amber-950"
+                            onClick={() => void handleMagicLogin(loc)}
+                          >
+                            Magic login (as user)
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
