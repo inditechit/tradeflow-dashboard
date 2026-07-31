@@ -50,6 +50,7 @@ import AdminBulkWithdrawPage from "./pages/AdminBulkWithdrawPage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
+import AdminLoginLocationLogsPage from "./pages/AdminLoginLocationLogsPage";
 import AdminMaintenancePage from "./pages/AdminMaintenancePage";
 import AdminNotificationsPage from "./pages/AdminNotificationsPage";
 import AdminAlertsPage from "./pages/AdminAlertsPage";
@@ -164,6 +165,7 @@ const App = () => (
               <Route path="users" element={<AdminPage />} />
               <Route path="users/:userId/trades" element={<AdminUserTradesPage />} />
               <Route path="user-map" element={<AdminUserMapPage />} />
+              <Route path="login-locations" element={<AdminLoginLocationLogsPage />} />
               <Route path="user-profile/:userId" element={<AdminUserProfilePage />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="recharge" element={<AdminRechargesPage />} />

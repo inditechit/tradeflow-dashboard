@@ -10,6 +10,7 @@ import { firstAllowedEmployeePath } from "@/config/employeePermissionCatalog";
 import { resolveEmployeeLandingPath } from "@/utils/employeeExploreMode";
 import { captureReferralKeyFromUrl, getStoredReferralKey } from "@/hooks/usePackages";
 import { getDeviceFingerprint } from "@/utils/deviceFingerprint";
+import { reportLoginLocation } from "@/utils/reportLoginLocation";
 
 // --- TRADINGVIEW WIDGET COMPONENT ---
 // Added a unique `widgetId` prop to prevent conflicts when rendering multiple widgets
@@ -173,6 +174,8 @@ const LoginPage = () => {
             : {}),
         });
 
+        reportLoginLocation({ userId: data.userId, loginMethod: "password" });
+
         if (role === "admin") {
           navigate("/admin/dashboard");
         } else if (role === "employee") {
@@ -220,6 +223,7 @@ const LoginPage = () => {
         role: appRole,
         ...(data.created_at ? { createdAt: String(data.created_at) } : {}),
       });
+      reportLoginLocation({ userId: data.userId, loginMethod: "google" });
       navigate(appRole === "admin" ? "/admin/dashboard" : "/user/dashboard");
     } catch {
       setErrorMessage("Google login failed. Please try again.");

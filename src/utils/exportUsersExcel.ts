@@ -25,11 +25,12 @@ function toSheetRow(
   finance?: AdminFinanceOverlay,
 ): Record<string, string | number> {
   const { label, tags } = parseUserLabels(loc);
-  const walletBal = Number(loc.wallet_balance ?? 0);
+  const walletBal = Number(loc.trading_wallet_usd ?? loc.wallet_balance ?? 0);
+  const safeBal = Number(loc.safe_wallet_usd ?? 0);
   const livePl = finance?.live_pl ?? Number(loc.live_pl ?? 0);
   const equityVal = finance?.equity ?? Number(loc.equity ?? walletBal);
   const withdrawableVal =
-    finance?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
+    finance?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? safeBal);
   const activePkg = String(loc.active_package_id ?? "").trim();
 
   return {
@@ -54,7 +55,8 @@ function toSheetRow(
     "Last Seen": fmtDate(loc.last_seen_at),
     Label: label,
     Tags: tags.join(", "),
-    "Wallet Balance (USD)": num(walletBal),
+    "Trading Wallet (USD)": num(walletBal),
+    "Safe Wallet (USD)": num(safeBal),
     "Equity (USD)": num(equityVal),
     "Open P/L (USD)": num(livePl),
     "Withdrawable (USD)": num(withdrawableVal),

@@ -171,9 +171,9 @@ const AdminPage = () => {
 
   const [locations, setLocations] = useState<any[]>([]);
   const [totals, setTotals] = useState<{
-    sum_wallet_balances_usd: number;
-    sum_successful_payments_usd: number;
-    sum_successful_recharges_usd: number;
+    sum_trading_wallet_usd: number;
+    sum_safe_wallet_usd: number;
+    sum_total_withdraw_usd: number;
   } | null>(null);
   const [liveCount, setLiveCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -331,9 +331,11 @@ const AdminPage = () => {
         setLiveCount(Number(data.live_count ?? data.totals?.live_users ?? 0));
         if (data.totals) {
           setTotals({
-            sum_wallet_balances_usd: Number(data.totals.sum_wallet_balances_usd ?? 0),
-            sum_successful_payments_usd: Number(data.totals.sum_successful_payments_usd ?? 0),
-            sum_successful_recharges_usd: Number(data.totals.sum_successful_recharges_usd ?? 0),
+            sum_trading_wallet_usd: Number(
+              data.totals.sum_trading_wallet_usd ?? data.totals.sum_wallet_balances_usd ?? 0,
+            ),
+            sum_safe_wallet_usd: Number(data.totals.sum_safe_wallet_usd ?? 0),
+            sum_total_withdraw_usd: Number(data.totals.sum_total_withdraw_usd ?? 0),
           });
         } else {
           setTotals(null);
@@ -1352,34 +1354,46 @@ const AdminPage = () => {
         </div>
       )}
 
-      {/* {totals && (
+      {totals && (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Total received (successful payments)
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
+              Trading Wallet total
             </p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
-              USD {totals.sum_successful_payments_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              USD{" "}
+              {totals.sum_trading_wallet_usd.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </p>
           </div>
-          <div className="rounded-2xl border border-yellow-200 bg-[#FFF9E6]/90 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-800">
-              Wallet recharges only
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900">
+              Safe Wallet total
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
-              USD {totals.sum_successful_recharges_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+              USD{" "}
+              {totals.sum_safe_wallet_usd.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </p>
           </div>
-          <div className="rounded-2xl border border-yellow-300 bg-yellow-50/60 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900">
-              Total in user wallets now
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Total withdraw
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-neutral-900">
-              USD {totals.sum_wallet_balances_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+              USD{" "}
+              {totals.sum_total_withdraw_usd.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </p>
           </div>
         </div>
-      )} */}
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/90 px-4 py-3 sm:px-6">
@@ -1605,11 +1619,22 @@ const AdminPage = () => {
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
                     <div className="font-semibold tabular-nums text-slate-900">
                       {loc.wallet_currency ?? "USD"}{" "}
-                      {fmtUsdCell(walletBal)}
+                      {fmtUsdCell(
+                        Number(loc.trading_wallet_usd ?? loc.wallet_balance ?? walletBal),
+                      )}
                     </div>
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}
+                  </td>
+                  )}
+
+                  {showCol("safe_wallet") && (
+                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="font-semibold tabular-nums text-slate-900">
+                      {loc.wallet_currency ?? "USD"}{" "}
+                      {fmtUsdCell(Number(loc.safe_wallet_usd ?? 0))}
+                    </div>
                   </td>
                   )}
 

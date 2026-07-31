@@ -14,6 +14,7 @@ import {
   ArrowDownToLine,
   Headphones,
   Map as MapIcon,
+  MapPin,
   Construction,
   Tag,
   Package,
@@ -84,6 +85,7 @@ const MENU: MenuEntry[] = [
     highlightKey: "new_users",
   },
   { kind: "item", name: "User map", icon: MapIcon, path: "/admin/user-map" },
+  { kind: "item", name: "Login locations", icon: MapPin, path: "/admin/login-locations" },
   {
     kind: "group",
     label: "Payments",

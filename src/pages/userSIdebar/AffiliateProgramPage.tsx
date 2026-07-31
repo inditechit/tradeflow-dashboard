@@ -22,6 +22,7 @@ type ReferralConnection = {
   id: number;
   name: string | null;
   telegram: string | null;
+  mobile: string | null;
   joined_at: string | null;
   first_package_at: string | null;
   paid_package_count: number;
@@ -39,6 +40,17 @@ function referralDisplayName(r: ReferralConnection) {
   if (r.name?.trim()) return r.name.trim();
   if (r.telegram?.trim()) return r.telegram.trim();
   return `User #${r.id}`;
+}
+
+function formatTelegram(telegram: string | null | undefined) {
+  const t = telegram?.trim();
+  if (!t) return "—";
+  return t.startsWith("@") ? t : `@${t.replace(/^@/, "")}`;
+}
+
+function formatMobile(mobile: string | null | undefined) {
+  const m = mobile?.trim();
+  return m || "—";
 }
 
 function planDaysLabel(days: number | null | undefined) {
@@ -334,6 +346,7 @@ const AffiliateProgramPage = () => {
                   <th className="p-3 font-medium">Name</th>
                   <th className="p-3 font-medium">Joined</th>
                   <th className="p-3 font-medium">Telegram</th>
+                  <th className="p-3 font-medium">Mobile</th>
                   <th className="p-3 font-medium">Package</th>
                   <th className="p-3 font-medium">Wallet</th>
                   <th className="p-3 font-medium">Online</th>
@@ -344,7 +357,7 @@ const AffiliateProgramPage = () => {
               <tbody>
                 {referrals.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-6 text-center text-gray-500">
+                    <td colSpan={9} className="p-6 text-center text-gray-500">
                       {referralFilter === "purchased"
                         ? "No referrals with a purchased package yet."
                         : "No one has signed up with your link yet. Share your referral link above."}
@@ -360,9 +373,8 @@ const AffiliateProgramPage = () => {
                       <td className="p-3 whitespace-nowrap text-gray-600">
                         {r.joined_at ? formatIsoDateTime(r.joined_at) : "—"}
                       </td>
-                      <td className="p-3 text-gray-700">
-                        {r.telegram ? `@${r.telegram.replace(/^@/, "")}` : "—"}
-                      </td>
+                      <td className="p-3 text-gray-700">{formatTelegram(r.telegram)}</td>
+                      <td className="p-3 tabular-nums text-gray-700">{formatMobile(r.mobile)}</td>
                       <td className="p-3 text-gray-700">
                         {r.active_package_id
                           ? packageDisplayName(r.active_package_id)
@@ -423,6 +435,8 @@ const AffiliateProgramPage = () => {
               <thead>
                 <tr className="bg-white border-b text-left text-gray-600">
                   <th className="p-3 font-medium">User</th>
+                  <th className="p-3 font-medium">Telegram</th>
+                  <th className="p-3 font-medium">Mobile</th>
                   <th className="p-3 font-medium">Joined</th>
                   <th className="p-3 font-medium">Status</th>
                   <th className="p-3 font-medium">First package</th>
@@ -431,7 +445,7 @@ const AffiliateProgramPage = () => {
               <tbody>
                 {referrals.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-gray-500">
+                    <td colSpan={6} className="p-6 text-center text-gray-500">
                       {referralFilter === "purchased"
                         ? "No referrals with a purchased package yet."
                         : "No one has signed up with your link yet. Share your referral link above."}
@@ -441,6 +455,8 @@ const AffiliateProgramPage = () => {
                   referrals.map((r) => (
                     <tr key={r.id} className="border-b border-gray-100">
                       <td className="p-3 font-medium text-slate-900">{referralDisplayName(r)}</td>
+                      <td className="p-3 text-gray-700">{formatTelegram(r.telegram)}</td>
+                      <td className="p-3 tabular-nums text-gray-700">{formatMobile(r.mobile)}</td>
                       <td className="p-3 whitespace-nowrap text-gray-600">
                         {r.joined_at ? new Date(r.joined_at).toLocaleString() : "—"}
                       </td>

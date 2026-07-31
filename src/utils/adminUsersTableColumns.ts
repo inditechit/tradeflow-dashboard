@@ -4,12 +4,13 @@ import {
 } from "@/utils/adminLiveFinance";
 import { isTradeClosed } from "@/utils/userTradePl";
 
-export const ADMIN_USERS_COLUMNS_STORAGE_KEY = "tradeflow.admin.users.tableColumns.v2";
+export const ADMIN_USERS_COLUMNS_STORAGE_KEY = "tradeflow.admin.users.tableColumns.v3";
 
 export type AdminUsersColumnId =
   | "name"
   | "status"
   | "wallet"
+  | "safe_wallet"
   | "equity"
   | "live_pl"
   | "admin_share"
@@ -48,10 +49,11 @@ export type AdminUsersColumnDef = {
 export const ADMIN_USERS_TABLE_COLUMNS: AdminUsersColumnDef[] = [
   { id: "name", label: "User", defaultVisible: true, perm: "col:users:name" },
   { id: "status", label: "Status", defaultVisible: true, perm: "col:users:status" },
-  { id: "wallet", label: "Wallet", defaultVisible: true, perm: "col:users:wallet" },
+  { id: "wallet", label: "Trading Wallet", defaultVisible: true, perm: "col:users:wallet" },
+  { id: "safe_wallet", label: "Safe Wallet", defaultVisible: true, perm: "col:users:wallet" },
   {
     id: "equity",
-    label: "Equity (wallet + open P/L)",
+    label: "Equity (trading + open P/L)",
     defaultVisible: true,
     perm: "col:users:equity",
   },
