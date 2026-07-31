@@ -9,7 +9,6 @@ import {
   type SubscriptionPackage,
 } from "@/constants/packages";
 import { usePackages, getStoredCouponCode } from "@/hooks/usePackages";
-import { fundLockNotice } from "@/utils/packageHelpers";
 import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 import { PackageCouponSection } from "@/components/packages/PackageCouponSection";
 import { API_BASE } from "@/config/api";
@@ -60,8 +59,7 @@ const PackagesPage = () => {
       cancelled = true;
     };
   }, [currentUser?.userId]);
-  const trialPkg = packages.find((p) => p.isTrial);
-  const trialLockDays = trialPkg?.durationDays ?? trialPkg?.fundLockDays ?? 7;
+  const sellablePackages = packages.filter((p) => !p.isTrial);
 
   const handleSelectPackageClick = async (pkg: SubscriptionPackage) => {
     if (purchaseBlocked) {
@@ -165,7 +163,7 @@ const PackagesPage = () => {
           Select Your Premium Plan
         </h1>
         <p className="text-slate-500 text-sm md:text-base">
-          Start with a free trial or choose a paid plan for full access.
+          Choose a paid plan for full access and fast $ withdrawals.
         </p>
         {purchaseBlocked && (
           <div className="mt-6 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
@@ -176,28 +174,22 @@ const PackagesPage = () => {
             <p className="mt-1">{purchaseBlocked}</p>
           </div>
         )}
-        <div className="mt-6 grid gap-3 text-left sm:grid-cols-2 max-w-3xl mx-auto">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950">
-            <p className="font-bold text-emerald-900">Free trial</p>
-            <p className="mt-1">{fundLockNotice(trialLockDays)}</p>
-          </div>
-          <div className="rounded-xl border border-yellow-300 bg-[#FFF9E6] px-4 py-3 text-sm text-neutral-900">
-            <p className="font-bold">{WITHDRAW_USP.headline}</p>
-            <p className="mt-1">{PAID_WITHDRAW_NOTICE}</p>
-          </div>
+        <div className="mt-6 mx-auto max-w-xl rounded-xl border border-yellow-300 bg-[#FFF9E6] px-4 py-3 text-left text-sm text-neutral-900">
+          <p className="font-bold">{WITHDRAW_USP.headline}</p>
+          <p className="mt-1">{PAID_WITHDRAW_NOTICE}</p>
         </div>
       </div>
 
       <PackageCouponSection onCouponChange={() => void reload()} />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 w-full max-w-[90rem] items-stretch">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full max-w-[90rem] items-stretch">
         {packagesLoading ? (
           <p className="col-span-full text-center text-slate-500">Loading plans…</p>
         ) : null}
-        {packages.map((pkg) => {
+        {sellablePackages.map((pkg) => {
           const Icon = pkg.icon;
           const isPopular = pkg.popular;
-          const isTrial = pkg.isTrial;
+          const isTrial = false;
 
           return (
             <div

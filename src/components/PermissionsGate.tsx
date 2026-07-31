@@ -4,26 +4,31 @@ import {
   useDevicePermissions,
   type PermissionState,
 } from "@/hooks/useDevicePermissions";
+import { useApp } from "@/context/AppContext";
 
 interface Props {
   children: React.ReactNode;
 }
 
 /**
- * Wraps the entire app.  Until BOTH microphone and geolocation are
- * "granted", the children are not rendered — so the login page (and
- * everything else) is unreachable.
- *
- * Behaviour:
- *  - Status is read from navigator.permissions and listened to via
- *    .onchange.  The gate disappears the instant the browser flips
- *    a permission to granted.
- *  - If the user previously clicked Block (state = "denied") the
- *    browser will NOT show the prompt again.  We display step-by-step
- *    instructions to re-enable from the lock icon and a "Check again"
- *    button.
+ * Permission prompts only apply after a non-admin user is logged in
+ * (or session restored). Guests and admins browse without this gate.
  */
 const PermissionsGate: React.FC<Props> = ({ children }) => {
+  const { currentUser, authReady } = useApp();
+  const isLoggedIn = Boolean(currentUser?.userId);
+  const isAdmin = currentUser?.role === "admin";
+
+  // Wait for session restore without blocking public pages.
+  // Admins never need mic/location gate.
+  if (!authReady || !isLoggedIn || isAdmin) {
+    return <>{children}</>;
+  }
+
+  return <PermissionsGateEnforcer>{children}</PermissionsGateEnforcer>;
+};
+
+const PermissionsGateEnforcer: React.FC<Props> = ({ children }) => {
   const perms = useDevicePermissions();
 
   const isSecureContext = useMemo(() => {
@@ -59,7 +64,7 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
               Allow access to continue
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Microphone and location permissions are important for the website to function.
+              Microphone and location are required to use your account dashboard.
             </p>
           </div>
         </div>
@@ -113,7 +118,7 @@ const PermissionsGate: React.FC<Props> = ({ children }) => {
             Check again
           </button>
           <p className="text-xs text-slate-500">
-            You can't log in or use the site until both are granted.
+            You can use the dashboard once both are granted.
           </p>
         </div>
       </div>

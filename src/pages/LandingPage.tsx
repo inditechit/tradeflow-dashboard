@@ -11,7 +11,6 @@ import {
   Check,
   Clock,
   Layers,
-  Lock,
   Mail,
   MessageSquare,
   Shield,
@@ -28,11 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  TRIAL_WITHDRAW_NOTICE,
   WITHDRAW_USP,
   CONTACT_EMAIL,
 } from "@/constants/packages";
 import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
+import { API_BASE } from "@/config/api";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { TradingControlRoom } from "@/components/landing/TradingControlRoom";
 
 const BRAND = "Copy Trade Engine";
 
@@ -117,7 +118,7 @@ const WITHDRAW_STEPS = [
   {
     step: "2",
     title: "Request withdrawal",
-    text: "Enter amount (min $10), confirm your TRC20 address, and submit from the Withdraw page.",
+    text: "Enter amount (min $10), confirm your wallet address, and submit from the Withdraw page.",
   },
   {
     step: "3",
@@ -126,8 +127,8 @@ const WITHDRAW_STEPS = [
   },
   {
     step: "4",
-    title: "USDT in 5 sec – 1 min",
-    text: "Once approved, outbound USDT is broadcast to Tron — typically within 5 seconds to 1 minute.",
+    title: "$ in 5 sec – 1 min",
+    text: "Once approved, $ is typically sent within 5 seconds to 1 minute.",
   },
 ];
 
@@ -137,15 +138,11 @@ const FAQ = [
     a: `${BRAND} is an automation-based software solution designed to support market analysis and execution through predefined rules and risk management settings.`,
   },
   {
-    q: "Is the 7-day trial really free?",
-    a: "Yes. Activate once per account. You still fund your wallet to copy live trades, but the subscription itself costs $0.",
+    q: "How do I get started?",
+    a: "Create an account, choose a subscription pack, fund your wallet ($), set your risk profile, and start copying live XAUUSD trades from the dashboard.",
   },
   {
-    q: "Why are trial withdrawals locked?",
-    a: "During the free trial your capital stays locked for 7 days. You may stop trading anytime; withdrawal unlocks when the trial ends.",
-  },
-  {
-    q: "How fast are withdrawals on paid plans?",
+    q: "How fast are withdrawals?",
     a: WITHDRAW_USP.short,
   },
   {
@@ -155,17 +152,25 @@ const FAQ = [
 ];
 
 export default function LandingPage() {
+  usePageMeta(
+    "Copy Trade Engine — Automated Gold Copy Trading",
+    "Automated XAUUSD copy trading with clear risk controls, Safe & Trading wallets, and fast $ withdrawals.",
+  );
+
   const navigate = useNavigate();
   const { isReady, role } = useVerifiedSession();
   const { currentUser } = useApp();
   const { packages: subscriptionPlans, loading: plansLoading, referralApplied, couponApplied } =
     usePackages(currentUser?.userId);
+  const paidPlans = subscriptionPlans.filter((p) => !p.isTrial);
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
+  const [contactCompany, setContactCompany] = useState(""); // honeypot
+  const [contactBusy, setContactBusy] = useState(false);
   const [contactDone, setContactDone] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
 
@@ -186,7 +191,7 @@ export default function LandingPage() {
     captureReferralKeyFromUrl();
   }, []);
 
-  const handleContact = (e: React.FormEvent) => {
+  const handleContact = async (e: React.FormEvent) => {
     e.preventDefault();
     setContactError(null);
     setContactDone(null);
@@ -196,22 +201,41 @@ export default function LandingPage() {
       return;
     }
 
-    const subject =
-      contactSubject.trim() ||
-      `${BRAND} inquiry from ${contactName.trim()}`;
-    const body = [
-      `Name: ${contactName.trim()}`,
-      `Email: ${contactEmail.trim()}`,
-      contactPhone.trim() ? `Phone: ${contactPhone.trim()}` : null,
-      "",
-      contactMessage.trim(),
-    ]
-      .filter(Boolean)
-      .join("\n");
+    setContactBusy(true);
+    try {
+      const message = [
+        contactSubject.trim() ? `Subject: ${contactSubject.trim()}` : null,
+        contactMessage.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n\n");
 
-    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    setContactDone("Opening your email app — send the message to complete your inquiry.");
+      const res = await fetch(`${API_BASE}/public/contact-leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: contactName.trim(),
+          email: contactEmail.trim(),
+          mobile: contactPhone.trim() || undefined,
+          message,
+          company: contactCompany,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "Could not send message");
+      }
+      setContactDone("Thanks — we received your message. Our team will get back to you shortly.");
+      setContactName("");
+      setContactEmail("");
+      setContactPhone("");
+      setContactSubject("");
+      setContactMessage("");
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setContactBusy(false);
+    }
   };
 
   return (
@@ -229,10 +253,17 @@ export default function LandingPage() {
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
             <NavLink href="#why">Why us</NavLink>
+            <NavLink href="#pipeline">Pipeline</NavLink>
             <NavLink href="#features">Features</NavLink>
             <NavLink href="#usp">Fast withdraw</NavLink>
             <NavLink href="#plans">Plans</NavLink>
             <NavLink href="#faq">FAQ</NavLink>
+            <Link to="/about" className="transition-colors duration-300 hover:text-slate-900">
+              About
+            </Link>
+            <Link to="/blogs" className="transition-colors duration-300 hover:text-slate-900">
+              Blogs
+            </Link>
             <NavLink href="#contact">Contact</NavLink>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -303,7 +334,7 @@ export default function LandingPage() {
                 className="group bg-[#FFD700] text-black shadow-lg shadow-yellow-900/15 transition-all duration-300 hover:scale-105 hover:bg-[#E6C200] hover:shadow-xl"
               >
                 <Link to="/signup">
-                  Start free 7-day trial
+                  Get started
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </Link>
               </Button>
@@ -323,9 +354,9 @@ export default function LandingPage() {
         <section className="border-b border-slate-100 bg-slate-900 px-4 py-10 text-white sm:px-6">
           <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { value: "5 sec–1 min", label: "USDT payout after approval" },
-              { value: "7 days", label: "Free trial to test the platform" },
+              { value: "5 sec–1 min", label: "$ payout after approval" },
               { value: "XAU/USD", label: "Gold-focused automation" },
+              { value: "2 wallets", label: "Trading + Safe capital split" },
               { value: "24/7", label: "Live trade sync & dashboard" },
             ].map((s, i) => (
               <Reveal key={s.label} delay={i * 90}>
@@ -337,6 +368,8 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
+
+        <TradingControlRoom />
 
         {/* Why Choose */}
         <section id="why" className="border-b border-slate-100 px-4 py-16 sm:px-6 sm:py-20">
@@ -463,16 +496,19 @@ export default function LandingPage() {
                   <div className="flex items-center gap-3 text-emerald-700">
                     <Unlock className="h-8 w-8 animate-float" />
                     <div>
-                      <p className="font-bold text-slate-900">Paid plans</p>
-                      <p className="text-sm text-slate-600">{WITHDRAW_USP.short}</p>
+                      <p className="font-bold text-slate-900">Fast $ payouts</p>
+                      <p className="mt-1 text-sm text-slate-600">{WITHDRAW_USP.short}</p>
                     </div>
                   </div>
                   <div className="my-6 border-t border-yellow-100" />
-                  <div className="flex items-center gap-3 text-amber-800">
-                    <Lock className="h-8 w-8" />
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <Shield className="h-8 w-8 text-yellow-700" />
                     <div>
-                      <p className="font-bold text-slate-900">Free trial</p>
-                      <p className="text-sm text-slate-600">{TRIAL_WITHDRAW_NOTICE}</p>
+                      <p className="font-bold text-slate-900">Safe & Trading wallets</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Keep protected funds separate from at-risk trading capital — withdraw from
+                        Safe Wallet when ready.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -500,12 +536,12 @@ export default function LandingPage() {
                 {
                   step: "2",
                   title: "Activate a plan",
-                  text: "Start the free 7-day trial or pick a paid pack for full access and fast withdrawals.",
+                  text: "Pick a subscription pack for full access and fast $ withdrawals.",
                 },
                 {
                   step: "3",
                   title: "Automate & track",
-                  text: "Trades sync to your dashboard. Stop anytime. Withdraw USDT in 5 sec–1 min after approval (paid plans).",
+                  text: "Trades sync to your dashboard. Stop anytime. Withdraw $ in 5 sec–1 min after approval.",
                 },
               ].map((item, i) => (
                 <Reveal key={item.step} delay={i * 120} as="li">
@@ -534,16 +570,17 @@ export default function LandingPage() {
               <div className="mb-12 text-center">
                 <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">Subscription plans</h2>
                 <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-                  Trial users: funds locked 7 days (stop trading allowed). Paid users:{" "}
-                  <strong className="text-slate-800">{WITHDRAW_USP.headline}</strong> after approval.
+                  Choose a pack that fits your timeline. All plans include{" "}
+                  <strong className="text-slate-800">{WITHDRAW_USP.headline}</strong> after
+                  approval.
                 </p>
               </div>
             </Reveal>
-            <div className="grid h-full gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid h-full gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {plansLoading ? (
                 <p className="col-span-full text-center text-slate-500">Loading plans…</p>
               ) : null}
-              {subscriptionPlans.map((plan, i) => (
+              {paidPlans.map((plan, i) => (
                 <Reveal key={plan.id} delay={i * 70}>
                   <div
                     className={cn(
@@ -551,18 +588,12 @@ export default function LandingPage() {
                       cardHover,
                       plan.popular &&
                         "border-2 border-[#FFD700] shadow-lg shadow-yellow-900/10 lg:-translate-y-1",
-                      plan.isTrial && "border-2 border-emerald-300 shadow-md",
-                      !plan.popular && !plan.isTrial && "border-slate-200",
+                      !plan.popular && "border-slate-200",
                     )}
                   >
                   {plan.popular && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#FFD700] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
                       Most popular
-                    </span>
-                  )}
-                  {plan.isTrial && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
-                      Free trial
                     </span>
                   )}
                   <div className="flex-1">
@@ -590,12 +621,10 @@ export default function LandingPage() {
                     className={`mt-8 w-full ${
                       plan.popular
                         ? "bg-[#FFD700] text-black hover:bg-[#E6C200]"
-                        : plan.isTrial
-                          ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                          : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                        : "bg-slate-100 text-slate-900 hover:bg-slate-200"
                     }`}
                   >
-                    <Link to="/signup">{plan.isTrial ? "Start free trial" : `Get ${plan.name}`}</Link>
+                    <Link to="/signup">{`Get ${plan.name}`}</Link>
                   </Button>
                   </div>
                 </Reveal>
@@ -632,7 +661,7 @@ export default function LandingPage() {
               <p className="text-sm font-bold uppercase tracking-wider text-yellow-700">Contact</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900">Questions before you start?</h2>
               <p className="mt-4 text-slate-600">
-                Ask about risk settings, plans, trial fund lock, withdrawals, or onboarding. We
+                Ask about risk settings, plans, withdrawals, or onboarding. We
                 typically reply within one business day.
               </p>
               <ul className="mt-8 space-y-4 text-sm text-slate-700">
@@ -658,6 +687,16 @@ export default function LandingPage() {
                 cardHover,
               )}
             >
+              <input
+                type="text"
+                name="company"
+                value={contactCompany}
+                onChange={(e) => setContactCompany(e.target.value)}
+                className="hidden"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="contact-name">Name *</Label>
@@ -695,7 +734,7 @@ export default function LandingPage() {
                     id="contact-subject"
                     value={contactSubject}
                     onChange={(e) => setContactSubject(e.target.value)}
-                    placeholder="Trial, risk settings, withdrawals…"
+                    placeholder="Plans, risk settings, withdrawals…"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
@@ -722,12 +761,13 @@ export default function LandingPage() {
               )}
               <Button
                 type="submit"
-                className="mt-6 w-full bg-[#FFD700] text-black transition-all duration-300 hover:scale-[1.02] hover:bg-[#E6C200] hover:shadow-lg"
+                disabled={contactBusy}
+                className="mt-6 w-full bg-[#FFD700] text-black transition-all duration-300 hover:scale-[1.02] hover:bg-[#E6C200] hover:shadow-lg disabled:opacity-60"
               >
-                Send via email
+                {contactBusy ? "Sending…" : "Send message"}
               </Button>
               <p className="mt-3 text-center text-xs text-slate-500">
-                Opens your email app to {CONTACT_EMAIL} — no server upload required.
+                Messages go to our admin inbox. You can also email {CONTACT_EMAIL}.
               </p>
             </form>
             </Reveal>
@@ -749,6 +789,8 @@ export default function LandingPage() {
             </div>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-slate-200 pt-6 text-xs text-slate-500">
+            <Link to="/about" className="hover:text-slate-900">About</Link>
+            <Link to="/blogs" className="hover:text-slate-900">Blogs</Link>
             <Link to="/privacy-policy" className="hover:text-slate-900">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-slate-900">Terms &amp; Conditions</Link>
             <Link to="/refund-policy" className="hover:text-slate-900">Refund Policy</Link>

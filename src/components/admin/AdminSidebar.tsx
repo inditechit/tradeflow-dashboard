@@ -20,6 +20,8 @@ import {
   Package,
   Bell,
   BellRing,
+  BookOpen,
+  Mail,
   PieChart,
   FileText,
   FileBarChart,
@@ -128,6 +130,8 @@ const MENU: MenuEntry[] = [
       { name: "Coupons", icon: Tag, path: "/admin/coupons" },
       { name: "Affiliate rules", icon: Percent, path: "/admin/affiliate-rules" },
       { name: "View referrals", icon: Share2, path: "/admin/referrals" },
+      { name: "Blogs", icon: BookOpen, path: "/admin/blogs" },
+      { name: "Contact leads", icon: Mail, path: "/admin/contact-leads" },
     ],
   },
   {

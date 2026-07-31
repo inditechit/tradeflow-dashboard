@@ -59,6 +59,8 @@ import AdminPackagesPage from "./pages/AdminPackagesPage";
 import AdminPackageCatalogPage from "./pages/AdminPackageCatalogPage";
 import AdminUnmatchedPaymentsPage from "./pages/AdminUnmatchedPaymentsPage";
 import AdminCouponsPage from "./pages/AdminCouponsPage";
+import AdminBlogsPage from "./pages/AdminBlogsPage";
+import AdminContactLeadsPage from "./pages/AdminContactLeadsPage";
 import AdminFinancialStatsPage from "./pages/AdminFinancialStatsPage";
 import AdminCapitalStatementPage from "./pages/AdminCapitalStatementPage";
 import AdminReferralPayablePage from "./pages/AdminReferralPayablePage";
@@ -70,6 +72,9 @@ import { EmployeeChooseRoute } from "./components/auth/EmployeeChooseRoute";
 import UserNotificationsPage from "./pages/userSIdebar/UserNotificationsPage";
 import UserInvoicesPage from "./pages/userSIdebar/UserInvoicesPage";
 import LandingPage from "./pages/LandingPage";
+import AboutPage from "./pages/AboutPage";
+import BlogsPage from "./pages/BlogsPage";
+import BlogPostPage from "./pages/BlogPostPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsConditionsPage from "./pages/TermsConditionsPage";
 import RefundPolicyPage from "./pages/RefundPolicyPage";
@@ -90,8 +95,11 @@ const App = () => (
           <PermissionsGate>
           <Routes>
 
-            {/* Landing */}
+            {/* Landing / marketing */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/blogs" element={<BlogsPage />} />
+            <Route path="/blogs/:slug" element={<BlogPostPage />} />
 
             {/* Legal */}
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -189,6 +197,8 @@ const App = () => (
               <Route path="packages" element={<AdminPackagesPage />} />
               <Route path="package-catalog" element={<AdminPackageCatalogPage />} />
               <Route path="coupons" element={<AdminCouponsPage />} />
+              <Route path="blogs" element={<AdminBlogsPage />} />
+              <Route path="contact-leads" element={<AdminContactLeadsPage />} />
 
             </Route>
 

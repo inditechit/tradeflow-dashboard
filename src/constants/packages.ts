@@ -12,7 +12,7 @@ export type SubscriptionPackage = {
   features: string[];
   popular: boolean;
   subtitle?: string;
-  /** Free trial — terms + no USDT payment */
+  /** Free trial — terms + no $ payment */
   isTrial?: boolean;
   durationDays?: number;
   fundLockDays?: number;
@@ -58,7 +58,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Live trade feed",
       "Wallet & transaction history",
       "Email support",
-      "5 sec–1 min USDT withdrawal (after approval)",
+      "5 sec–1 min $ withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -76,7 +76,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Priority trade sync",
       "P/L & trade history",
       "Priority support",
-      "5 sec–1 min USDT withdrawal (after approval)",
+      "5 sec–1 min $ withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -94,7 +94,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Advanced allocation",
       "Daily settlement reports",
       "Withdrawal priority",
-      "5 sec–1 min USDT withdrawal (after approval)",
+      "5 sec–1 min $ withdrawal (after approval)",
     ],
     popular: false,
   },
@@ -115,7 +115,7 @@ export const SUBSCRIPTION_PACKAGES: SubscriptionPackage[] = [
       "Less drawdown",
       "Profit factor upto 5",
       "24/7 priority support",
-      "5 sec–1 min USDT withdrawal (after approval)",
+      "5 sec–1 min $ withdrawal (after approval)",
     ],
     popular: true,
   },
@@ -133,9 +133,9 @@ export const TRIAL_TERMS = [
 /** Marketing USP — paid subscribers after trial. */
 export const WITHDRAW_USP = {
   headline: "5 sec to 1 min withdrawals",
-  short: "Paid plans: USDT (TRC20) sent within 5 seconds to 1 minute after admin approval.",
+  short: "Paid plans: $ sent within 5 seconds to 1 minute after admin approval.",
   detail:
-    "Once your request is approved, outbound USDT typically hits your TRC20 wallet in 5 seconds to 1 minute — one of the fastest payout flows in copy trading.",
+    "Once your request is approved, $ typically arrives in your wallet in 5 seconds to 1 minute — one of the fastest payout flows in copy trading.",
 };
 
 export const TRIAL_WITHDRAW_NOTICE =
