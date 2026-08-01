@@ -41,34 +41,36 @@ export default function TermsConditionsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="3. Profit Sharing (Per-Trade Model)">
+      <LegalSection title="3. Profit &amp; Loss Sharing">
         <ul className="list-disc space-y-1 pl-5">
           <li>
             Profit and loss are calculated and applied <strong>on each individual trade</strong> as it
             closes.
           </li>
           <li>
-            Profit first restores your wallet up to your <strong>deposit baseline</strong> (your net
-            deposits). This recovery portion is credited 100% to you.
+            While you are trading, closed profit is credited in full to your Trading wallet. The
+            platform&apos;s share of cycle profit sits as an <strong>open admin claim</strong> and is
+            locked when you Stop trading (your exact user/admin % is shown on your package).
           </li>
           <li>
-            Only profit <strong>above</strong> your baseline is shared. By default the split is 50% to
-            you and 50% as the platform performance fee (your exact percentage is shown on your
-            package).
+            <strong>Admin shares losses too</strong> while that claim is open: the platform absorbs the
+            same share percentage of losses, funded only from the open claim buffer (pending admin
+            profit). Losses beyond that buffer reduce your own capital.
           </li>
           <li>
-            <strong>Losses are borne 100% by your wallet.</strong> The platform does not take a share of
-            losses; it only shares in profit above your baseline.
+            After Stop, locked admin revenue does not cover later losses. A new cycle starts from zero
+            when you resume and earn fresh profit.
           </li>
         </ul>
       </LegalSection>
 
       <LegalSection title="4. Losses and Wallet Reaching Zero">
         <p>
-          Trading involves risk. Because losses are applied to your wallet, a series of losing trades
-          can reduce your balance, and your wallet can reach zero. If your wallet reaches zero you stop
-          participating in further trades until you add funds. Balances below your deposit reflect real
-          trading losses, not a deduction by the platform.
+          Trading involves risk. Losses still reduce wallet equity; admin sharing only softens losses
+          within the open claim buffer described above. A series of losing trades can still bring your
+          balance to zero. If your wallet reaches zero you stop participating in further trades until
+          you add funds. Balances below your deposit reflect real trading results after published
+          sharing rules — not an arbitrary deduction.
         </p>
         <p>
           Full details on user responsibility for losses are in our{" "}

@@ -10,6 +10,10 @@ type Props = {
   tradingWallet: number;
   safeWallet: number;
   currency?: string;
+  /** Pending admin profit claim still sitting in Trading until Stop. */
+  adminPendingShare?: number;
+  /** User profit-share % (e.g. 50). Used for the sharing note. */
+  userSharePct?: number;
   /** When true, transfers are disabled until the user stops trading. */
   tradingActive?: boolean;
   onTransferred?: () => void;
@@ -25,9 +29,13 @@ export function WalletTransferPanel({
   tradingWallet,
   safeWallet,
   currency = "USD",
+  adminPendingShare = 0,
+  userSharePct = 50,
   tradingActive = false,
   onTransferred,
 }: Props) {
+  const adminPct = Math.round((100 - Math.min(100, Math.max(0, userSharePct || 50))) * 100) / 100;
+  const pendingClaim = Math.max(0, Number(adminPendingShare) || 0);
   const { toast } = useToast();
   const [direction, setDirection] = useState<"safe_to_trading" | "trading_to_safe">(
     "safe_to_trading",
@@ -145,6 +153,11 @@ export function WalletTransferPanel({
           <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(tradingWallet)}
           </p>
+          {pendingClaim > 0.01 ? (
+            <p className="mt-1 text-[10px] leading-snug text-amber-900/80">
+              Includes admin claim {currency} {fmt(pendingClaim)} (locked on Stop)
+            </p>
+          ) : null}
         </div>
 
         <div className="flex justify-center sm:contents">{directionToggle}</div>
@@ -159,6 +172,12 @@ export function WalletTransferPanel({
           </p>
         </div>
       </div>
+
+      <p className="mb-2 rounded-lg border border-sky-100 bg-sky-50/80 px-2.5 py-1.5 text-[11px] leading-snug text-sky-950">
+        Admin shares with you — {adminPct}% of cycle profit is the platform claim (taken on Stop).
+        While that claim is open, admin also absorbs {adminPct}% of losses (up to that buffer), so
+        you are not carrying every loss alone.
+      </p>
 
       {transferLocked ? (
         <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-950">

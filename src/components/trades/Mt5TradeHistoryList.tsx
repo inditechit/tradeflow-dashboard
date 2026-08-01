@@ -525,9 +525,9 @@ export function Mt5TradeHistoryList({
               )}
             <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
               <dt className="text-sm font-medium text-slate-600">
-                Performance fee
+                Admin share
                 {accountSummary.userSharePct != null && accountSummary.userSharePct > 0
-                  ? ` (admin ${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%)`
+                  ? ` (${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%)`
                   : ""}
               </dt>
               <dd className="text-sm font-semibold tabular-nums text-slate-500">
@@ -558,6 +558,10 @@ export function Mt5TradeHistoryList({
                 )}
               </dd>
             </div>
+            <p className="pt-1 text-[11px] leading-snug text-slate-500">
+              Admin shares cycle profit and also absorbs the same % of losses from that open claim
+              buffer. Admin share locks when you Stop.
+            </p>
           </dl>
         </div>
       ) : filtered.length > 0 ? (

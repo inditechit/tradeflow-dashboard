@@ -610,6 +610,8 @@ const DashboardPage = () => {
             tradingWallet={walletBalance}
             safeWallet={safeWalletUsd}
             currency={currency}
+            adminPendingShare={adminFeeLive}
+            userSharePct={userSharePct}
             tradingActive={tradingActive}
             onTransferred={() => void loadFinance()}
           />

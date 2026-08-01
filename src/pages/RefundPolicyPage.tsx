@@ -83,9 +83,9 @@ export default function RefundPolicyPage() {
           </li>
         </ul>
         <p>
-          Trading losses, assignment (lot) fees, and performance-share deductions reduce your
-          withdrawable balance. Those deductions are not refundable — they reflect actual service
-          usage and market outcomes.
+          Trading losses (after admin loss-sharing from the open claim buffer), assignment (lot)
+          fees, and admin share locked on Stop reduce your withdrawable balance. Those deductions
+          are not refundable — they reflect actual service usage and market outcomes.
         </p>
       </LegalSection>
 

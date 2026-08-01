@@ -25,7 +25,9 @@ export default function AboutPage() {
           </p>
           <p>
             Safe Wallet and Trading Wallet keep protected funds separate from at-risk trading
-            capital. Withdrawals, packages, and affiliate tools live in the same account.
+            capital. While you trade, admin shares cycle profit (claim locked on Stop) and absorbs
+            the same share of losses from that open claim — so losses are not yours alone. Withdrawals,
+            packages, and affiliate tools live in the same account.
           </p>
           <p>
             Trading involves substantial risk of loss. Nothing on this site is financial advice.

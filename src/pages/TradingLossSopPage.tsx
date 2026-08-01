@@ -10,9 +10,10 @@ export default function TradingLossSopPage() {
       icon={ShieldAlert}
       intro={
         <>
-          This Standard Operating Procedure explains how wallet balances change on {LEGAL_BRAND}, who is
-          responsible when funds decrease, and what support can and cannot do. By using the platform you
-          accept that <strong>trading losses are your responsibility</strong>, as set out in our{" "}
+          This Standard Operating Procedure explains how wallet balances change on {LEGAL_BRAND}, how
+          the platform <strong>shares profits and losses</strong> within an open cycle, who is
+          responsible when funds decrease beyond that buffer, and what support can and cannot do. See
+          also our{" "}
           <Link to="/terms" className="font-medium text-slate-900 underline">
             Terms &amp; Conditions
           </Link>
@@ -29,23 +30,25 @@ export default function TradingLossSopPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="2. Core principle — user responsibility for losses">
+      <LegalSection title="2. Core principle — shared cycle, then user capital">
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>You choose to deposit and trade.</strong> Funds are allocated to live market trades
             that can win or lose.
           </li>
           <li>
-            <strong>Losses are applied 100% to your wallet.</strong> The platform does not take a share of
-            your losses; only profit above your deposit baseline is shared.
+            <strong>Admin shares cycle profit and losses.</strong> While an admin claim from cycle
+            profit is open, the platform absorbs the same share % of losses from that buffer only.
+            Losses beyond the buffer hit your Trading capital.
           </li>
           <li>
-            <strong>A lower balance reflects real trading results</strong> (plus published fees), not a
-            platform deduction or confiscation.
+            <strong>A lower balance reflects real trading results</strong> after published sharing
+            rules and fees — not an arbitrary confiscation.
           </li>
           <li>
             <strong>If your wallet reaches zero</strong>, you stop joining new trades until you add funds
-            again. No automatic refund or compensation is owed for market losses.
+            again. No automatic refund or compensation is owed for market losses beyond the sharing
+            rules.
           </li>
           <li>
             <strong>You are responsible</strong> for only depositing money you can afford to lose and for
@@ -58,7 +61,8 @@ export default function TradingLossSopPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Trade settlement (loss):</strong> When a master trade closes at a loss, your
-            proportional share is debited from your wallet at settlement time.
+            proportional gross is settled; admin absorbs their share from the open claim buffer first,
+            then any remainder is debited from your Trading wallet.
           </li>
           <li>
             <strong>Assignment / lot fee:</strong> A per-lot fee is charged when a trade is allocated to
