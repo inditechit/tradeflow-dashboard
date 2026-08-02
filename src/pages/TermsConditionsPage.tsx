@@ -44,22 +44,22 @@ export default function TermsConditionsPage() {
       <LegalSection title="3. Profit &amp; Loss Sharing">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Profit and loss are calculated and applied <strong>on each individual trade</strong> as it
-            closes.
+            While you are trading, closed profit and loss stay in your Trading wallet (100% yours).
+            Admin does not take a cut on each trade close.
           </li>
           <li>
-            While you are trading, closed profit is credited in full to your Trading wallet. The
-            platform&apos;s share of cycle profit sits as an <strong>open admin claim</strong> and is
-            locked when you Stop trading (your exact user/admin % is shown on your package).
+            When you <strong>Settle Trade</strong>, open positions are closed, then the platform takes
+            its share only if Trading is above your settle baseline (the amount you last moved
+            Safe→Trading). On a loss vs that baseline, admin takes nothing. Remaining funds move to
+            Safe Wallet.
           </li>
           <li>
-            <strong>Admin shares losses too</strong> while that claim is open: the platform absorbs the
-            same share percentage of losses, funded only from the open claim buffer (pending admin
-            profit). Losses beyond that buffer reduce your own capital.
+            Withdrawals and deposits never take admin share. You must Settle Trade before withdrawing
+            if funds are still in Trading or trades are open.
           </li>
           <li>
-            After Stop, locked admin revenue does not cover later losses. A new cycle starts from zero
-            when you resume and earn fresh profit.
+            Already settled historical trades are not recalculated. These rules apply to open and
+            future trades going forward.
           </li>
         </ul>
       </LegalSection>

@@ -9,6 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  rememberPermissionDenied,
+  rememberPermissionGranted,
+  resolvePermissionState,
+} from "@/utils/devicePermissions";
 
 type LiveCameraCaptureDialogProps = {
   open: boolean;
@@ -68,11 +73,29 @@ export function LiveCameraCaptureDialog({
 
     (async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          if (!cancelled) {
+            setCameraError("Camera is not supported in this browser.");
+          }
+          return;
+        }
+
+        const camState = await resolvePermissionState("camera", "camera");
+        if (cancelled) return;
+
+        if (camState === "denied") {
+          setCameraError(
+            "Camera permission is blocked. Enable it in browser settings and try again.",
+          );
+          return;
+        }
+
         const stream = await getVideoStream(facingMode);
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+        rememberPermissionGranted("camera");
         streamRef.current = stream;
         const el = videoRef.current;
         if (el) {
@@ -81,6 +104,7 @@ export function LiveCameraCaptureDialog({
         }
       } catch {
         if (!cancelled) {
+          rememberPermissionDenied("camera");
           setCameraError(
             "Camera permission is required. Enable it in browser settings and try again.",
           );

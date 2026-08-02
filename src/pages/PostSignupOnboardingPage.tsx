@@ -42,7 +42,29 @@ const PostSignupOnboardingPage = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const requestLocation = () => {
+  // If location was already granted earlier, reflect that — don't ask again.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { resolvePermissionState } = await import("@/utils/devicePermissions");
+      const state = await resolvePermissionState("geolocation", "geo");
+      if (cancelled) return;
+      if (state === "granted") {
+        setLocState("granted");
+        setLocNote("Location permission already granted.");
+      } else if (state === "denied") {
+        setLocState("denied");
+        setLocNote(
+          "Location permission is blocked. Enable it in browser settings and try again.",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const requestLocation = async () => {
     setLocNote("");
     if (!("geolocation" in navigator)) {
       setLocState("denied");
@@ -50,20 +72,23 @@ const PostSignupOnboardingPage = () => {
       return;
     }
     setLocState("requesting");
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        setLocState("granted");
-        setLocNote("Location permission granted.");
-      },
-      (err) => {
-        setLocState("denied");
-        setLocNote(
-          err.code === 1
-            ? "Location permission is required. Enable it in browser settings and try again."
-            : "Could not access location. This permission is important for the website to function.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
+    const { getGeolocationIfAllowed } = await import("@/utils/devicePermissions");
+    const result = await getGeolocationIfAllowed({
+      allowPrompt: true,
+      enableHighAccuracy: false,
+      timeout: 12_000,
+      maximumAge: 300_000,
+    });
+    if (result.ok) {
+      setLocState("granted");
+      setLocNote("Location permission granted.");
+      return;
+    }
+    setLocState("denied");
+    setLocNote(
+      result.reason === "denied"
+        ? "Location permission is required. Enable it in browser settings and try again."
+        : "Could not access location. This permission is important for the website to function.",
     );
   };
 

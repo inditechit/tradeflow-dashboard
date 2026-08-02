@@ -214,7 +214,7 @@ const WithdrawPage = () => {
     if (!canWithdraw) {
       toast({
         title: "Open trades active",
-        description: "Stop trading and wait until all positions are closed before withdrawing.",
+        description: "Settle Trade from the dashboard first. Withdrawals are from Safe Wallet only.",
         variant: "destructive",
       });
       return;
@@ -476,8 +476,8 @@ const WithdrawPage = () => {
           </div>
           {openPositions > 0 && !loading && !finance.loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              You have {openPositions} open trade{openPositions === 1 ? "" : "s"}. Stop trading from the
-              dashboard and wait for positions to close — then you can withdraw your wallet balance.
+              You have {openPositions} open trade{openPositions === 1 ? "" : "s"}. Use Settle Trade on
+              the dashboard first — withdrawals are from Safe Wallet only and do not take admin share.
             </p>
           )}
           {softBust && openPositions > 0 && !loading && !finance.loading && (

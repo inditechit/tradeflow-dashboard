@@ -427,11 +427,11 @@ const OpenTrades = () => {
   const isLoading = tab === "open-pl" ? assignLoading : loading;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Open / Close Trades</h1>
-          <p className="text-slate-500 text-sm">
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Open / Close Trades</h1>
+          <p className="text-xs text-slate-500 sm:text-sm">
             {tab === "open-pl"
               ? `${copyPlGroups.length} copy ticket${copyPlGroups.length === 1 ? "" : "s"} (${openCopyCount} open · ${closedCopyCount} closed) · ${assignments.length} user slices`
               : `Total MT5 rows: ${count}`}
@@ -446,11 +446,11 @@ const OpenTrades = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="outline"
-            className="gap-2 border-yellow-200 bg-yellow-50 text-yellow-900 hover:bg-yellow-100"
+            className="w-full gap-2 border-yellow-200 bg-yellow-50 text-yellow-900 hover:bg-yellow-100 sm:w-auto"
             onClick={() => {
               setManualAssignTicket(null);
               setManualAssignOpen(true);
@@ -463,7 +463,7 @@ const OpenTrades = () => {
             type="button"
             onClick={refreshAll}
             disabled={isLoading}
-            className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50 sm:w-auto"
           >
             <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
             {isLoading ? "Refreshing..." : "Refresh"}
@@ -483,8 +483,8 @@ const OpenTrades = () => {
       </Tabs>
 
       {/* FILTERS */}
-      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="flex min-w-[120px] flex-col gap-1">
+      <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
+        <div className="flex w-full min-w-0 flex-col gap-1 sm:min-w-[120px] sm:w-auto">
           <label className="text-xs font-semibold uppercase text-slate-500">Ticket</label>
           <input
             type="text"
@@ -495,7 +495,7 @@ const OpenTrades = () => {
             className={inputCls}
           />
         </div>
-        <div className="flex min-w-[140px] flex-1 flex-col gap-1">
+        <div className="flex w-full min-w-0 flex-col gap-1 sm:min-w-[140px] sm:flex-1">
           <label className="text-xs font-semibold uppercase text-slate-500">Symbol</label>
           <input
             type="text"

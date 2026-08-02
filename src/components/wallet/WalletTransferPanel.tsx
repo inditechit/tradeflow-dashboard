@@ -10,11 +10,11 @@ type Props = {
   tradingWallet: number;
   safeWallet: number;
   currency?: string;
-  /** Pending admin profit claim still sitting in Trading until Stop. */
+  /** Estimated admin share if user Settles now (vs settle baseline). */
   adminPendingShare?: number;
-  /** User profit-share % (e.g. 50). Used for the sharing note. */
+  /** User profit-share % (e.g. 50). */
   userSharePct?: number;
-  /** When true, transfers are disabled until the user stops trading. */
+  /** When true, transfers are disabled until the user Settles. */
   tradingActive?: boolean;
   onTransferred?: () => void;
 };
@@ -35,17 +35,15 @@ export function WalletTransferPanel({
   onTransferred,
 }: Props) {
   const adminPct = Math.round((100 - Math.min(100, Math.max(0, userSharePct || 50))) * 100) / 100;
-  const pendingClaim = Math.max(0, Number(adminPendingShare) || 0);
+  const estAdminOnSettle = Math.max(0, Number(adminPendingShare) || 0);
   const { toast } = useToast();
-  const [direction, setDirection] = useState<"safe_to_trading" | "trading_to_safe">(
-    "safe_to_trading",
-  );
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Only Safe→Trading is allowed; Trading→Safe happens via Settle Trade (admin cut).
+  const direction = "safe_to_trading" as const;
   const transferLocked = tradingActive === true;
-  const max =
-    direction === "safe_to_trading" ? Math.max(0, safeWallet) : Math.max(0, tradingWallet);
+  const max = Math.max(0, safeWallet);
 
   const submit = async () => {
     const uid = Number(userId);
@@ -53,7 +51,7 @@ export function WalletTransferPanel({
     if (transferLocked) {
       toast({
         title: "Trading is active",
-        description: "Stop trading first, then transfer between wallets.",
+        description: "Settle Trade first, then transfer Safe → Trading.",
         variant: "destructive",
       });
       return;
@@ -61,7 +59,7 @@ export function WalletTransferPanel({
     if (!uid || !(amt > 0)) {
       toast({
         title: "Enter an amount",
-        description: "Choose how much to move between wallets.",
+        description: "Choose how much to move into Trading.",
         variant: "destructive",
       });
       return;
@@ -85,10 +83,7 @@ export function WalletTransferPanel({
       if (!data?.success) throw new Error(data?.error || "Transfer failed");
       toast({
         title: "Transfer complete",
-        description:
-          direction === "safe_to_trading"
-            ? `Moved ${fmt(amt)} to Trading Wallet.`
-            : `Moved ${fmt(amt)} to Safe Wallet.`,
+        description: `Moved ${fmt(amt)} to Trading. This sets your settle baseline.`,
       });
       setAmount("");
       onTransferred?.();
@@ -103,92 +98,68 @@ export function WalletTransferPanel({
     }
   };
 
-  const directionToggle = (
-    <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 px-1">
-      <button
-        type="button"
-        disabled={transferLocked}
-        onClick={() => setDirection("safe_to_trading")}
-        className={cn(
-          "whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition sm:px-3",
-          transferLocked && "cursor-not-allowed opacity-50",
-          direction === "safe_to_trading"
-            ? "border-amber-300 bg-amber-50 text-amber-950"
-            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-        )}
-      >
-        Trading ← Safe
-      </button>
-      <button
-        type="button"
-        disabled={transferLocked}
-        onClick={() => setDirection("trading_to_safe")}
-        className={cn(
-          "whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition sm:px-3",
-          transferLocked && "cursor-not-allowed opacity-50",
-          direction === "trading_to_safe"
-            ? "border-emerald-300 bg-emerald-50 text-emerald-950"
-            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-        )}
-      >
-        Trading → Safe
-      </button>
-    </div>
-  );
-
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-md shadow-neutral-900/5 sm:p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-slate-900 sm:text-base">Wallets</h2>
-        <p className="text-[10px] text-slate-500 sm:text-xs">Recharge → Safe · Trade from Trading</p>
+    <div className="rounded-xl border border-slate-100 bg-white p-2.5 shadow-md shadow-neutral-900/5 sm:rounded-2xl sm:p-4">
+      <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+        <h2 className="text-xs font-bold text-slate-900 sm:text-base">Wallets</h2>
+        <p className="text-[9px] text-slate-500 sm:text-xs">
+          Recharge → Safe · Settle moves Trading → Safe
+        </p>
       </div>
 
-      {/* Trading | transfer buttons | Safe */}
-      <div className="mb-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
-        <div className="min-w-0 flex-1 rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
-          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+      <div className="mb-2 flex flex-col items-stretch gap-1.5 sm:mb-3 sm:flex-row sm:items-center sm:gap-2">
+        <div className="min-w-0 flex-1 rounded-xl border border-amber-100 bg-amber-50/50 px-2.5 py-2 sm:px-3 sm:py-2.5">
+          <div className="mb-0.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900 sm:text-[10px]">
             <TrendingUp className="h-3 w-3" />
             Trading
           </div>
-          <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">
+          <p className="text-lg font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(tradingWallet)}
           </p>
-          {pendingClaim > 0.01 ? (
-            <p className="mt-1 text-[10px] leading-snug text-amber-900/80">
-              Includes admin claim {currency} {fmt(pendingClaim)} (locked on Stop)
+          {estAdminOnSettle > 0.01 ? (
+            <p className="mt-0.5 text-[9px] leading-snug text-amber-900/80 sm:mt-1 sm:text-[10px]">
+              Est. admin on Settle (~{adminPct}%): {currency} {fmt(estAdminOnSettle)}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-0.5 text-[9px] leading-snug text-slate-500 sm:mt-1 sm:text-[10px]">
+              No admin cut while at/below baseline
+            </p>
+          )}
         </div>
 
-        <div className="flex justify-center sm:contents">{directionToggle}</div>
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
+          <span className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-950">
+            Trading ← Safe
+          </span>
+        </div>
 
-        <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2.5">
-          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+        <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-2.5 py-2 sm:px-3 sm:py-2.5">
+          <div className="mb-0.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-900 sm:text-[10px]">
             <Shield className="h-3 w-3" />
             Safe
           </div>
-          <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">
+          <p className="text-lg font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(safeWallet)}
           </p>
         </div>
       </div>
 
-      <p className="mb-2 rounded-lg border border-sky-100 bg-sky-50/80 px-2.5 py-1.5 text-[11px] leading-snug text-sky-950">
-        Admin shares with you — {adminPct}% of cycle profit is the platform claim (taken on Stop).
-        While that claim is open, admin also absorbs {adminPct}% of losses (up to that buffer), so
-        you are not carrying every loss alone.
-      </p>
-
       {transferLocked ? (
-        <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-950">
-          Stop trading to unlock transfers.
+        <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-950 sm:px-2.5 sm:text-[11px]">
+          Settle Trade to unlock Safe → Trading transfers. Trading → Safe only happens on Settle
+          (admin share on profit).
         </p>
-      ) : null}
+      ) : (
+        <p className="mb-2 text-[10px] text-slate-500 sm:text-[11px]">
+          Amount you move into Trading becomes your settle baseline. Admin takes ~{adminPct}% of
+          profit above that baseline only when you Settle Trade — not on withdraw.
+        </p>
+      )}
 
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
-          <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Amount
+          <label className="mb-0.5 block text-[9px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[10px]">
+            Amount to Trading
           </label>
           <input
             type="number"
@@ -198,14 +169,14 @@ export function WalletTransferPanel({
             disabled={transferLocked}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={`Max ${fmt(max)}`}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 px-2.5 py-1.5 text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 sm:px-3 sm:py-2"
           />
         </div>
         <Button
           type="button"
           disabled={busy || !userId || transferLocked}
           onClick={() => void submit()}
-          className="h-[38px] shrink-0 gap-1.5 bg-yellow-900 px-3 text-white hover:bg-yellow-800"
+          className="h-9 shrink-0 gap-1.5 bg-yellow-900 px-2.5 text-sm text-white hover:bg-yellow-800 sm:h-[38px] sm:px-3"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
           Transfer

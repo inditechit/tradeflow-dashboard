@@ -105,7 +105,7 @@ const TradeHistory = () => {
   );
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
+    <div className="mx-auto max-w-3xl p-0 sm:p-4">
       {assignFunded === false && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <button
@@ -117,9 +117,9 @@ const TradeHistory = () => {
           </button>
         </div>
       )}
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Trade history</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Trade history</h1>
           <p className="mt-1 max-w-2xl text-xs text-slate-500">
             Your P/L on every assigned trade (full amount hits Trading while you are live). Open rows
             are estimates until close. Admin shares cycle profit (claim taken on Stop) and absorbs the
@@ -142,7 +142,7 @@ const TradeHistory = () => {
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="flex items-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50 sm:w-auto"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {loading ? "Refreshing..." : "Refresh"}

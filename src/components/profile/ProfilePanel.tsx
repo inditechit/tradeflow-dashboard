@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, User, MapPin, Shield, Camera, Wallet, KeyRound, ShieldBan } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Save, User, MapPin, Shield, Camera, ImageIcon, Wallet, KeyRound, ShieldBan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -847,7 +847,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               ? "Re-upload a clear selfie — your previous photo was rejected."
               : liveSrc && viewerIsOwner && !isAdmin
                 ? "Your live photo is on file. Contact support if it needs to change."
-                : "Take a selfie with your camera only — picking from the gallery is not allowed."
+                : "Upload a clear selfie — take a photo with the camera or choose one from your gallery."
           }
           src={liveSrc}
           canUpload={isAdmin || (viewerIsOwner && (!liveSrc || kycRejected))}
@@ -864,7 +864,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               ? "Re-upload a clear photo of your government ID."
               : idSrc && viewerIsOwner && !isAdmin
                 ? "Your ID proof is on file. Contact support if it needs to change."
-                : "Photograph your government ID with the camera — gallery upload is not used."
+                : "Photograph your government ID with the camera, or choose a photo from your gallery."
           }
           src={idSrc}
           canUpload={isAdmin || (viewerIsOwner && (!idSrc || kycRejected))}
@@ -881,7 +881,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
               ? "Re-upload a clear photo of your address proof."
               : addrSrc && viewerIsOwner && !isAdmin
                 ? "Your address proof is on file. Contact support if it needs to change."
-                : "Photograph your document with the camera — gallery upload is not used."
+                : "Photograph your document with the camera, or choose a photo from your gallery."
           }
           src={addrSrc}
           canUpload={isAdmin || (viewerIsOwner && (!addrSrc || kycRejected))}
@@ -915,6 +915,19 @@ function DocBlock({
   onCaptured: (dataUrl: string) => void;
 }) {
   const [cameraOpen, setCameraOpen] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const handleGalleryPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") onCaptured(result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/60">
@@ -929,7 +942,7 @@ function DocBlock({
           </span>
         )}
         {canUpload && (
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -939,8 +952,26 @@ function DocBlock({
               onClick={() => setCameraOpen(true)}
             >
               <Camera className="h-4 w-4" />
-              {src ? "Replace (camera)" : "Take with camera"}
+              {src ? "Retake" : "Camera"}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 touch-manipulation border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              disabled={disabled}
+              onClick={() => galleryInputRef.current?.click()}
+            >
+              <ImageIcon className="h-4 w-4" />
+              {src ? "Replace from gallery" : "Gallery"}
+            </Button>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleGalleryPick}
+            />
             <LiveCameraCaptureDialog
               open={cameraOpen}
               onOpenChange={setCameraOpen}
@@ -948,7 +979,7 @@ function DocBlock({
               title={title}
               onCaptured={onCaptured}
             />
-          </>
+          </div>
         )}
       </div>
       <div className="rounded-lg overflow-hidden bg-slate-100 ring-1 ring-inset ring-slate-200/80 min-h-[160px] flex items-center justify-center">

@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { 
-  LogOut, 
-  Loader2, Plus, TrendingUp, TrendingDown,
+  Loader2, TrendingUp, TrendingDown,
   ArrowRight, Pause, Play,
   LifeBuoy,
 } from 'lucide-react';
@@ -24,6 +23,7 @@ import {
 } from '@/utils/userTradePl';
 import { Mt5TradeHistoryList, type Mt5HistoryRow } from '@/components/trades/Mt5TradeHistoryList';
 import { isAdminImpersonating } from '@/utils/adminImpersonation';
+import { getGeolocationIfAllowed } from '@/utils/devicePermissions';
 import { WalletTransferPanel } from '@/components/wallet/WalletTransferPanel';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
@@ -44,7 +44,7 @@ const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }
     script.async = true;
     script.innerHTML = JSON.stringify({
       width: "100%",
-      height: 280,
+      height: 240,
       symbol: XAUUSD_SYMBOL,
       interval: "15",
       timezone: "Etc/UTC",
@@ -69,7 +69,7 @@ const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }
     <div
       className="tradingview-widget-container"
       ref={container}
-      style={{ height: "280px", width: "100%", overflow: "hidden" }}
+      style={{ height: "240px", width: "100%", overflow: "hidden" }}
     >
       <div
         className="tradingview-widget-container__widget"
@@ -81,7 +81,7 @@ const TradingViewChart = memo(({ theme = "light" }: { theme?: "light" | "dark" }
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { currentUser, updateUser, logout } = useApp();
+  const { currentUser, updateUser } = useApp();
   const { theme } = useTheme();
 
   const [wallet, setWallet] = useState<{ balance: string | number; currency: string } | null>(null);
@@ -381,7 +381,7 @@ const DashboardPage = () => {
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
     const ok = window.confirm(
-      'Stop trading? Open positions will be settled to your wallet at the current live price. Exit prices will freeze at that stop rate. You will not receive new copy trades until you start again.',
+      'Settle Trade? Open positions will be closed at the current live price. If Trading is above your baseline (last Safe→Trading amount), admin takes 50% of that profit once. Remaining funds move to Safe Wallet. Withdrawals do not take admin share.',
     );
     if (!ok) return;
     setTradingActionLoading(true);
@@ -392,13 +392,13 @@ const DashboardPage = () => {
       });
       const data = await res.json();
       if (!data.success) {
-        setTradingActionError(data.error || 'Could not stop trading');
+        setTradingActionError(data.error || 'Could not settle trading');
         return;
       }
       liveRawByTicketRef.current = {};
       await loadFinance();
     } catch {
-      setTradingActionError('Server error while stopping trading');
+      setTradingActionError('Server error while settling trading');
     } finally {
       setTradingActionLoading(false);
     }
@@ -517,64 +517,86 @@ const DashboardPage = () => {
     if (!navigator.geolocation) return;
     // Admin magic-login must never overwrite the user's real location.
     if (isAdminImpersonating()) return;
+    // Already saved this session — do not re-trigger the browser prompt.
+    if (sessionStorage.getItem("location_sent") === "true") return;
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        try {
-          const res = await fetch(`${API_BASE}/save-location`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat,
-              lng,
-              userId: currentUser.userId,
-              skipLocationUpdate: isAdminImpersonating(),
-              impersonating: isAdminImpersonating(),
-            }),
-          });
-          const data = await res.json();
-          if (data.success) sessionStorage.setItem("location_sent", "true");
-        } catch (err) {
-          console.error("Error saving location", err);
-        }
-      },
-      (error) => console.log("Location permission denied:", error),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }, [currentUser]);
+    let cancelled = false;
+    void (async () => {
+      // Only read when permission is already granted; never re-prompt on dashboard load.
+      const result = await getGeolocationIfAllowed({
+        allowPrompt: false,
+        enableHighAccuracy: false,
+        timeout: 10_000,
+        maximumAge: 300_000,
+      });
+      if (cancelled || !result.ok) return;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+      try {
+        const res = await fetch(`${API_BASE}/save-location`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: result.lat,
+            lng: result.lng,
+            userId: currentUser.userId,
+            skipLocationUpdate: isAdminImpersonating(),
+            impersonating: isAdminImpersonating(),
+          }),
+        });
+        const data = await res.json();
+        if (data.success) sessionStorage.setItem("location_sent", "true");
+      } catch (err) {
+        console.error("Error saving location", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.userId]);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 md:p-5 font-sans">
-      <div className="mx-auto max-w-6xl space-y-3 md:space-y-4">
+    <div className="bg-slate-50 p-0 font-sans sm:min-h-screen sm:p-3 md:p-5">
+      <div className="mx-auto max-w-6xl space-y-2.5 sm:space-y-3 md:space-y-4">
         {currentUser?.role !== 'admin' && (
           <DashboardNotificationsBanner userId={currentUser?.userId} />
         )}
 
-        {/* Compact header: Live P/L + actions */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-md shadow-neutral-900/5 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-          <div className="flex items-center gap-3">
+        {/* Live P/L — highlighted hero metric */}
+        <div
+          className={`rounded-xl border-2 p-3 shadow-lg sm:rounded-2xl sm:p-5 ${
+            displayLivePl >= 0
+              ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-yellow-50 shadow-emerald-200/50'
+              : 'border-red-300 bg-gradient-to-br from-red-50 via-white to-amber-50 shadow-red-200/50'
+          }`}
+        >
+          <div className="flex items-center gap-3 sm:gap-4">
             <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm sm:h-14 sm:w-14 ${
                 displayLivePl >= 0
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
-                  : 'border-red-200 bg-red-50 text-red-600'
+                  ? 'bg-emerald-500 text-white shadow-emerald-300/60'
+                  : 'bg-red-500 text-white shadow-red-300/60'
               }`}
             >
-              {displayLivePl >= 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
+              {displayLivePl >= 0 ? (
+                <>
+                  <TrendingUp size={20} className="sm:hidden" />
+                  <TrendingUp size={26} className="hidden sm:block" />
+                </>
+              ) : (
+                <>
+                  <TrendingDown size={20} className="sm:hidden" />
+                  <TrendingDown size={26} className="hidden sm:block" />
+                </>
+              )}
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:text-xs">
                 Live P/L (open)
               </p>
               <h1
-                className={`text-2xl font-extrabold tabular-nums sm:text-3xl ${
-                  displayLivePl >= 0 ? 'text-emerald-600' : 'text-red-600'
+                className={`text-2xl font-black tabular-nums tracking-tight sm:text-4xl ${
+                  displayLivePl >= 0 ? 'text-emerald-700' : 'text-red-700'
                 }`}
               >
                 {displayLivePl >= 0 ? '+' : '-'}
@@ -587,22 +609,64 @@ const DashboardPage = () => {
               </h1>
             </div>
           </div>
-
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <button
-              onClick={() => navigate('/user/recharge')}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-yellow-300 bg-[#FFD700] px-3 py-2 text-sm font-bold text-black transition-colors hover:bg-[#E6C200] sm:flex-none"
-            >
-              <Plus size={16} /> Add Fund
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 sm:flex-none"
-            >
-              <LogOut size={16} /> Logout
-            </button>
-          </div>
         </div>
+
+        {currentUser?.role !== 'admin' && !isBusted && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm sm:px-3 sm:py-2.5">
+            <p className="min-w-0 text-[11px] font-medium text-slate-700 sm:text-sm">
+              {tradingActive ? 'Copy trading running' : 'Trading settled / paused'}
+            </p>
+            {tradingActive ? (
+              <button
+                type="button"
+                onClick={handleStopTrading}
+                disabled={tradingActionLoading}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
+              >
+                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
+                Settle Trade
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestartTrading}
+                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#FFD700] px-2.5 py-1.5 text-[11px] font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
+              >
+                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play size={14} />}
+                Start Trade
+              </button>
+            )}
+          </div>
+        )}
+
+        {currentUser?.role !== 'admin' && isBusted && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-900 sm:px-3 sm:text-sm">
+            Account exhausted — add funds and restart trading to continue.
+          </div>
+        )}
+
+        {tradingActionError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-800 sm:px-3 sm:text-sm">
+            {tradingActionError}
+          </div>
+        )}
+
+        {/* Mobile: active trades right under Live P/L + Settle Trade */}
+        {currentUser?.role !== 'admin' && (
+          <div className="flex min-w-0 flex-col lg:hidden">
+            <h2 className="mb-1.5 text-sm font-bold text-slate-800">Active trades</h2>
+            <Mt5TradeHistoryList
+              trades={activeTradeRows as Mt5HistoryRow[]}
+              getRowPl={getRowPl}
+              loading={loadingFinance && historyRows.length === 0}
+              currency={currency}
+              entryByTicket={entryPriceByTicketRef.current}
+              emptyMessage="No active trades"
+              accountSummary={accountSummary}
+            />
+          </div>
+        )}
 
         {currentUser?.role !== 'admin' && (
           <WalletTransferPanel
@@ -617,44 +681,8 @@ const DashboardPage = () => {
           />
         )}
 
-        {/* Compact stop/start strip */}
-        {currentUser?.role !== 'admin' && !isBusted && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm">
-            <p className="min-w-0 text-xs font-medium text-slate-700 sm:text-sm">
-              {tradingActive ? 'Copy trading running' : 'Copy trading paused'}
-            </p>
-            {tradingActive ? (
-              <button
-                type="button"
-                onClick={handleStopTrading}
-                disabled={tradingActionLoading}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-              >
-                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
-                Stop Trade
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRestartTrading}
-                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#FFD700] px-3 py-1.5 text-xs font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-              >
-                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play size={14} />}
-                Start Trade
-              </button>
-            )}
-          </div>
-        )}
-
-        {currentUser?.role !== 'admin' && isBusted && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 sm:text-sm">
-            Account exhausted — add funds and restart trading to continue.
-          </div>
-        )}
-
         {currentUser?.role !== 'admin' && !isBusted && !subscriptionActive && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:text-sm">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-950 sm:px-3 sm:text-sm">
             Package expired —{' '}
             <button
               type="button"
@@ -668,7 +696,7 @@ const DashboardPage = () => {
         )}
 
         {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:text-sm">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-950 sm:px-3 sm:text-sm">
             Trading wallet empty —{' '}
             <button
               type="button"
@@ -681,15 +709,9 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {tradingActionError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 sm:text-sm">
-            {tradingActionError}
-          </div>
-        )}
-
-        {/* Active trades first (data), chart second — less scroll for key info */}
+        {/* Desktop: trades + chart */}
         {currentUser?.role !== 'admin' && (
-          <section className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+          <section className="hidden gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
             <div className="flex min-w-0 flex-col">
               <h2 className="mb-2 text-base font-bold text-slate-800">Active trades</h2>
               <Mt5TradeHistoryList
@@ -702,7 +724,6 @@ const DashboardPage = () => {
                 accountSummary={accountSummary}
               />
             </div>
-
             <div className="flex min-w-0 flex-col">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="text-base font-bold text-slate-800">XAUUSD</h2>
@@ -721,7 +742,7 @@ const DashboardPage = () => {
           <button
             type="button"
             onClick={() => navigate('/user/support')}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-left text-xs text-sky-950 transition-colors hover:bg-sky-100 sm:text-sm"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-2 text-left text-[11px] text-sky-950 transition-colors hover:bg-sky-100 sm:px-3 sm:py-2.5 sm:text-sm"
           >
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-sky-100">

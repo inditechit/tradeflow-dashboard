@@ -112,12 +112,13 @@ const UserTransactions = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">Transactions</h1>
+          <h1 className="text-xl font-bold text-black sm:text-2xl">Wallet &amp; payments</h1>
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+            Recharges, package payments, and wallet ledger
+          </p>
         </div>
 
         <button
@@ -127,7 +128,7 @@ const UserTransactions = () => {
             void fetchLedger(ledgerPage);
           }}
           disabled={loading && ledgerLoading}
-          className="flex items-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-50 sm:w-auto"
         >
           <RefreshCw size={18} className={loading || ledgerLoading ? "animate-spin" : ""} />
           Refresh

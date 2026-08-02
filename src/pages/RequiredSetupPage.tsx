@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   MapPin,
   Camera,
+  ImageIcon,
   User,
   CheckCircle2,
   Circle,
@@ -53,6 +54,7 @@ const RequiredSetupPage = () => {
   const [error, setError] = useState("");
   const [locBusy, setLocBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const uid = currentUser?.userId;
@@ -90,7 +92,7 @@ const RequiredSetupPage = () => {
       window.removeEventListener(PROFILE_COMPLIANCE_REFRESH_EVENT, onRefresh);
   }, [load]);
 
-  const saveLocation = () => {
+  const saveLocation = async () => {
     const uid = currentUser?.userId;
     if (!uid) return;
     if (isAdminImpersonating()) {
@@ -103,40 +105,44 @@ const RequiredSetupPage = () => {
     }
     setLocBusy(true);
     setError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const res = await fetch(`${API_BASE}/user/profile/${uid}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              skipLocationUpdate: isAdminImpersonating(),
-              impersonating: isAdminImpersonating(),
-            }),
-          });
-          const data = await res.json();
-          if (!data.success) {
-            setError(data.error || "Could not save location.");
-          } else {
-            notifyProfileComplianceRefresh();
-            await load();
-          }
-        } catch {
-          setError("Failed to save location.");
-        } finally {
-          setLocBusy(false);
-        }
-      },
-      () => {
-        setLocBusy(false);
+    try {
+      const { getGeolocationIfAllowed } = await import("@/utils/devicePermissions");
+      const result = await getGeolocationIfAllowed({
+        allowPrompt: true,
+        enableHighAccuracy: false,
+        timeout: 15_000,
+        maximumAge: 300_000,
+      });
+      if (!result.ok) {
         setError(
-          "Location was denied or unavailable. Enable it in browser settings and try again.",
+          result.reason === "denied"
+            ? "Location permission is blocked. Enable it in browser settings and try again."
+            : "Location was denied or unavailable. Enable it in browser settings and try again.",
         );
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
-    );
+        return;
+      }
+      const res = await fetch(`${API_BASE}/user/profile/${uid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: result.lat,
+          longitude: result.lng,
+          skipLocationUpdate: isAdminImpersonating(),
+          impersonating: isAdminImpersonating(),
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || "Could not save location.");
+      } else {
+        notifyProfileComplianceRefresh();
+        await load();
+      }
+    } catch {
+      setError("Failed to save location.");
+    } finally {
+      setLocBusy(false);
+    }
   };
 
   const uploadLivePhoto = async (dataUrl: string) => {
@@ -194,9 +200,9 @@ const RequiredSetupPage = () => {
       hint: "Required for the website to function.",
     },
     {
-      label: "Live camera photo (selfie)",
+      label: "Live photo (selfie)",
       ok: hasLivePhoto(p),
-      hint: "Camera permission is required for the website to function.",
+      hint: "Take a photo with the camera or choose one from your gallery.",
     },
   ];
 
@@ -249,7 +255,7 @@ const RequiredSetupPage = () => {
           ))}
         </ul>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -260,16 +266,50 @@ const RequiredSetupPage = () => {
             <MapPin className="mr-2 h-4 w-4" />
             {locBusy ? "Saving…" : hasLocation(p) ? "Location saved" : "Save location"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            onClick={() => setCameraOpen(true)}
-            disabled={hasLivePhoto(p)}
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            {hasLivePhoto(p) ? "Live photo OK" : "Capture live photo"}
-          </Button>
+          {hasLivePhoto(p) ? (
+            <Button type="button" variant="outline" className="flex-1" disabled>
+              <Camera className="mr-2 h-4 w-4" />
+              Live photo OK
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setCameraOpen(true)}
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                Camera
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => galleryInputRef.current?.click()}
+              >
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Gallery
+              </Button>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file || !file.type.startsWith("image/")) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result;
+                    if (typeof result === "string") void uploadLivePhoto(result);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -332,7 +372,7 @@ const RequiredSetupPage = () => {
         onOpenChange={setCameraOpen}
         facingMode="user"
         title="Live selfie"
-        description="Allow camera permission. It is important for the website to function."
+        description="Use your camera for a clear selfie, or pick a photo from your gallery."
         onCaptured={uploadLivePhoto}
       />
     </div>

@@ -83,7 +83,7 @@ function toTradeRow(
     "Admin Risk (USD)": adminExposure != null && adminExposure > 0.01 ? num(adminExposure) : "",
     "Risk P/L (USD)":
       adminRiskPl != null && Math.abs(adminRiskPl) > 0.001 ? num(adminRiskPl) : "",
-    "Performance Fee (USD)": !open && perfFee > 0.001 ? num(perfFee) : "",
+    "Admin Share (USD)": !open && Math.abs(perfFee) > 0.001 ? num(perfFee) : "",
     "Wallet P/L (USD)": num(walletPl),
     Status: open ? String(row.mt5_status ?? "Open") : "Closed",
     "User Stopped": isUserStoppedTrade(r) ? "Yes" : "No",

@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
+import {
+  ADMIN_MOBILE_TABS,
+  MobileBottomNav,
+} from "@/components/layout/MobileBottomNav";
 import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AdminCallNotificationProvider } from "@/components/admin/AdminCallNotificationLayer";
@@ -75,15 +79,21 @@ const AdminLayout = () => {
           variant="admin"
           onMenuClick={handleMenuClick}
           sidebarCollapsed={collapsed}
+          hideMobileMenuButton
         />
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
-          <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-2.5 sm:px-4 sm:py-4 md:overflow-x-auto md:p-8">
+          <div className="mx-auto w-full min-w-0 max-w-7xl pb-16 md:pb-[env(safe-area-inset-bottom)]">
             <EmployeeTabGuard>
               <Outlet />
             </EmployeeTabGuard>
           </div>
         </main>
-        <AppLegalFooter />
+        <AppLegalFooter compactOnMobile />
+        <MobileBottomNav
+          tabs={ADMIN_MOBILE_TABS}
+          onMenuClick={() => setMobileNavOpen(true)}
+          menuOpen={mobileNavOpen}
+        />
       </div>
     </div>
     </AdminPiiRevealProvider>

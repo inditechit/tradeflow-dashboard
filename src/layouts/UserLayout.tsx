@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import UserSidebar from "@/components/user/UserSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
+import {
+  USER_MOBILE_TABS,
+  MobileBottomNav,
+} from "@/components/layout/MobileBottomNav";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import VoiceConsentGate from "@/components/voice/VoiceConsentGate";
 import { useApp } from "@/context/AppContext";
@@ -90,9 +94,10 @@ const UserLayout = () => {
               variant="user"
               onMenuClick={handleMenuClick}
               sidebarCollapsed={collapsed}
+              hideMobileMenuButton
             />
-            <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white px-3 py-4 sm:px-4 md:p-8">
-              <div className="mx-auto w-full min-w-0 max-w-7xl pb-[env(safe-area-inset-bottom)]">
+            <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-2.5 sm:px-4 sm:py-4 md:overflow-x-auto md:p-8">
+              <div className="mx-auto w-full min-w-0 max-w-7xl pb-16 md:pb-[env(safe-area-inset-bottom)]">
                 <SubscriptionExpiredGuard>
                   <RiskProfileRequiredGuard>
                     <ComplianceRequiredGuard>
@@ -106,7 +111,12 @@ const UserLayout = () => {
                 </SubscriptionExpiredGuard>
               </div>
             </main>
-            <AppLegalFooter />
+            <AppLegalFooter compactOnMobile />
+            <MobileBottomNav
+              tabs={USER_MOBILE_TABS}
+              onMenuClick={() => setMobileNavOpen(true)}
+              menuOpen={mobileNavOpen}
+            />
           </div>
 
           {currentUser?.role !== "admin" && (

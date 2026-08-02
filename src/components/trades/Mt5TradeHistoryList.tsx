@@ -29,6 +29,7 @@ export type Mt5HistoryRow = UserTradeRowLike & {
   reserved_exposure_usd?: number | null;
   admin_exposure_usd?: number | null;
   admin_absorbed_pl_usd?: number | null;
+  admin_share_usd?: number | null;
   wallet_before_usd?: number | null;
 };
 
@@ -130,6 +131,16 @@ function fmtMt5DateTime(raw: string | null | undefined): string {
   )}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
+/** Shorter stamp for narrow screens: MM.DD HH:mm */
+function fmtMt5DateTimeShort(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const ms = Date.parse(String(raw).replace(" ", "T"));
+  if (!Number.isFinite(ms)) return "—";
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export function Mt5TradeHistoryList({
   trades,
   getRowPl,
@@ -210,26 +221,28 @@ export function Mt5TradeHistoryList({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
-        {PERIOD_TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => {
-              setPeriod(t.key);
-              setPage(1);
-            }}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              period === t.key
-                ? "bg-[#FFD700] text-black"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="border-b border-slate-100 px-2 py-2 sm:px-4 sm:py-3">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {PERIOD_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => {
+                setPeriod(t.key);
+                setPage(1);
+              }}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition sm:px-4 sm:py-1.5 sm:text-sm ${
+                period === t.key
+                  ? "bg-[#FFD700] text-black"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         {period === "custom" && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto">
             <input
               type="date"
               value={customFrom}
@@ -237,9 +250,9 @@ export function Mt5TradeHistoryList({
                 setCustomFrom(e.target.value);
                 setPage(1);
               }}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 sm:text-sm"
             />
-            <span className="text-slate-400">→</span>
+            <span className="shrink-0 text-slate-400">→</span>
             <input
               type="date"
               value={customTo}
@@ -247,7 +260,7 @@ export function Mt5TradeHistoryList({
                 setCustomTo(e.target.value);
                 setPage(1);
               }}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 sm:text-sm"
             />
           </div>
         )}
@@ -282,11 +295,10 @@ export function Mt5TradeHistoryList({
             const split = showProfitShare
               ? resolveRowAdminUserPl(r, ticket)
               : null;
-            const stamp = fmtMt5DateTime(
-              open
-                ? r.open_time ?? r.assignment_created_at
-                : tradeEffectiveCloseAt(r) ?? r.open_time,
-            );
+            const stampRaw = open
+              ? r.open_time ?? r.assignment_created_at
+              : tradeEffectiveCloseAt(r) ?? r.open_time;
+            const stamp = fmtMt5DateTime(stampRaw);
             const archived = Boolean(r.history_archived);
             const balanceAfter =
               r.balance_after_usd != null ? Number(r.balance_after_usd) : null;
@@ -313,24 +325,24 @@ export function Mt5TradeHistoryList({
             return (
               <div
                 key={ticket || i}
-                className="flex items-start justify-between gap-3 px-4 py-3 transition hover:bg-yellow-50/40"
+                className="flex items-start justify-between gap-2 px-2.5 py-2.5 transition hover:bg-yellow-50/40 sm:gap-3 sm:px-4 sm:py-3"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1 text-[15px] font-bold text-slate-900">
-                    <span className="truncate">{String(r.symbol || "—")}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] font-bold leading-snug text-slate-900 sm:text-[15px]">
+                    <span className="break-all">{String(r.symbol || "—")}</span>
                     {side !== "—" && (
                       <span className={`font-semibold ${sideCls}`}>
-                        , {side.toLowerCase()} {fmtLots(vol)}
+                        {side.toLowerCase()} {fmtLots(vol)}
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 text-sm tabular-nums text-slate-500">
+                  <div className="mt-0.5 text-[11px] tabular-nums text-slate-500 sm:mt-1 sm:text-sm">
                     {entry != null ? fmtMt5Price(entry, r.symbol) : "—"}
                     <span className="mx-1 text-slate-400">→</span>
                     {open && exit != null ? "~" : ""}
                     {exit != null ? fmtMt5Price(exit, r.symbol) : "—"}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-slate-400 sm:text-[11px]">
                     <span>#{ticket}</span>
                     {archived && (
                       <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-900">
@@ -376,15 +388,18 @@ export function Mt5TradeHistoryList({
                   </div>
                 </div>
 
-                <div className="shrink-0 text-right">
-                  <div className="text-[11px] tabular-nums text-slate-400">{stamp}</div>
+                <div className="w-[6.5rem] shrink-0 text-right sm:w-auto sm:min-w-[7.5rem]">
+                  <div className="text-[10px] tabular-nums text-slate-400 sm:text-[11px]">
+                    <span className="sm:hidden">{fmtMt5DateTimeShort(stampRaw)}</span>
+                    <span className="hidden sm:inline">{stamp}</span>
+                  </div>
                   {showExposureBreakdown &&
                     adminExposure != null &&
                     adminExposure > 0.01 &&
                     adminRiskPl != null &&
                     Math.abs(adminRiskPl) > 0.001 && (
                       <div
-                        className={`mt-1 text-xs font-semibold tabular-nums ${plTextClass(
+                        className={`mt-0.5 text-[10px] font-semibold tabular-nums sm:mt-1 sm:text-xs ${plTextClass(
                           adminRiskPl,
                         )}`}
                       >
@@ -396,7 +411,7 @@ export function Mt5TradeHistoryList({
                   {showProfitShare && split ? (
                     <>
                       <div
-                        className={`mt-1 text-sm font-bold tabular-nums ${plTextClass(
+                        className={`mt-0.5 text-xs font-bold tabular-nums sm:mt-1 sm:text-sm ${plTextClass(
                           split.adminShare,
                         )}`}
                       >
@@ -405,7 +420,7 @@ export function Mt5TradeHistoryList({
                         {fmtMoney(split.adminShare, currency)}
                       </div>
                       <div
-                        className={`mt-0.5 text-sm font-semibold tabular-nums ${plTextClass(
+                        className={`mt-0.5 text-xs font-semibold tabular-nums sm:text-sm ${plTextClass(
                           split.userShare,
                         )}`}
                       >
@@ -414,14 +429,14 @@ export function Mt5TradeHistoryList({
                         {fmtMoney(split.userShare, currency)}
                       </div>
                       {showTradeFee && (
-                        <div className="mt-0.5 text-xs tabular-nums text-slate-500">
+                        <div className="mt-0.5 text-[10px] tabular-nums text-slate-500 sm:text-xs">
                           Fee {fmtMoney(tradeFee, currency)}
                         </div>
                       )}
                     </>
                   ) : (
                     <div
-                      className={`mt-1 text-[15px] font-bold tabular-nums ${plTextClass(
+                      className={`mt-0.5 text-sm font-bold tabular-nums sm:mt-1 sm:text-[15px] ${plTextClass(
                         isProfit ? 1 : -1,
                       )}`}
                     >
@@ -430,14 +445,27 @@ export function Mt5TradeHistoryList({
                       {fmtMoney(pl, currency)}
                     </div>
                   )}
+                  {!showProfitShare &&
+                    !open &&
+                    Math.abs(Number(r.admin_share_usd ?? 0)) > 0.001 && (
+                      <div
+                        className={`mt-0.5 text-[10px] font-semibold tabular-nums sm:text-[11px] ${plTextClass(
+                          Number(r.admin_share_usd),
+                        )}`}
+                      >
+                        Admin share{" "}
+                        {Number(r.admin_share_usd) >= 0 ? "+" : ""}
+                        {fmtMoney(Number(r.admin_share_usd), currency)}
+                      </div>
+                    )}
                   {!showProfitShare && showTradeFee && (
-                    <div className="mt-0.5 text-xs tabular-nums text-slate-500">
+                    <div className="mt-0.5 text-[10px] tabular-nums text-slate-500 sm:text-xs">
                       Fee {fmtMoney(tradeFee, currency)}
                     </div>
                   )}
                   <div className="mt-0.5">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold sm:px-2 sm:text-[10px] ${
                         open
                           ? "bg-sky-50 text-sky-700"
                           : "border border-slate-200 bg-slate-100 text-slate-600"

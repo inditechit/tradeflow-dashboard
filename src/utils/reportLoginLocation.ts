@@ -1,5 +1,6 @@
 import { API_BASE } from "@/config/api";
 import { isAdminImpersonating } from "@/utils/adminImpersonation";
+import { getGeolocationIfAllowed } from "@/utils/devicePermissions";
 
 type ReportOpts = {
   userId: string | number;
@@ -9,6 +10,7 @@ type ReportOpts = {
 /**
  * Fire-and-forget login location log. Never blocks navigation.
  * Writes a row even when GPS is denied / unavailable.
+ * Only prompts the browser when location permission has not been decided yet.
  */
 export function reportLoginLocation({ userId, loginMethod }: ReportOpts): void {
   const uid = Number(userId);
@@ -34,17 +36,21 @@ export function reportLoginLocation({ userId, loginMethod }: ReportOpts): void {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
+  void getGeolocationIfAllowed({
+    // Login is an intentional moment to ask once if not yet decided.
+    allowPrompt: true,
+    enableHighAccuracy: false,
+    timeout: 10_000,
+    maximumAge: 300_000,
+  }).then((result) => {
+    if (result.ok) {
       post({
         locationAvailable: true,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
+        lat: result.lat,
+        lng: result.lng,
       });
-    },
-    () => {
+    } else {
       post({ locationAvailable: false });
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-  );
+    }
+  });
 }

@@ -64,7 +64,7 @@ const PermissionsGateEnforcer: React.FC<Props> = ({ children }) => {
               Allow access to continue
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Microphone and location are required to use your account dashboard.
+              Microphone and location are required once. If you already allowed them, we will not ask again.
             </p>
           </div>
         </div>

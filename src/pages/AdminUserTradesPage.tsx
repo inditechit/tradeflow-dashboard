@@ -595,7 +595,12 @@ const AdminUserTradesPage = () => {
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">User exp.</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Admin risk</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Risk P/L</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Perf. fee</th>
+                <th
+                  className="px-3 py-3 text-xs font-bold uppercase text-slate-500"
+                  title="Positive = admin claim on profit; negative = admin loss clawback"
+                >
+                  Admin share
+                </th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Wallet P/L</th>
                 <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Status</th>
               </tr>
@@ -695,8 +700,16 @@ const AdminUserTradesPage = () => {
                           ? `${open ? "~" : ""}${fmtUsd(adminRiskPl)}`
                           : "—"}
                       </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {!open && perfFee > 0.001 ? fmtUsd(perfFee) : open ? "~" : "—"}
+                      <td
+                        className={`px-3 py-3 text-sm font-semibold tabular-nums ${
+                          !open && Math.abs(perfFee) > 0.001 ? plTextClass(perfFee) : "text-slate-400"
+                        }`}
+                      >
+                        {!open && Math.abs(perfFee) > 0.001
+                          ? fmtUsd(perfFee)
+                          : open
+                            ? "~"
+                            : "—"}
                       </td>
                       <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(walletPl)}`}>
                         {open ? "~" : ""}

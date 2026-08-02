@@ -76,7 +76,7 @@ export function AdminCallNotificationProvider({ children }: { children: ReactNod
         <button
           type="button"
           onClick={() => void unlockAudio()}
-          className="fixed bottom-4 right-4 z-[90] rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-900 shadow-lg hover:bg-amber-100"
+          className="fixed bottom-16 left-1/2 z-[90] -translate-x-1/2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-900 shadow-lg hover:bg-amber-100 md:bottom-4 md:left-auto md:right-4 md:translate-x-0 md:px-4 md:py-2 md:text-xs"
         >
           Tap to enable alert sounds
         </button>

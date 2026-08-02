@@ -266,24 +266,28 @@ const Dashboard = () => {
   const dateFilterActive = Boolean(dateFrom || dateTo);
 
   const moneyCard = (icon, tileClass, label, value) => (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-neutral-900/8">
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tileClass}`}>
+    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 shadow-sm shadow-neutral-900/8 sm:gap-4 sm:rounded-2xl sm:p-5">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${tileClass}`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">
+        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-[11px]">
           {label}
         </p>
-        <p className="text-xl font-extrabold tabular-nums text-slate-900">{value}</p>
+        <p className="text-base font-extrabold tabular-nums text-slate-900 sm:text-xl">{value}</p>
       </div>
     </div>
   );
 
   // Compact performance metric used in the stats strip.
   const metricCell = (label, value, valueClass) => (
-    <div className="px-5 py-4">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-extrabold tabular-nums ${valueClass || "text-slate-900"}`}>
+    <div className="border-b border-slate-100 px-3 py-2.5 sm:px-5 sm:py-4 xl:border-b-0 xl:border-r xl:border-slate-100 xl:last:border-r-0">
+      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 sm:text-[11px]">
+        {label}
+      </p>
+      <p
+        className={`mt-0.5 truncate text-sm font-extrabold tabular-nums sm:mt-1 sm:text-xl ${valueClass || "text-slate-900"}`}
+      >
         {value}
       </p>
     </div>
@@ -292,11 +296,11 @@ const Dashboard = () => {
   const realizedColor = plTextClass(stats.realizedNet);
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Master MT5 Dashboard</h1>
-          <p className="text-slate-500 text-sm">
+    <div className="mx-auto max-w-7xl p-0 sm:p-4">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Master MT5 Dashboard</h1>
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
             Broker master account trades only — not user wallet balances
             {dateFilterActive && (
               <span className="text-slate-700">
@@ -311,7 +315,7 @@ const Dashboard = () => {
             fetchTrades();
             fetchAccountMetrics();
           }}
-          className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-black font-bold hover:bg-[#E6C200] transition flex items-center gap-2 disabled:opacity-60"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#FFD700] px-5 py-2.5 font-bold text-black transition hover:bg-[#E6C200] disabled:opacity-60 sm:w-auto"
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
@@ -319,12 +323,12 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex items-center gap-2 text-slate-600">
           <CalendarRange className="h-5 w-5 shrink-0 text-neutral-900" />
           <span className="text-sm font-semibold">Filter by date</span>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 sm:min-w-[10rem]">
           <label className="text-xs font-semibold uppercase text-slate-500">From</label>
           <input
             type="date"
@@ -333,7 +337,7 @@ const Dashboard = () => {
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 sm:min-w-[10rem]">
           <label className="text-xs font-semibold uppercase text-slate-500">To</label>
           <input
             type="date"
@@ -357,7 +361,7 @@ const Dashboard = () => {
       </div>
 
       {/* Money row */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {moneyCard(
           <Wallet className="h-5 w-5 text-emerald-600" />,
           "bg-emerald-50",
@@ -378,8 +382,8 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Performance strip — all 6 metrics in one line */}
-      <div className="mb-8 grid grid-cols-6 divide-x divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-neutral-900/8">
+      {/* Performance strip — stacks on phone, 6-up on xl */}
+      <div className="mb-8 grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-neutral-900/8 sm:grid-cols-3 xl:grid-cols-6">
         {metricCell("Gross profit", `$${fmtMoney(stats.realizedProfit)}`, "text-emerald-600")}
         {metricCell("Gross loss", `-$${fmtMoney(stats.realizedLoss)}`, "text-red-600")}
         {metricCell("Net profit", `$${fmtMoney(stats.realizedNet)}`, realizedColor)}
@@ -391,21 +395,21 @@ const Dashboard = () => {
         {metricCell("Total trades", stats.closedCount + stats.openCount)}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl shadow-neutral-900/8 border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
+        <div className="border-b border-slate-100 p-4">
           <input
             type="text"
             placeholder="Search Symbol..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            className="w-full rounded-lg border border-slate-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           />
         </div>
 
         <div className="min-h-[300px]">
           {loading && trades.length === 0 ? (
             <div className="p-10 text-center text-slate-500">
-              <RefreshCw className="animate-spin mx-auto mb-2 text-yellow-800" />
+              <RefreshCw className="mx-auto mb-2 animate-spin text-yellow-800" />
               Loading data...
             </div>
           ) : filteredTrades.length === 0 ? (
@@ -418,15 +422,15 @@ const Dashboard = () => {
               return (
                 <div
                   key={trade.ticket || i}
-                  className="flex justify-between items-center px-6 py-4 border-b border-slate-100 hover:bg-yellow-50/50 transition"
+                  className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 transition hover:bg-yellow-50/50 sm:px-6 sm:py-4"
                 >
-                  <div>
-                    <div className="font-bold text-slate-800">{trade.symbol}</div>
+                  <div className="min-w-0">
+                    <div className="truncate font-bold text-slate-800">{trade.symbol}</div>
                     <div className="text-xs text-slate-500">
                       Ticket: {trade.ticket}
                     </div>
                   </div>
-                  <div className="text-sm text-slate-600">Vol: {trade.volume}</div>
+                  <div className="shrink-0 text-sm text-slate-600">Vol: {trade.volume}</div>
                   <div className="text-right">
                     <div className="text-sm text-slate-600">{trade.price}</div>
                     <div

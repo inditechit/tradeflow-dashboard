@@ -50,9 +50,16 @@ type AppHeaderProps = {
   onMenuClick?: () => void;
   /** When true on desktop, header shows "expand sidebar" affordance */
   sidebarCollapsed?: boolean;
+  /** Hide hamburger on mobile when bottom tabs provide Menu. Desktop toggle still shows. */
+  hideMobileMenuButton?: boolean;
 };
 
-export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: AppHeaderProps) {
+export function AppHeader({
+  variant,
+  onMenuClick,
+  sidebarCollapsed = false,
+  hideMobileMenuButton = false,
+}: AppHeaderProps) {
   const { currentUser, setCurrentUser, logout } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
@@ -143,29 +150,36 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
       : null;
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200/90 bg-[#F9F9F9] px-3 sm:gap-4 sm:px-4 md:px-8">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+    <header className="sticky top-0 z-40 flex h-11 shrink-0 items-center justify-between gap-1.5 border-b border-slate-200/90 bg-[#F9F9F9] px-2 sm:h-14 sm:gap-4 sm:px-4 md:px-8">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
         {onMenuClick ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="shrink-0 touch-manipulation"
+            className={cn(
+              "shrink-0 touch-manipulation",
+              hideMobileMenuButton && "hidden md:inline-flex",
+            )}
             aria-label={
               sidebarCollapsed ? "Show navigation sidebar" : "Hide navigation sidebar"
             }
             title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
             onClick={onMenuClick}
           >
-            <span className="md:hidden">
-              <Menu className="h-6 w-6 text-slate-700" />
-            </span>
-            <span className="hidden md:inline-flex">
-              {sidebarCollapsed ? (
-                <PanelLeftOpen className="h-5 w-5 text-slate-700" />
-              ) : (
-                <PanelLeftClose className="h-5 w-5 text-slate-700" />
-              )}
+            <span className={hideMobileMenuButton ? "contents" : undefined}>
+              {!hideMobileMenuButton ? (
+                <span className="md:hidden">
+                  <Menu className="h-6 w-6 text-slate-700" />
+                </span>
+              ) : null}
+              <span className={hideMobileMenuButton ? "inline-flex" : "hidden md:inline-flex"}>
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-5 w-5 text-slate-700" />
+                ) : (
+                  <PanelLeftClose className="h-5 w-5 text-slate-700" />
+                )}
+              </span>
             </span>
           </Button>
         ) : null}
@@ -184,11 +198,12 @@ export function AppHeader({ variant, onMenuClick, sidebarCollapsed = false }: Ap
           </button>
         ) : null}
         <div className="font-sans min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
             {variant === "admin" ? (isEmployee ? "Employee" : "Admin") : "User"}
           </p>
-          <p className="truncate text-xs font-semibold text-slate-800 sm:text-sm">
-            Copy Trade Engine
+          <p className="truncate text-[11px] font-semibold text-slate-800 sm:text-sm">
+            <span className="md:hidden">CTE</span>
+            <span className="hidden md:inline">Copy Trade Engine</span>
           </p>
         </div>
       </div>
