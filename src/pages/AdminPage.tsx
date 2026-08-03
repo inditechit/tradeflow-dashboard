@@ -579,9 +579,13 @@ const AdminPage = () => {
       const data = await res.json();
 
       if (data.success) {
+        const baselineNote =
+          data.deposit_baseline_usd != null
+            ? ` · Deposit baseline $${Number(data.deposit_baseline_usd).toFixed(2)}`
+            : "";
         toast({
           title: "Wallet Updated ✅",
-          description: `Balance set to $${data.newBalance}`
+          description: `Balance set to $${data.newBalance}${baselineNote}`,
         });
         setIsWalletModalOpen(false);
         fetchLocations();

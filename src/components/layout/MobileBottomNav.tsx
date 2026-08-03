@@ -23,7 +23,7 @@ export const ADMIN_MOBILE_TABS: MobileTab[] = [
   { id: "home", label: "Home", to: "/admin/dashboard", icon: LayoutDashboard },
   { id: "trade", label: "Trade", to: "/admin/open-trades", icon: CandlestickChart },
   { id: "users", label: "Users", to: "/admin/users", icon: Users },
-  { id: "profile", label: "Profile", to: "/admin/profile", icon: User },
+  { id: "settings", label: "Settings", to: "/admin/settings", icon: User },
   { id: "menu", label: "Menu", icon: Menu, isMenu: true },
 ];
 
@@ -31,7 +31,7 @@ export const USER_MOBILE_TABS: MobileTab[] = [
   { id: "home", label: "Home", to: "/user/dashboard", icon: LayoutDashboard },
   { id: "trades", label: "Trades", to: "/user/trade-history", icon: History },
   { id: "wallet", label: "Wallet", to: "/user/wallet-payments", icon: Wallet },
-  { id: "profile", label: "Profile", to: "/user/profile", icon: User },
+  { id: "settings", label: "Settings", to: "/user/settings", icon: User },
   { id: "menu", label: "Menu", icon: Menu, isMenu: true },
 ];
 

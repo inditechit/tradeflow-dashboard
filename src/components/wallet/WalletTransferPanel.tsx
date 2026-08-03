@@ -5,17 +5,17 @@ import { API_BASE } from "@/config/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+type Direction = "safe_to_trading" | "trading_to_safe";
+
 type Props = {
   userId: string | number | undefined;
   tradingWallet: number;
   safeWallet: number;
   currency?: string;
-  /** Estimated admin share if user Settles now (vs settle baseline). */
-  adminPendingShare?: number;
-  /** User profit-share % (e.g. 50). */
-  userSharePct?: number;
-  /** When true, transfers are disabled until the user Settles. */
+  /** True while copy-trading is active (not exited). */
   tradingActive?: boolean;
+  /** Open / live positions — blocks Trading → Safe while trading is active. */
+  openPositionCount?: number;
   onTransferred?: () => void;
 };
 
@@ -29,29 +29,30 @@ export function WalletTransferPanel({
   tradingWallet,
   safeWallet,
   currency = "USD",
-  adminPendingShare = 0,
-  userSharePct = 50,
   tradingActive = false,
+  openPositionCount = 0,
   onTransferred,
 }: Props) {
-  const adminPct = Math.round((100 - Math.min(100, Math.max(0, userSharePct || 50))) * 100) / 100;
-  const estAdminOnSettle = Math.max(0, Number(adminPendingShare) || 0);
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const [direction, setDirection] = useState<Direction>("safe_to_trading");
 
-  // Only Safe→Trading is allowed; Trading→Safe happens via Settle Trade (admin cut).
-  const direction = "safe_to_trading" as const;
-  const transferLocked = tradingActive === true;
-  const max = Math.max(0, safeWallet);
+  // Safe → Trading: always allowed.
+  // Trading → Safe: only when stopped OR no live open trades.
+  const tradingToSafeAllowed = tradingActive !== true || openPositionCount <= 0;
+  const transferLocked = direction === "trading_to_safe" && !tradingToSafeAllowed;
+  const max =
+    direction === "safe_to_trading" ? Math.max(0, safeWallet) : Math.max(0, tradingWallet);
 
   const submit = async () => {
     const uid = Number(userId);
     const amt = Number(amount);
     if (transferLocked) {
       toast({
-        title: "Trading is active",
-        description: "Settle Trade first, then transfer Safe → Trading.",
+        title: "Live trades open",
+        description:
+          "Exit pool first, or wait until all trades are settled before moving Trading → Safe.",
         variant: "destructive",
       });
       return;
@@ -59,7 +60,10 @@ export function WalletTransferPanel({
     if (!uid || !(amt > 0)) {
       toast({
         title: "Enter an amount",
-        description: "Choose how much to move into Trading.",
+        description:
+          direction === "safe_to_trading"
+            ? "Choose how much to move into Trading."
+            : "Choose how much to move into Safe.",
         variant: "destructive",
       });
       return;
@@ -83,7 +87,10 @@ export function WalletTransferPanel({
       if (!data?.success) throw new Error(data?.error || "Transfer failed");
       toast({
         title: "Transfer complete",
-        description: `Moved ${fmt(amt)} to Trading. This sets your settle baseline.`,
+        description:
+          direction === "safe_to_trading"
+            ? `Moved ${fmt(amt)} to Trading.`
+            : `Moved ${fmt(amt)} to Safe.`,
       });
       setAmount("");
       onTransferred?.();
@@ -103,7 +110,7 @@ export function WalletTransferPanel({
       <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
         <h2 className="text-xs font-bold text-slate-900 sm:text-base">Wallets</h2>
         <p className="text-[9px] text-slate-500 sm:text-xs">
-          Recharge → Safe · Settle moves Trading → Safe
+          Recharge → Safe · Safe ↔ Trading
         </p>
       </div>
 
@@ -116,21 +123,41 @@ export function WalletTransferPanel({
           <p className="text-lg font-extrabold tabular-nums text-slate-900 sm:text-2xl">
             {currency} {fmt(tradingWallet)}
           </p>
-          {estAdminOnSettle > 0.01 ? (
-            <p className="mt-0.5 text-[9px] leading-snug text-amber-900/80 sm:mt-1 sm:text-[10px]">
-              Est. admin on Settle (~{adminPct}%): {currency} {fmt(estAdminOnSettle)}
-            </p>
-          ) : (
-            <p className="mt-0.5 text-[9px] leading-snug text-slate-500 sm:mt-1 sm:text-[10px]">
-              No admin cut while at/below baseline
-            </p>
-          )}
         </div>
 
         <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
-          <span className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-950">
-            Trading ← Safe
-          </span>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setDirection("safe_to_trading");
+                setAmount("");
+              }}
+              className={cn(
+                "rounded-lg border px-2 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px]",
+                direction === "safe_to_trading"
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              → Trading
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDirection("trading_to_safe");
+                setAmount("");
+              }}
+              className={cn(
+                "rounded-lg border px-2 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px]",
+                direction === "trading_to_safe"
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              → Safe
+            </button>
+          </div>
         </div>
 
         <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-2.5 py-2 sm:px-3 sm:py-2.5">
@@ -146,20 +173,23 @@ export function WalletTransferPanel({
 
       {transferLocked ? (
         <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-950 sm:px-2.5 sm:text-[11px]">
-          Settle Trade to unlock Safe → Trading transfers. Trading → Safe only happens on Settle
-          (admin share on profit).
+          Live trades are open — Exit pool first, or wait until all trades settle, then move
+          Trading → Safe. Safe → Trading still works anytime.
+        </p>
+      ) : direction === "safe_to_trading" ? (
+        <p className="mb-2 text-[10px] text-slate-500 sm:text-[11px]">
+          Move funds from Safe into Trading anytime — even while trades are open.
         </p>
       ) : (
         <p className="mb-2 text-[10px] text-slate-500 sm:text-[11px]">
-          Amount you move into Trading becomes your settle baseline. Admin takes ~{adminPct}% of
-          profit above that baseline only when you Settle Trade — not on withdraw.
+          Move Trading → Safe when you have no live trades, or after Exit pool.
         </p>
       )}
 
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
           <label className="mb-0.5 block text-[9px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[10px]">
-            Amount to Trading
+            {direction === "safe_to_trading" ? "Amount to Trading" : "Amount to Safe"}
           </label>
           <input
             type="number"

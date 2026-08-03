@@ -552,43 +552,17 @@ export function Mt5TradeHistoryList({
                 </div>
               )}
             <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
-              <dt className="text-sm font-medium text-slate-600">
-                Admin share
-                {accountSummary.userSharePct != null && accountSummary.userSharePct > 0
-                  ? ` (${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%)`
-                  : ""}
-              </dt>
-              <dd className="text-sm font-semibold tabular-nums text-slate-500">
-                {accountSummary.adminFee != null && accountSummary.adminFee > 0.01
-                  ? `− ${fmtMoney(accountSummary.adminFee, currency)}`
-                  : accountSummary.userSharePct != null && accountSummary.userSharePct > 0
-                    ? `${Math.round((100 - accountSummary.userSharePct) * 100) / 100}%`
-                    : "—"}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-sm font-bold text-emerald-800">
-                Your share
-                {accountSummary.userSharePct != null && accountSummary.userSharePct > 0
-                  ? ` (${accountSummary.userSharePct}%)`
-                  : ""}
-              </dt>
+              <dt className="text-sm font-bold text-emerald-800">Your funds (Trading)</dt>
               <dd className="text-sm font-bold tabular-nums text-emerald-800">
                 {fmtMoney(
-                  accountSummary.userShare != null
-                    ? accountSummary.userShare
-                    : Math.max(
-                        0,
-                        Number(accountSummary.equity ?? accountSummary.balance ?? 0) -
-                          Number(accountSummary.adminFee ?? 0),
-                      ),
+                  Number(accountSummary.equity ?? accountSummary.balance ?? 0),
                   currency,
                 )}
               </dd>
             </div>
             <p className="pt-1 text-[11px] leading-snug text-slate-500">
-              Admin shares cycle profit and also absorbs the same % of losses from that open claim
-              buffer. Admin share locks when you Stop.
+              Trading balance plus open P/L. Use Settle Trade to close positions and move funds to
+              Safe.
             </p>
           </dl>
         </div>

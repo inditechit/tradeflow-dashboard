@@ -31,7 +31,7 @@ const PlanExpiredOverlay = () => {
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-[2px]"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="plan-expired-title"

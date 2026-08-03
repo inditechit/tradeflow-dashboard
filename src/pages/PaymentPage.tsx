@@ -172,7 +172,7 @@ const PaymentPage = () => {
     notifySubscriptionRefresh();
     notifyProfileComplianceRefresh();
     setStep("success");
-    setTimeout(() => navigate("/user/dashboard"), 3000);
+    setTimeout(() => navigate("/user/wallet-setup"), 3000);
   };
 
   const handlePayWithWallet = async () => {
@@ -267,7 +267,7 @@ const PaymentPage = () => {
         notifyProfileComplianceRefresh();
 
         setTimeout(() => {
-          navigate('/user/dashboard');
+          navigate('/user/wallet-setup');
         }, 3000);
       }
     } catch (err) {

@@ -5,7 +5,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { 
   Loader2, TrendingUp, TrendingDown,
   ArrowRight, Pause, Play,
-  LifeBuoy,
+  LifeBuoy, AlertTriangle,
 } from 'lucide-react';
 import { API_BASE, SOCKET_URL } from '@/config/api';
 import { fetchAllUserTrades } from '@/utils/fetchAllUserTrades';
@@ -25,6 +25,15 @@ import { Mt5TradeHistoryList, type Mt5HistoryRow } from '@/components/trades/Mt5
 import { isAdminImpersonating } from '@/utils/adminImpersonation';
 import { getGeolocationIfAllowed } from '@/utils/devicePermissions';
 import { WalletTransferPanel } from '@/components/wallet/WalletTransferPanel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const socket = io(SOCKET_URL, { transports: ['websocket'] });
 
@@ -95,13 +104,11 @@ const DashboardPage = () => {
   const [tradingStopReason, setTradingStopReason] = useState<string | null>(null);
   const [tradingActionLoading, setTradingActionLoading] = useState(false);
   const [tradingActionError, setTradingActionError] = useState('');
+  const [exitPoolOpen, setExitPoolOpen] = useState(false);
   const [isBusted, setIsBusted] = useState(false);
   const [softBust, setSoftBust] = useState(false);
   const [withdrawableFromApi, setWithdrawableFromApi] = useState(0);
   const [safeWalletUsd, setSafeWalletUsd] = useState(0);
-  const [adminFeeLive, setAdminFeeLive] = useState(0);
-  const [userShareLive, setUserShareLive] = useState(0);
-  const [userSharePct, setUserSharePct] = useState(50);
   const [supportUnreadTickets, setSupportUnreadTickets] = useState(0);
   const [supportUnreadMessages, setSupportUnreadMessages] = useState(0);
   const liveTicketRef = useRef<Record<string, { v_i: number; V: number; fee: number; pct: number }>>({});
@@ -157,12 +164,16 @@ const DashboardPage = () => {
       withdrawal: acctTotals.withdrawal,
       balance: walletBalance,
       equity,
-      adminFee: adminFeeLive,
-      userShare: userShareLive > 0 ? userShareLive : Math.max(0, equity - adminFeeLive),
-      userSharePct,
+      // Mid-cycle: full equity belongs to user. Admin cut only on Settle Trade.
+      adminFee: 0,
+      userShare: equity,
+      userSharePct: 100,
+      settleNote: true as const,
     }),
-    [acctTotals, walletBalance, equity, adminFeeLive, userShareLive, userSharePct],
+    [acctTotals, walletBalance, equity],
   );
+
+  const needsSettleToSafe = !tradingActive && walletBalance > 0.01;
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
     return recomputeOpenUserLivePl(
@@ -354,22 +365,11 @@ const DashboardPage = () => {
             ),
           );
         }
-        setAdminFeeLive(Math.max(0, Number(effectiveSummary.admin_pending_share_live_usd ?? 0)));
-        setUserShareLive(Math.max(0, Number(effectiveSummary.user_equity_share_usd ?? 0)));
-        {
-          const pct = Number(
-            effectiveSummary.user_share_pct ?? effectiveSummary.admin_profit_percentage ?? NaN,
-          );
-          setUserSharePct(Number.isFinite(pct) && pct > 0 ? pct : 50);
-        }
       } else {
         setIsBusted(false);
         setPendingClosedPl(0);
         setLivePl(openPlSum);
         setWithdrawableFromApi(0);
-        setAdminFeeLive(0);
-        setUserShareLive(0);
-        setUserSharePct(50);
       }
     } catch (err) {
       console.error('Finance load error:', err);
@@ -380,10 +380,7 @@ const DashboardPage = () => {
 
   const handleStopTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
-    const ok = window.confirm(
-      'Settle Trade? Open positions will be closed at the current live price. If Trading is above your baseline (last Safe→Trading amount), admin takes 50% of that profit once. Remaining funds move to Safe Wallet. Withdrawals do not take admin share.',
-    );
-    if (!ok) return;
+    setExitPoolOpen(false);
     setTradingActionLoading(true);
     setTradingActionError('');
     try {
@@ -392,13 +389,21 @@ const DashboardPage = () => {
       });
       const data = await res.json();
       if (!data.success) {
-        setTradingActionError(data.error || 'Could not settle trading');
+        setTradingActionError(data.error || 'Could not exit pool');
         return;
       }
       liveRawByTicketRef.current = {};
       await loadFinance();
+      if (data.parked_to_safe_usd != null && Number(data.parked_to_safe_usd) > 0) {
+        console.info(
+          `[Exit pool] parked $${Number(data.parked_to_safe_usd).toFixed(2)} to Safe` +
+            (data.admin_locked_usd > 0
+              ? `; admin $${Number(data.admin_locked_usd).toFixed(2)}`
+              : ''),
+        );
+      }
     } catch {
-      setTradingActionError('Server error while settling trading');
+      setTradingActionError('Server error while exiting pool');
     } finally {
       setTradingActionLoading(false);
     }
@@ -562,7 +567,7 @@ const DashboardPage = () => {
           <DashboardNotificationsBanner userId={currentUser?.userId} />
         )}
 
-        {/* Live P/L — highlighted hero metric */}
+        {/* Live P/L + user equity */}
         <div
           className={`rounded-xl border-2 p-3 shadow-lg sm:rounded-2xl sm:p-5 ${
             displayLivePl >= 0
@@ -590,23 +595,41 @@ const DashboardPage = () => {
                 </>
               )}
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:text-xs">
-                Live P/L (open)
-              </p>
-              <h1
-                className={`text-2xl font-black tabular-nums tracking-tight sm:text-4xl ${
-                  displayLivePl >= 0 ? 'text-emerald-700' : 'text-red-700'
-                }`}
-              >
-                {displayLivePl >= 0 ? '+' : '-'}
-                {currency === 'USD' ? '$' : ''}
-                {Math.abs(displayLivePl).toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-                {currency !== 'USD' ? ` ${currency}` : ''}
-              </h1>
+            <div className="flex min-w-0 flex-1 items-end justify-between gap-3 sm:gap-6">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:text-xs">
+                  Live P/L (open)
+                </p>
+                <h1
+                  className={`text-2xl font-black tabular-nums tracking-tight sm:text-4xl ${
+                    displayLivePl >= 0 ? 'text-emerald-700' : 'text-red-700'
+                  }`}
+                >
+                  {displayLivePl >= 0 ? '+' : '-'}
+                  {currency === 'USD' ? '$' : ''}
+                  {Math.abs(displayLivePl).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                  {currency !== 'USD' ? ` ${currency}` : ''}
+                </h1>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 sm:text-xs">
+                  Your equity
+                </p>
+                <p className="text-xl font-black tabular-nums tracking-tight text-slate-900 sm:text-3xl">
+                  {currency === 'USD' ? '$' : ''}
+                  {equity.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                  {currency !== 'USD' ? ` ${currency}` : ''}
+                </p>
+                <p className="mt-0.5 text-[9px] text-slate-500 sm:text-[10px]">
+                  Trading + open P/L
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -614,17 +637,21 @@ const DashboardPage = () => {
         {currentUser?.role !== 'admin' && !isBusted && (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm sm:px-3 sm:py-2.5">
             <p className="min-w-0 text-[11px] font-medium text-slate-700 sm:text-sm">
-              {tradingActive ? 'Copy trading running' : 'Trading settled / paused'}
+              {tradingActive
+                ? 'Copy trading running'
+                : needsSettleToSafe
+                  ? 'Paused — Trading funds still need Exit pool → Safe'
+                  : 'Trading settled / paused'}
             </p>
-            {tradingActive ? (
+            {tradingActive || needsSettleToSafe ? (
               <button
                 type="button"
-                onClick={handleStopTrading}
+                onClick={() => setExitPoolOpen(true)}
                 disabled={tradingActionLoading}
                 className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
               >
                 {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
-                Settle Trade
+                Exit pool
               </button>
             ) : (
               <button
@@ -674,9 +701,8 @@ const DashboardPage = () => {
             tradingWallet={walletBalance}
             safeWallet={safeWalletUsd}
             currency={currency}
-            adminPendingShare={adminFeeLive}
-            userSharePct={userSharePct}
             tradingActive={tradingActive}
+            openPositionCount={openPositionCount}
             onTransferred={() => void loadFinance()}
           />
         )}
@@ -705,7 +731,7 @@ const DashboardPage = () => {
             >
               add funds
             </button>
-            {tradingActive ? ' and restart trading.' : ', then transfer Safe → Trading.'}
+            {tradingActive ? ' and keep trading.' : ', then transfer Safe → Trading.'}
           </div>
         )}
 
@@ -760,6 +786,50 @@ const DashboardPage = () => {
           </button>
         )}
       </div>
+
+      <Dialog open={exitPoolOpen} onOpenChange={setExitPoolOpen}>
+        <DialogContent className="max-w-md border-slate-200 bg-white text-slate-900 sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+              Exit pool?
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-left text-sm leading-relaxed text-slate-600">
+              You are exiting the pool. On exit, loss recovery will not happen on the admin side —
+              only profit will be shared. Admin will not share loss.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs leading-relaxed text-slate-500">
+            Open positions will be closed at the current live price. Remaining Trading balance moves
+            to Safe Wallet after any profit share.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-200"
+              disabled={tradingActionLoading}
+              onClick={() => setExitPoolOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-amber-900 font-semibold text-white hover:bg-amber-800"
+              disabled={tradingActionLoading}
+              onClick={() => void handleStopTrading()}
+            >
+              {tradingActionLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Exiting…
+                </>
+              ) : (
+                'Exit pool'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

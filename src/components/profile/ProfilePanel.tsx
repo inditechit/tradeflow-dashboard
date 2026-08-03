@@ -16,6 +16,7 @@ import {
 import { LiveCameraCaptureDialog } from "@/components/profile/LiveCameraCaptureDialog";
 import { notifyProfileComplianceRefresh } from "@/utils/profileComplianceEvents";
 import { proofImageSrc } from "@/utils/userImageUrl";
+import { API_BASE } from "@/config/api";
 
 export { proofImageSrc } from "@/utils/userImageUrl";
 
@@ -27,15 +28,27 @@ const fieldInputClass =
 
 const fieldLabelClass = "text-sm font-medium text-slate-700";
 
-const API_BASE = "https://api.copytradeengine.org/api";
+export type ProfileSection = "overview" | "password" | "contact" | "trc20" | "kyc" | "admin";
+
+const ALL_SECTIONS: ProfileSection[] = ["overview", "password", "contact", "trc20", "kyc", "admin"];
 
 export type ProfilePanelProps = {
   targetUserId: string;
   /** Admin UI: KYC status control + view any user */
   showAdminExtras?: boolean;
+  /**
+   * Which blocks to render. Defaults to all (admin viewing a user).
+   * Settings page typically passes password + contact + trc20 + kyc.
+   */
+  sections?: ProfileSection[];
 };
 
-export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProps) {
+export function ProfilePanel({
+  targetUserId,
+  showAdminExtras,
+  sections = ALL_SECTIONS,
+}: ProfilePanelProps) {
+  const show = (s: ProfileSection) => sections.includes(s);
   const { currentUser } = useApp();
   const { toast } = useToast();
 
@@ -409,6 +422,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
   return (
     <div className="font-sans w-full min-w-0 max-w-4xl space-y-6 text-slate-800 sm:space-y-8">
       {/* Summary */}
+      {show("overview") || (show("admin") && showAdminExtras) ? (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">
@@ -595,8 +609,9 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           </div>
         </div>
       </div>
+      ) : null}
 
-      {viewerIsOwner ? (
+      {show("password") && viewerIsOwner ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 font-sans text-lg font-semibold tracking-tight text-slate-900">
             <KeyRound className="h-5 w-5 shrink-0 text-neutral-900" aria-hidden />
@@ -687,7 +702,10 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
       ) : null}
 
       {/* Editable details */}
+      {(show("contact") || show("trc20")) ? (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        {show("contact") ? (
+        <>
         <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 mb-6 flex items-center gap-2">
           <MapPin className="shrink-0 text-neutral-900" size={20} aria-hidden />
           Contact & address
@@ -787,10 +805,13 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           />
         </div>
     )}
+        </>
+        ) : null}
 
+        {show("trc20") ? (
         <div
           id="trc20-payout"
-          className="scroll-mt-24 mt-8 border-t border-slate-100 pt-8"
+          className={`scroll-mt-24 ${show("contact") ? "mt-8 border-t border-slate-100 pt-8" : ""}`}
         >
           <h4 className="mb-2 flex items-center gap-2 font-sans text-base font-semibold text-slate-900">
             <Wallet className="h-5 w-5 shrink-0 text-neutral-900" aria-hidden />
@@ -817,8 +838,9 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
             />
           </div>
         </div>
+        ) : null}
 
-        {canEdit && (
+        {canEdit && (show("contact") || show("trc20")) && (
           <div className="mt-8 pt-2">
             <Button
               type="button"
@@ -832,8 +854,10 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           </div>
         )}
       </div>
+      ) : null}
 
       {/* KYC */}
+      {show("kyc") ? (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
         <h3 className="font-sans text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
           <Shield className="shrink-0 text-neutral-900" size={20} aria-hidden />
@@ -891,6 +915,7 @@ export function ProfilePanel({ targetUserId, showAdminExtras }: ProfilePanelProp
           onCaptured={(dataUrl) => uploadDoc("addressProofBase64", dataUrl)}
         />
       </div>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import {
   Plane,
   Globe,
@@ -10,6 +10,7 @@ import {
   Plus,
   ArrowRight,
   CalendarDays,
+  Settings,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
@@ -106,10 +107,26 @@ const My_Profile = () => {
 
   return (
     <div className="mx-auto max-w-5xl px-0 py-4 sm:px-2 md:px-6 md:py-10">
-      <h1 className="mb-4 text-xl font-bold text-slate-900 sm:mb-6 sm:text-2xl">My profile</h1>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">My profile</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {currentUser.name || currentUser.email || "Your account"} · identity, address & packages
+          </p>
+        </div>
+        <Link
+          to="/user/settings"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </Link>
+      </div>
+
       <ProfilePanel
         targetUserId={String(currentUser.userId)}
         showAdminExtras={currentUser.role === "admin"}
+        sections={["overview", "contact", "trc20", "kyc"]}
       />
 
       {/* Active packages */}

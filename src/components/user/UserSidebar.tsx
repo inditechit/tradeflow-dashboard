@@ -17,6 +17,7 @@ import {
   Bell,
   PanelLeftClose,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -38,7 +39,8 @@ const PACKAGES_PATH = "/packages";
 
 type SidebarWallet = {
   currency: string;
-  balance: number;
+  trading: number;
+  safe: number;
 };
 
 const UserSidebar = ({
@@ -75,7 +77,11 @@ const UserSidebar = ({
         if (!data?.success) return;
         setAccountWallet({
           currency: data.currency ?? "USD",
-          balance: Math.max(0, Number(data.wallet_balance ?? 0)),
+          trading: Math.max(
+            0,
+            Number(data.trading_wallet_usd ?? data.wallet_balance ?? 0),
+          ),
+          safe: Math.max(0, Number(data.safe_wallet_usd ?? 0)),
         });
       } catch (err) {
         console.error("Wallet fetch error:", err);
@@ -123,6 +129,7 @@ const UserSidebar = ({
     { name: "Invoices", icon: FileText, path: "/user/invoices" },
     { name: "Support", icon: LifeBuoy, path: "/user/support", showUnread: true },
     { name: "Profile", icon: User, path: "/user/profile" },
+    { name: "Settings", icon: Settings, path: "/user/settings" },
   ] as Array<{ name: string; icon: typeof LayoutDashboard; path: string; showUnread?: boolean }>;
 
   return (
@@ -140,13 +147,13 @@ const UserSidebar = ({
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(16rem,88vw)] flex-col justify-between overflow-y-auto overscroll-contain border-r border-slate-200/80 bg-[#F9F9F9] p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:shadow-sm",
+          "fixed left-0 top-0 z-50 flex max-h-[100dvh] min-h-0 w-[min(16rem,88vw)] flex-col border-r border-slate-200/80 bg-[#F9F9F9] p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none transition-transform duration-300 ease-out sm:p-5 md:z-40 md:h-screen md:w-64 md:max-h-none md:shadow-sm",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "md:-translate-x-full md:pointer-events-none" : "md:translate-x-0",
         )}
       >
-        <div className="relative min-h-0 flex-1">
-          <div className="absolute right-0 top-0 flex items-center gap-0.5">
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="absolute right-0 top-0 z-10 flex items-center gap-0.5">
             {onToggleCollapse ? (
               <button
                 type="button"
@@ -174,17 +181,26 @@ const UserSidebar = ({
 
           <div className="mb-4 rounded-lg bg-[#F2F2F2] p-2.5 text-neutral-900 sm:mb-8 sm:p-4">
             <p className="text-[10px] font-medium text-neutral-600 sm:text-xs">Account balance</p>
-
-            <h2 className="mt-0.5 text-base font-bold tabular-nums text-neutral-900 sm:mt-1 sm:text-xl">
-              {!currentUser
-                ? "Loading user..."
-                : !accountWallet
-                  ? "Loading…"
-                  : `${accountWallet.currency} ${accountWallet.balance.toFixed(2)}`}
-            </h2>
-            <p className="mt-1 text-[10px] leading-snug text-neutral-500">
-              Settled wallet — after closed trade P/L (not original deposit)
-            </p>
+            {!currentUser || !accountWallet ? (
+              <p className="mt-1 text-sm font-semibold text-neutral-500">
+                {!currentUser ? "Loading user…" : "Loading…"}
+              </p>
+            ) : (
+              <div className="mt-1.5 space-y-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[10px] text-neutral-500 sm:text-xs">Trading</span>
+                  <span className="text-sm font-bold tabular-nums text-neutral-900 sm:text-base">
+                    {accountWallet.currency} {accountWallet.trading.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[10px] text-neutral-500 sm:text-xs">Safe</span>
+                  <span className="text-sm font-bold tabular-nums text-neutral-900 sm:text-base">
+                    {accountWallet.currency} {accountWallet.safe.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {!subLoading && accessRestricted && (
@@ -249,7 +265,7 @@ const UserSidebar = ({
           </nav>
         </div>
 
-        <div className="mt-4 shrink-0 space-y-3 pb-2 sm:mt-6">
+        <div className="mt-3 shrink-0 space-y-3 border-t border-slate-200/80 pt-3 pb-2 sm:mt-4">
           <button
             type="button"
             onClick={() => {

@@ -3,7 +3,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
-  User,
   TrendingUp,
   ArrowLeftRight,
   Wallet,
@@ -30,6 +29,7 @@ import {
   AlertTriangle,
   ChevronDown,
   PanelLeftClose,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -175,7 +175,7 @@ const MENU: MenuEntry[] = [
       { name: "Access Control", icon: UserCog, path: "/admin/employees", adminOnly: true },
     ],
   },
-  { kind: "item", name: "Profile", icon: User, path: "/admin/profile" },
+  { kind: "item", name: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
 function badgeCount(item: MenuItem, badges: Record<AdminSidebarBadgeKey, number>) {

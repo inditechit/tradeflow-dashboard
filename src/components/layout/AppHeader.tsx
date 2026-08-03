@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogOut, User, Menu, Moon, Sun, PanelLeftOpen, PanelLeftClose, SlidersHorizontal, Undo2 } from "lucide-react";
+import { LogOut, User, Menu, PanelLeftOpen, PanelLeftClose, SlidersHorizontal, Undo2, Settings } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AdminAlertBell } from "@/components/admin/AdminAlertBell";
 import { AdminCallSettingsButton, useAdminCallContext } from "@/components/admin/AdminCallNotificationLayer";
 import { useApp } from "@/context/AppContext";
-import { useTheme } from "@/context/ThemeContext";
 import { useUserFinance } from "@/hooks/useUserFinance";
 import { proofImageSrc } from "@/utils/userImageUrl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,8 +28,7 @@ import {
   isAdminImpersonating,
 } from "@/utils/adminImpersonation";
 import { cn } from "@/lib/utils";
-
-const API_BASE = "https://api.copytradeengine.org/api";
+import { API_BASE } from "@/config/api";
 
 function getInitials(name?: string, telegram?: string) {
   const raw = (name || telegram || "?").trim();
@@ -61,7 +59,6 @@ export function AppHeader({
   hideMobileMenuButton = false,
 }: AppHeaderProps) {
   const { currentUser, setCurrentUser, logout } = useApp();
-  const { theme, toggleTheme } = useTheme();
   const { isEmployee } = useEmployeeExploreMode();
   const { openSettings: openCallSettings, ringing: callRinging } = useAdminCallContext();
   const navigate = useNavigate();
@@ -120,7 +117,8 @@ export function AppHeader({
     return null;
   }
 
-  const profilePath = variant === "admin" ? "/admin/profile" : "/user/profile";
+  const profilePath = variant === "admin" ? "/admin/settings" : "/user/profile";
+  const settingsPath = variant === "admin" ? "/admin/settings" : "/user/settings";
   const displayName = currentUser.name?.trim() || currentUser.telegram || "Account";
   const initials = getInitials(currentUser.name, currentUser.telegram);
 
@@ -237,18 +235,6 @@ export function AppHeader({
           </button>
         ) : null}
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="shrink-0 touch-manipulation rounded-full text-slate-700 hover:bg-slate-100"
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          title={theme === "dark" ? "Light theme" : "Dark theme"}
-        >
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
-
         {variant === "user" ? (
           <NotificationBell userId={currentUser.userId} />
         ) : (
@@ -301,8 +287,17 @@ export function AppHeader({
             onClick={() => navigate(profilePath)}
           >
             <User className="mr-2 h-4 w-4 text-black" />
-            Profile
+            {variant === "admin" ? "Settings" : "Profile"}
           </DropdownMenuItem>
+          {variant === "user" ? (
+            <DropdownMenuItem
+              className="cursor-pointer text-black focus:bg-slate-100 focus:text-slate-900"
+              onClick={() => navigate(settingsPath)}
+            >
+              <Settings className="mr-2 h-4 w-4 text-black" />
+              Settings
+            </DropdownMenuItem>
+          ) : null}
           {impersonating ? (
             <DropdownMenuItem
               className="cursor-pointer text-amber-900 focus:bg-amber-50 focus:text-amber-950"

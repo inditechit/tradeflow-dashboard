@@ -42,7 +42,6 @@ import { AdminHomeRedirect } from "./components/auth/AdminHomeRedirect";
 import UserRoute from "./components/auth/UserRoute";
 import My_Profile from "./pages/userSIdebar/My_Profile";
 import WithdrawPage from "./pages/userSIdebar/WithdrawPage";
-import AdminProfilePage from "./pages/AdminProfilePage";
 import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 import AdminUserTradesPage from "./pages/AdminUserTradesPage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
@@ -82,6 +81,8 @@ import TradingLossSopPage from "./pages/TradingLossSopPage";
 import PostSignupOnboardingPage from "./pages/PostSignupOnboardingPage";
 import RequiredSetupPage from "./pages/RequiredSetupPage";
 import ChooseRiskProfilePage from "./pages/ChooseRiskProfilePage";
+import SettingsPage from "./pages/SettingsPage";
+import WalletSetupPage from "./pages/userSIdebar/WalletSetupPage";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,8 @@ const App = () => (
               <Route path="notifications" element={<UserNotificationsPage />} />
               <Route path="invoices" element={<UserInvoicesPage />} />
               <Route path="profile" element={<My_Profile />} />
+              <Route path="settings" element={<SettingsPage variant="user" />} />
+              <Route path="wallet-setup" element={<WalletSetupPage />} />
               <Route path="support" element={<SupportTicketsPage />} />
 
             </Route>
@@ -168,7 +171,8 @@ const App = () => (
               <Route index element={<AdminHomeRedirect />} />
 
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="profile" element={<AdminProfilePage />} />
+              <Route path="profile" element={<Navigate to="/admin/settings" replace />} />
+              <Route path="settings" element={<SettingsPage variant="admin" />} />
               <Route path="open-trades" element={<OpenTrades />} />
               <Route path="users" element={<AdminPage />} />
               <Route path="users/:userId/trades" element={<AdminUserTradesPage />} />

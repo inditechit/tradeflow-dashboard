@@ -6,20 +6,23 @@ import { isAdminImpersonating } from "@/utils/adminImpersonation";
 
 const WITHDRAW_PATH = "/user/withdraw";
 const PROFILE_PATH = "/user/profile";
+const SETTINGS_PATH = "/user/settings";
+const WALLET_SETUP_PATH = "/user/wallet-setup";
 const REQUIRED_SETUP_PATH = "/user/required-setup";
 const POST_SIGNUP_PATH = "/user/post-signup";
 
 type Props = { children: React.ReactNode };
 
 function complianceAllowedPath(pathname: string) {
-  const w = pathname === WITHDRAW_PATH || pathname.startsWith(`${WITHDRAW_PATH}/`);
-  const p = pathname === PROFILE_PATH || pathname.startsWith(`${PROFILE_PATH}/`);
-  const r =
-    pathname === REQUIRED_SETUP_PATH ||
-    pathname.startsWith(`${REQUIRED_SETUP_PATH}/`);
-  const o =
-    pathname === POST_SIGNUP_PATH || pathname.startsWith(`${POST_SIGNUP_PATH}/`);
-  return w || p || r || o;
+  const paths = [
+    WITHDRAW_PATH,
+    PROFILE_PATH,
+    SETTINGS_PATH,
+    WALLET_SETUP_PATH,
+    REQUIRED_SETUP_PATH,
+    POST_SIGNUP_PATH,
+  ];
+  return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /** After an active package: block app until profile + location + live photo are complete. */

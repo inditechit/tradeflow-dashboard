@@ -121,9 +121,8 @@ const TradeHistory = () => {
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Trade history</h1>
           <p className="mt-1 max-w-2xl text-xs text-slate-500">
-            Your P/L on every assigned trade (full amount hits Trading while you are live). Open rows
-            are estimates until close. Admin shares cycle profit (claim taken on Stop) and absorbs the
-            same % of losses from that open claim buffer — you are not alone on every loss.
+            Your P/L on every assigned trade. Open rows are estimates until close. Use Settle Trade
+            to close open positions and move Trading funds to Safe.
           </p>
           {archivedCount > 0 && (
             <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
