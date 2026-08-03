@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { ArrowLeftRight, Loader2, Shield, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { API_BASE } from "@/config/api";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 type Direction = "safe_to_trading" | "trading_to_safe";
 
@@ -125,39 +131,33 @@ export function WalletTransferPanel({
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setDirection("safe_to_trading");
-                setAmount("");
-              }}
-              className={cn(
-                "rounded-lg border px-2 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px]",
-                direction === "safe_to_trading"
-                  ? "border-amber-300 bg-amber-50 text-amber-950"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-              )}
+        <div className="flex w-full shrink-0 flex-col items-center justify-center px-0 sm:w-[11.5rem] sm:px-1">
+          <Select
+            value={direction}
+            onValueChange={(value) => {
+              setDirection(value as Direction);
+              setAmount("");
+            }}
+          >
+            <SelectTrigger
+              aria-label="Transfer direction"
+              className="h-9 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-[11px] font-semibold text-slate-800 shadow-none focus:ring-yellow-200 sm:h-10 sm:text-xs"
             >
-              → Trading
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDirection("trading_to_safe");
-                setAmount("");
-              }}
-              className={cn(
-                "rounded-lg border px-2 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px]",
-                direction === "trading_to_safe"
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-950"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-              )}
-            >
-              → Safe
-            </button>
-          </div>
+              <SelectValue placeholder="Select direction" />
+            </SelectTrigger>
+            <SelectContent align="center" className="rounded-xl">
+              <SelectItem value="safe_to_trading" className="text-xs font-medium">
+                Safe to Trading
+              </SelectItem>
+              <SelectItem
+                value="trading_to_safe"
+                className="text-xs font-medium"
+                disabled={!tradingToSafeAllowed}
+              >
+                Trading to Safe
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-2.5 py-2 sm:px-3 sm:py-2.5">
