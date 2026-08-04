@@ -147,14 +147,14 @@ export function WalletTransferPanel({
             </SelectTrigger>
             <SelectContent align="center" className="rounded-xl">
               <SelectItem value="safe_to_trading" className="text-xs font-medium">
-                Safe to Trading
+                Trading ← Safe
               </SelectItem>
               <SelectItem
                 value="trading_to_safe"
                 className="text-xs font-medium"
                 disabled={!tradingToSafeAllowed}
               >
-                Trading to Safe
+                Trading → Safe
               </SelectItem>
             </SelectContent>
           </Select>

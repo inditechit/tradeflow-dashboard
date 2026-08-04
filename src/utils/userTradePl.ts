@@ -429,7 +429,9 @@ export function recomputeOpenUserLivePl(
   const wallet = Math.max(0, Number(walletBalance) || 0);
   const baseline = Math.max(0, Number(depositBaseline) || 0);
   const openRows = rows.filter((r) => !isTradeClosed(r));
-  if (wallet <= 0.01 || !openRows.length) return 0;
+  if (!openRows.length) return 0;
+  // Still compute open P/L when Trading is $0 (losses already wiped the wallet).
+  // Equity can be open profits alone; new assigns stay blocked separately when unfunded.
 
   const map = buildSequentialUserFacingPlMap(
     rows,

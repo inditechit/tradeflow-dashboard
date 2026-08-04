@@ -38,18 +38,20 @@ export function buildFinanceOverlay(
   const wallet = Math.max(0, Number(walletBalance) || 0);
   const openCount = openRows.filter((r) => !isTradeClosed(r)).length;
   const computed =
-    wallet > 0.01 && openCount > 0
+    openCount > 0
       ? recomputeUserLivePl(openRows, wallet, depositBaseline, liveProfitByTicket)
       : 0;
   const apiLive = apiLivePl != null ? Number(apiLivePl) : NaN;
   // Prefer socket-driven client recompute when open rows exist; API is fallback only.
   const live_pl =
     openCount > 0
-      ? computed
+      ? Math.abs(computed) > 0.001 || !Number.isFinite(apiLive) || Math.abs(apiLive) < 0.001
+        ? computed
+        : apiLive
       : Number.isFinite(apiLive)
         ? apiLive
         : 0;
-  const equity = wallet <= 0.01 ? 0 : Math.max(0, Math.round((wallet + live_pl) * 100) / 100);
+  const equity = Math.max(0, Math.round((wallet + live_pl) * 100) / 100);
   const withdrawable_equity =
     openCount > 0 ? 0 : Math.max(0, Math.round(wallet * 100) / 100);
   return { live_pl, equity, withdrawable_equity };

@@ -128,11 +128,10 @@ const DashboardPage = () => {
 
   const walletBalance = Math.max(0, Number(wallet?.balance ?? 0));
   const currency = wallet?.currency || "USD";
-  /** Open P/L only when wallet &gt; 0 (no new assigns at $0). */
-  const displayLivePl =
-    walletBalance > 0.01 && openPositionCount > 0 && !isBusted ? livePl : 0;
-  const equity =
-    isBusted || walletBalance <= 0.01 ? 0 : Math.max(0, walletBalance + displayLivePl);
+  /** Open P/L shows whenever there are live positions (even if Trading is $0 after losses). */
+  const displayLivePl = openPositionCount > 0 && !isBusted ? livePl : 0;
+  /** Equity = Trading + open P/L. Balance can be $0 while open profits still count. */
+  const equity = isBusted ? 0 : Math.max(0, walletBalance + displayLivePl);
 
   const facingMap = useMemo(
     () =>
