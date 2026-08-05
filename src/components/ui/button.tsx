@@ -41,6 +41,19 @@ export interface ButtonProps
 
 const MUTATE_VARIANTS = new Set(["default", "destructive", "secondary"]);
 
+const MUTATE_LABEL_RE =
+  /\b(edit|save|saving|approve|reject|delete|remove|create|send|credit|extend|override|impersonate|reopen|apply|update|submit|confirm|add user|add package|add coupon|add funds|new post|new rule|pay out|mark paid|bulk|reclaim|convert)\b/i;
+
+function collectText(node: React.ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(collectText).join(" ");
+  if (React.isValidElement(node)) {
+    return collectText((node.props as { children?: React.ReactNode }).children);
+  }
+  return "";
+}
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
@@ -49,16 +62,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       size,
       asChild = false,
       allowInRecording = false,
+      children,
       ...props
     },
     ref,
   ) => {
     const { recordingMode } = useRecordingMode();
     const resolvedVariant = variant ?? "default";
+    const label = collectText(children);
+    const looksLikeMutate =
+      MUTATE_VARIANTS.has(resolvedVariant) || MUTATE_LABEL_RE.test(label);
     const hideForRecording =
-      recordingMode &&
-      !allowInRecording &&
-      MUTATE_VARIANTS.has(resolvedVariant);
+      recordingMode && !allowInRecording && looksLikeMutate;
 
     if (hideForRecording) return null;
 
@@ -68,8 +83,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         data-recording-safe={allowInRecording ? "true" : undefined}
+        data-admin-mutate={looksLikeMutate && !allowInRecording ? "true" : undefined}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     );
   },
 );

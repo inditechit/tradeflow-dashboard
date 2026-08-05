@@ -294,16 +294,33 @@
   color: #64748b !important;
 }
 
-/* Admin recording (view-only) mode — hide common native mutate buttons.
-   shadcn Button default/destructive/secondary already hide via context.
-   Mutating fetch is blocked in RecordingModeProvider. */
+/* Admin recording (view-only) mode.
+   Hides mutate controls in the main panel + dialogs. Keep [data-recording-safe]. */
 .admin-recording-mode .admin-main-panel [data-admin-mutate],
+html[data-recording-mode="true"] .admin-main-panel [data-admin-mutate],
+html[data-recording-mode="true"] [role="dialog"] [data-admin-mutate],
+html[data-recording-mode="true"] [data-radix-portal] [data-admin-mutate],
 html[data-recording-mode="true"] .admin-main-panel button.bg-\[\#FFD700\],
 html[data-recording-mode="true"] .admin-main-panel button.bg-emerald-600,
 html[data-recording-mode="true"] .admin-main-panel button.bg-emerald-700,
 html[data-recording-mode="true"] .admin-main-panel button.bg-red-600,
 html[data-recording-mode="true"] .admin-main-panel button.bg-red-700,
 html[data-recording-mode="true"] .admin-main-panel button.bg-indigo-600,
-html[data-recording-mode="true"] .admin-main-panel button.bg-amber-900 {
+html[data-recording-mode="true"] .admin-main-panel button.bg-amber-900,
+html[data-recording-mode="true"] .admin-main-panel button.bg-slate-900 {
+  display: none !important;
+}
+
+/* Catch native / outline Edit-style controls that slipped past Button heuristics */
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-pencil),
+html[data-recording-mode="true"] [role="dialog"] button:not([data-recording-safe]):has(svg.lucide-pencil),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-plus),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-trash),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-trash-2),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-check),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-send),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-user-plus),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-calendar-plus),
+html[data-recording-mode="true"] .admin-main-panel button:not([data-recording-safe]):has(svg.lucide-calendar-clock) {
   display: none !important;
 }

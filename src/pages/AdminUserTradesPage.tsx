@@ -367,6 +367,7 @@ const AdminUserTradesPage = () => {
             variant="outline"
             size="sm"
             className="w-fit"
+            allowInRecording
             onClick={() => navigate("/admin/users")}
           >
             <ArrowLeft className="mr-1 h-4 w-4" />
@@ -388,6 +389,7 @@ const AdminUserTradesPage = () => {
             variant="outline"
             size="sm"
             className="w-fit gap-2"
+            allowInRecording
             onClick={handleExportExcel}
             disabled={loading || exporting}
           >
@@ -399,6 +401,7 @@ const AdminUserTradesPage = () => {
             variant="outline"
             size="sm"
             className="w-fit gap-2"
+            allowInRecording
             onClick={refresh}
             disabled={loading || exporting}
           >
@@ -419,6 +422,7 @@ const AdminUserTradesPage = () => {
           <button
             key={key}
             type="button"
+            data-recording-safe="true"
             onClick={() => setStatusFilter(key)}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               statusFilter === key
@@ -501,6 +505,7 @@ const AdminUserTradesPage = () => {
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1 px-2"
+                data-admin-mutate
                 onClick={() => {
                   setBaselineDraft(String(depositBaseline));
                   setEditingBaseline(true);

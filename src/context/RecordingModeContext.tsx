@@ -77,8 +77,26 @@ export function RecordingModeProvider({ children }: { children: ReactNode }) {
       return originalFetch(input, init);
     };
 
+    const onClickCapture = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el) return;
+      if (el.closest("[data-recording-safe]")) return;
+      if (el.closest("a[href]")) return;
+      if (el.closest("nav")) return;
+      const btn = el.closest("button, [role='button'], input[type='submit']");
+      if (!btn) return;
+      const inPanel = btn.closest(
+        ".admin-main-panel, [role='dialog'], [data-radix-portal]",
+      );
+      if (!inPanel) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("click", onClickCapture, true);
+
     return () => {
       window.fetch = originalFetch;
+      document.removeEventListener("click", onClickCapture, true);
     };
   }, [recordingMode]);
 
