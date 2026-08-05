@@ -356,7 +356,7 @@ const AdminUserTradesPage = () => {
     return <Navigate to="/admin/users" replace />;
   }
 
-  const COL_COUNT = 15;
+  const COL_COUNT = 16;
 
   return (
     <div className="mx-auto max-w-[110rem] px-0 py-4 sm:px-2 md:px-6 md:py-8">
@@ -485,6 +485,60 @@ const AdminUserTradesPage = () => {
                     ) : null}
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-slate-700">{m.detail}</p>
+                  {m.stopRows && m.stopRows.length > 0 ? (
+                    <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200/80 bg-white">
+                      <table className="w-full min-w-[36rem] border-collapse text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50">
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 font-bold uppercase tracking-wide text-slate-500">
+                              Ticket
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 font-bold uppercase tracking-wide text-slate-500">
+                              Symbol
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 font-bold uppercase tracking-wide text-slate-500">
+                              Stopped
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                              At stop
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                              If held
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                              Missed
+                            </th>
+                            <th className="sticky top-0 z-[1] bg-slate-50 px-2.5 py-2 font-bold uppercase tracking-wide text-slate-500">
+                              Note
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {m.stopRows.map((row) => (
+                            <tr key={row.ticket} className="hover:bg-slate-50/80">
+                              <td className="px-2.5 py-2 font-mono tabular-nums text-slate-800">
+                                #{row.ticket}
+                              </td>
+                              <td className="px-2.5 py-2 font-medium text-slate-700">{row.symbol}</td>
+                              <td className="whitespace-nowrap px-2.5 py-2 text-slate-600">
+                                {row.stoppedAt}
+                              </td>
+                              <td className="px-2.5 py-2 text-right tabular-nums text-slate-800">
+                                {fmtUsd(row.stoppedGrossUsd)}
+                              </td>
+                              <td className="px-2.5 py-2 text-right tabular-nums text-slate-800">
+                                {fmtUsd(row.ifHeldUsd)}
+                              </td>
+                              <td className="px-2.5 py-2 text-right font-semibold tabular-nums text-red-700">
+                                {fmtUsd(row.missedUsd)}
+                              </td>
+                              <td className="px-2.5 py-2 text-slate-500">{row.masterNote}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
                 </div>
               ))
             )}
@@ -585,29 +639,59 @@ const AdminUserTradesPage = () => {
         {/* ~5 rows visible; scroll for the rest */}
         <div className="max-h-[22.5rem] overflow-auto">
           <table className="w-full border-collapse text-left">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Ticket</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Symbol</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Side</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Opened</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Closed</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Vol.</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Buy price</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Sell price</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Fee</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Gross P/L</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">User exp.</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Admin risk</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Risk P/L</th>
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Ticket
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Symbol
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Side
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Opened
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Closed
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Vol.
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Buy price
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Sell price
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Fee
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Gross P/L
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  User exp.
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Admin risk
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Risk P/L
+                </th>
                 <th
-                  className="px-3 py-3 text-xs font-bold uppercase text-slate-500"
+                  className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]"
                   title="Positive = admin claim on profit; negative = admin loss clawback"
                 >
                   Admin share
                 </th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Wallet P/L</th>
-                <th className="px-3 py-3 text-xs font-bold uppercase text-slate-500">Status</th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Wallet P/L
+                </th>
+                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

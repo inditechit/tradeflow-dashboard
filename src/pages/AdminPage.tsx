@@ -1442,14 +1442,14 @@ const AdminPage = () => {
             ) : null}
           </div>
         </div>
-        <div ref={tableTopRef} className="overflow-x-auto">
+        <div ref={tableTopRef} className="max-h-[min(70vh,52rem)] overflow-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/95">
+              <tr className="border-b border-slate-200">
                 {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => (
                   <th
                     key={col.id}
-                    className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6 sm:py-4"
+                    className="sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-6 sm:py-4"
                   >
                     {col.label}
                   </th>

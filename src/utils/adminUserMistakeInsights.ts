@@ -6,12 +6,25 @@ import {
 
 export type MistakeSeverity = "high" | "medium" | "info";
 
+export type MistakeStopRow = {
+  ticket: string;
+  symbol: string;
+  stoppedAt: string;
+  stoppedGrossUsd: number;
+  ifHeldUsd: number;
+  missedUsd: number;
+  masterNote: string;
+};
+
 export type MistakeInsight = {
   id: string;
   severity: MistakeSeverity;
   title: string;
+  /** Short readable summary (not a wall of ticket text). */
   detail: string;
   amountUsd?: number;
+  /** Optional structured rows for early-stop opportunity cost. */
+  stopRows?: MistakeStopRow[];
 };
 
 export type ManualStopSettlementRow = {
@@ -34,6 +47,18 @@ function fmtUsd(n: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatWhen(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return String(iso);
+  }
 }
 
 /** Estimate user gross from master profit × pool share (fraction or percent). */
@@ -80,11 +105,16 @@ export function buildUserMistakeInsights(input: {
       id: "missed-topup-drawdown",
       severity: lossPct >= 70 ? "high" : "medium",
       title: `Deep drawdown (~${lossPct}% below baseline) — no recovery top-up`,
-      detail: `Baseline ${fmtUsd(baseline)} → wallet/equity ~${fmtUsd(underwater)}. User should have topped up ~${fmtUsd(recoveryNeed)} to restore capital before continuing. ${
+      detail: [
+        `Baseline ${fmtUsd(baseline)} → wallet/equity ~${fmtUsd(underwater)}.`,
+        `Suggested top-up to restore capital: ~${fmtUsd(recoveryNeed)}.`,
         lastRecharge?.effective_at
-          ? `Last funding recorded ${String(lastRecharge.effective_at)}. `
-          : ""
-      }While underwater, further losses compound on a smaller wallet.`,
+          ? `Last funding: ${formatWhen(String(lastRecharge.effective_at))}.`
+          : null,
+        "While underwater, further losses compound on a smaller wallet.",
+      ]
+        .filter(Boolean)
+        .join(" "),
       amountUsd: recoveryNeed,
     });
   }
@@ -117,7 +147,7 @@ export function buildUserMistakeInsights(input: {
         }));
 
   let stopMissedTotal = 0;
-  const stopDetails: string[] = [];
+  const stopRows: MistakeStopRow[] = [];
 
   for (const s of stops) {
     const locked =
@@ -147,26 +177,34 @@ export function buildUserMistakeInsights(input: {
     // Only flag when holding would have been materially better
     if (missed > 1) {
       stopMissedTotal = round2(stopMissedTotal + missed);
-      const when = s.stop_snapshot_at ? String(s.stop_snapshot_at) : "stop time";
-      stopDetails.push(
-        `#${s.ticket}${s.symbol ? ` ${s.symbol}` : ""}: stopped at ${fmtUsd(locked)} gross (${when}); if held → ~${fmtUsd(wouldBe)} (${s.master_still_open ? "master still open / current" : "master close"}). Left ~${fmtUsd(missed)} on the table.`,
-      );
+      stopRows.push({
+        ticket: String(s.ticket),
+        symbol: s.symbol ? String(s.symbol) : "—",
+        stoppedAt: formatWhen(s.stop_snapshot_at),
+        stoppedGrossUsd: locked,
+        ifHeldUsd: wouldBe,
+        missedUsd: missed,
+        masterNote: s.master_still_open ? "Master still open" : "Master close",
+      });
     }
   }
 
-  if (stopDetails.length) {
+  stopRows.sort((a, b) => b.missedUsd - a.missedUsd);
+
+  if (stopRows.length) {
     insights.push({
       id: "early-stop-opportunity",
       severity: stopMissedTotal >= 50 ? "high" : "medium",
       title: `Stopped trade(s) early — ~${fmtUsd(stopMissedTotal)} missed vs holding`,
-      detail: stopDetails.slice(0, 8).join(" "),
+      detail: `${stopRows.length} trade(s) locked gains early. Table shows stopped P/L vs holding to master close.`,
       amountUsd: stopMissedTotal,
+      stopRows,
     });
   }
 
   // --- Stopped while already in strong profit (cautionary) ---
   const stoppedInProfit = stops.filter((s) => Number(s.stop_snapshot_gross_pl_usd ?? 0) > 5);
-  if (stoppedInProfit.length && !stopDetails.length) {
+  if (stoppedInProfit.length && !stopRows.length) {
     const sum = round2(
       stoppedInProfit.reduce((a, s) => a + Number(s.stop_snapshot_gross_pl_usd ?? 0), 0),
     );
