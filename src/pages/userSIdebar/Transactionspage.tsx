@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { formatLedgerEntryType } from "@/utils/ledgerEntryLabels";
 
 const PAYMENTS_PAGE_SIZE = 50;
 const LEDGER_PAGE_SIZE = 50;
@@ -276,7 +277,9 @@ const UserTransactions = () => {
                   {ledger.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-50/80">
                       <td className="px-4 py-3 text-slate-600">{formatDate(row.created_at)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{row.entry_type}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {formatLedgerEntryType(row.entry_type)}
+                      </td>
                       <td
                         className={`px-4 py-3 font-semibold tabular-nums ${
                           Number(row.delta_usd) >= 0 ? "text-emerald-700" : "text-red-600"

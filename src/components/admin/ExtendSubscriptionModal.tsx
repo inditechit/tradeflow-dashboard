@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { CalendarClock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,8 @@ import {
 } from "@/utils/adminSubscription";
 import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 
-const PRESET_DAYS = [7, 30, 90, 180, 365];
+const ADD_PRESETS = [7, 30, 90, 180, 365];
+const REMOVE_PRESETS = [7, 30, 90, 180];
 
 type Props = {
   open: boolean;
@@ -61,13 +62,14 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
       .finally(() => setLoadingSub(false));
   }, [open, user?.id, toast]);
 
-  const handleExtend = async (days: number) => {
-    if (!user?.id || !(days > 0)) return;
+  const handleAdjust = async (days: number) => {
+    if (!user?.id || !Number.isFinite(days) || days === 0) return;
     setSaving(true);
     try {
       const result = await extendUserSubscription(Number(user.id), days);
+      const verb = days > 0 ? "extended" : "shortened";
       toast({
-        title: "Package extended",
+        title: `Package ${verb}`,
         description: `Active until ${formatExpiry(result.subscription_expires_override)}`,
       });
       const refreshed = await fetchUserSubscription(Number(user.id));
@@ -75,7 +77,7 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
       onSuccess?.();
     } catch (err) {
       toast({
-        title: "Extend failed",
+        title: "Override failed",
         description: err instanceof Error ? err.message : "Something went wrong",
         variant: "destructive",
       });
@@ -86,13 +88,15 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
 
   if (!user) return null;
 
+  const customNum = Math.trunc(Number(customDays));
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarPlus className="h-5 w-5 text-indigo-600" />
-            Extend package
+            <CalendarClock className="h-5 w-5 text-indigo-600" />
+            Override package
           </DialogTitle>
           <DialogDescription className="text-left">
             <MaskedPii value={user.name ?? "User"} kind="name" /> —{" "}
@@ -132,11 +136,12 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
                 </p>
               )}
               <p className="text-slate-700">
-                Expires: <span className="font-medium tabular-nums">{formatExpiry(sub.expiresAt)}</span>
+                Expires:{" "}
+                <span className="font-medium tabular-nums">{formatExpiry(sub.expiresAt)}</span>
               </p>
               {sub.hasAdminOverride && sub.adminOverrideExpiresAt && (
                 <p className="mt-2 text-xs text-indigo-800">
-                  Admin extension set until {formatExpiry(sub.adminOverrideExpiresAt)}
+                  Admin override set until {formatExpiry(sub.adminOverrideExpiresAt)}
                 </p>
               )}
             </div>
@@ -144,19 +149,40 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Add days (stacks from current expiry if still active)
+              Add days
             </p>
             <div className="flex flex-wrap gap-2">
-              {PRESET_DAYS.map((d) => (
+              {ADD_PRESETS.map((d) => (
                 <Button
-                  key={d}
+                  key={`add-${d}`}
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={saving}
-                  onClick={() => void handleExtend(d)}
+                  onClick={() => void handleAdjust(d)}
                 >
                   +{d}d
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Remove days
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {REMOVE_PRESETS.map((d) => (
+                <Button
+                  key={`rm-${d}`}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  className="border-amber-200 text-amber-900 hover:bg-amber-50"
+                  onClick={() => void handleAdjust(-d)}
+                >
+                  −{d}d
                 </Button>
               ))}
             </div>
@@ -165,21 +191,25 @@ const ExtendSubscriptionModal: React.FC<Props> = ({ open, onClose, user, onSucce
           <div className="flex gap-2">
             <input
               type="number"
-              min={1}
+              min={-3650}
               max={3650}
               value={customDays}
               onChange={(e) => setCustomDays(e.target.value)}
               className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              placeholder="Custom days"
+              placeholder="Days (+add / −remove)"
             />
             <Button
               type="button"
-              disabled={saving || !(Number(customDays) > 0)}
-              onClick={() => void handleExtend(Math.floor(Number(customDays)))}
+              disabled={saving || !Number.isFinite(customNum) || customNum === 0}
+              onClick={() => void handleAdjust(customNum)}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
             </Button>
           </div>
+          <p className="text-[11px] text-slate-500">
+            Positive days extend from the current expiry (if still active). Negative days shorten
+            from the current expiry. Admin override is authoritative.
+          </p>
         </div>
 
         <DialogFooter>

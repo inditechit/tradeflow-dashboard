@@ -293,3 +293,17 @@
 [data-user-theme="dark"] .app-shell textarea::placeholder {
   color: #64748b !important;
 }
+
+/* Admin recording (view-only) mode — hide common native mutate buttons.
+   shadcn Button default/destructive/secondary already hide via context.
+   Mutating fetch is blocked in RecordingModeProvider. */
+.admin-recording-mode .admin-main-panel [data-admin-mutate],
+html[data-recording-mode="true"] .admin-main-panel button.bg-\[\#FFD700\],
+html[data-recording-mode="true"] .admin-main-panel button.bg-emerald-600,
+html[data-recording-mode="true"] .admin-main-panel button.bg-emerald-700,
+html[data-recording-mode="true"] .admin-main-panel button.bg-red-600,
+html[data-recording-mode="true"] .admin-main-panel button.bg-red-700,
+html[data-recording-mode="true"] .admin-main-panel button.bg-indigo-600,
+html[data-recording-mode="true"] .admin-main-panel button.bg-amber-900 {
+  display: none !important;
+}

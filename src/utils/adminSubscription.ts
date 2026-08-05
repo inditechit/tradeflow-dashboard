@@ -35,14 +35,17 @@ export async function extendUserSubscription(
   userId: number,
   extendDays: number,
 ): Promise<{ subscription_expires_override: string }> {
+  if (!Number.isFinite(extendDays) || extendDays === 0) {
+    throw new Error("Days must be a non-zero number (+add / −remove)");
+  }
   const res = await fetch(`${API_BASE}/admin/users/${userId}/subscription`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ extendDays }),
+    body: JSON.stringify({ extendDays: Math.trunc(extendDays) }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
-    throw new Error(data.error || "Failed to extend package");
+    throw new Error(data.error || "Failed to override package");
   }
   return { subscription_expires_override: data.subscription_expires_override };
 }

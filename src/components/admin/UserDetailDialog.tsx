@@ -471,6 +471,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
+                  data-admin-mutate
                   className="gap-1.5 border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100"
                   onClick={() => {
                     onExtendPackage(user);
@@ -478,7 +479,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
                   }}
                 >
                   <CalendarPlus className="h-4 w-4" />
-                  Extend package
+                  Override package
                 </Button>
               )}
               {isAdmin && (

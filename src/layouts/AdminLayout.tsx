@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
+import { Video } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import {
@@ -10,15 +11,46 @@ import { EmployeeTabGuard } from "@/components/auth/EmployeeTabGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AdminCallNotificationProvider } from "@/components/admin/AdminCallNotificationLayer";
 import { AdminPiiRevealProvider } from "@/components/admin/AdminPiiReveal";
+import {
+  RecordingModeProvider,
+  useRecordingMode,
+} from "@/context/RecordingModeContext";
 import { AppLegalFooter } from "@/components/layout/AppLegalFooter";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const AdminLayout = () => {
+function RecordingModeBanner() {
+  const { recordingMode, setRecordingMode } = useRecordingMode();
+  if (!recordingMode) return null;
+  return (
+    <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950 sm:px-4">
+      <p className="flex min-w-0 items-center gap-2 font-medium">
+        <Video className="h-4 w-4 shrink-0" />
+        <span className="truncate">
+          Recording mode — panel is view-only. Add / update / approve actions are hidden.
+        </span>
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        allowInRecording
+        className="shrink-0 border-violet-300 bg-white"
+        onClick={() => setRecordingMode(false)}
+      >
+        Turn off
+      </Button>
+    </div>
+  );
+}
+
+const AdminLayoutInner = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { collapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsed(
     "tradeflow.admin.sidebarCollapsed",
   );
+  const { recordingMode } = useRecordingMode();
 
   useEffect(() => {
     if (mobileNavOpen) {
@@ -58,10 +90,13 @@ const AdminLayout = () => {
   };
 
   return (
-    <ThemeProvider>
-    <AdminCallNotificationProvider>
-    <AdminPiiRevealProvider>
-    <div className="app-shell flex h-[100dvh] min-h-0 bg-white">
+    <div
+      className={cn(
+        "app-shell flex h-[100dvh] min-h-0 bg-white",
+        recordingMode && "admin-recording-mode",
+      )}
+      data-recording-mode={recordingMode ? "true" : undefined}
+    >
       <AdminSidebar
         mobileOpen={mobileNavOpen}
         onClose={() => setMobileNavOpen(false)}
@@ -81,7 +116,8 @@ const AdminLayout = () => {
           sidebarCollapsed={collapsed}
           hideMobileMenuButton
         />
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-2.5 sm:px-4 sm:py-4 md:overflow-x-auto md:p-8">
+        <RecordingModeBanner />
+        <main className="admin-main-panel min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-2.5 sm:px-4 sm:py-4 md:overflow-x-auto md:p-8">
           <div className="mx-auto w-full min-w-0 max-w-7xl pb-16 md:pb-[env(safe-area-inset-bottom)]">
             <EmployeeTabGuard>
               <Outlet />
@@ -96,8 +132,19 @@ const AdminLayout = () => {
         />
       </div>
     </div>
-    </AdminPiiRevealProvider>
-    </AdminCallNotificationProvider>
+  );
+};
+
+const AdminLayout = () => {
+  return (
+    <ThemeProvider>
+      <AdminCallNotificationProvider>
+        <AdminPiiRevealProvider>
+          <RecordingModeProvider>
+            <AdminLayoutInner />
+          </RecordingModeProvider>
+        </AdminPiiRevealProvider>
+      </AdminCallNotificationProvider>
     </ThemeProvider>
   );
 };

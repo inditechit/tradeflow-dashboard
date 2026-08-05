@@ -173,6 +173,11 @@ const DashboardPage = () => {
   );
 
   const needsSettleToSafe = !tradingActive && walletBalance > 0.01;
+  /** Exit pool parks Trading→Safe, so Trading=$0 looks “busted” even with Safe funds. */
+  const trulyExhausted = isBusted && walletBalance <= 0.01 && safeWalletUsd <= 0.01;
+  const canStartTrade =
+    !tradingActive && !needsSettleToSafe && subscriptionActive;
+  const needsSafeToTrading = canStartTrade && walletBalance <= 0.01 && safeWalletUsd > 0.01;
 
   const recomputeOpenPlSequential = useCallback((walletStart: number) => {
     return recomputeOpenUserLivePl(
@@ -410,8 +415,14 @@ const DashboardPage = () => {
 
   const handleRestartTrading = async () => {
     if (!currentUser?.userId || tradingActionLoading) return;
-    if (walletBalance <= 0) {
-      setTradingActionError('Add funds to your wallet before restarting trading.');
+    if (walletBalance <= 0.01 && safeWalletUsd <= 0.01) {
+      setTradingActionError('Recharge first (funds land in Safe), then move Safe → Trading and Start Trade.');
+      return;
+    }
+    if (walletBalance <= 0.01) {
+      setTradingActionError(
+        'Trading wallet is empty. Use the transfer box below: Safe → Trading, then Start Trade.',
+      );
       return;
     }
     setTradingActionLoading(true);
@@ -633,42 +644,61 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {currentUser?.role !== 'admin' && !isBusted && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm sm:px-3 sm:py-2.5">
-            <p className="min-w-0 text-[11px] font-medium text-slate-700 sm:text-sm">
-              {tradingActive
-                ? 'Copy trading running'
-                : needsSettleToSafe
-                  ? 'Paused — Trading funds still need Exit pool → Safe'
-                  : 'Trading settled / paused'}
-            </p>
-            {tradingActive || needsSettleToSafe ? (
-              <button
-                type="button"
-                onClick={() => setExitPoolOpen(true)}
-                disabled={tradingActionLoading}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
-              >
-                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
-                Exit pool
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRestartTrading}
-                disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#FFD700] px-2.5 py-1.5 text-[11px] font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
-              >
-                {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play size={14} />}
-                Start Trade
-              </button>
+        {currentUser?.role !== 'admin' && (tradingActive || needsSettleToSafe || canStartTrade) && (
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm sm:px-3 sm:py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 text-[11px] font-medium text-slate-700 sm:text-sm">
+                {tradingActive
+                  ? 'Copy trading running'
+                  : needsSettleToSafe
+                    ? 'Paused — Trading funds still need Exit pool → Safe'
+                    : needsSafeToTrading
+                      ? 'Paused — move Safe → Trading, then Start Trade'
+                      : 'Trading settled / paused'}
+              </p>
+              {tradingActive || needsSettleToSafe ? (
+                <button
+                  type="button"
+                  onClick={() => setExitPoolOpen(true)}
+                  disabled={tradingActionLoading}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
+                >
+                  {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause size={14} />}
+                  Exit pool
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleRestartTrading()}
+                  disabled={tradingActionLoading || !subscriptionActive || walletBalance <= 0.01}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#FFD700] px-2.5 py-1.5 text-[11px] font-bold text-black transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm"
+                >
+                  {tradingActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play size={14} />}
+                  Start Trade
+                </button>
+              )}
+            </div>
+            {needsSafeToTrading && (
+              <p className="text-[10px] leading-relaxed text-slate-500 sm:text-[11px]">
+                Recharges and Exit-pool funds sit in <span className="font-semibold text-slate-700">Safe</span>.
+                Transfer Safe → Trading below, then tap Start Trade to rejoin the pool.
+              </p>
             )}
           </div>
         )}
 
-        {currentUser?.role !== 'admin' && isBusted && (
+        {currentUser?.role !== 'admin' && trulyExhausted && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-900 sm:px-3 sm:text-sm">
-            Account exhausted — add funds and restart trading to continue.
+            Trading and Safe are empty —{' '}
+            <button
+              type="button"
+              className="font-semibold underline"
+              onClick={() => navigate('/user/recharge')}
+            >
+              recharge
+            </button>
+            {' '}
+            (lands in Safe), move Safe → Trading, then Start Trade.
           </div>
         )}
 
@@ -720,7 +750,7 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && (
+        {currentUser?.role !== 'admin' && assignFunded === false && walletBalance <= 0 && safeWalletUsd <= 0.01 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-950 sm:px-3 sm:text-sm">
             Trading wallet empty —{' '}
             <button
@@ -730,7 +760,7 @@ const DashboardPage = () => {
             >
               add funds
             </button>
-            {tradingActive ? ' and keep trading.' : ', then transfer Safe → Trading.'}
+            {tradingActive ? ' and keep trading.' : ', then transfer Safe → Trading and Start Trade.'}
           </div>
         )}
 
@@ -799,8 +829,8 @@ const DashboardPage = () => {
             </DialogDescription>
           </DialogHeader>
           <p className="text-xs leading-relaxed text-slate-500">
-            Open positions will be closed at the current live price. Remaining Trading balance moves
-            to Safe Wallet after any profit share.
+            Open positions close at the live price. After any admin profit share, remaining Trading
+            balance moves to Safe. To trade again: move Safe → Trading, then tap Start Trade.
           </p>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button
