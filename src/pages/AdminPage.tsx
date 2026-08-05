@@ -1542,7 +1542,7 @@ const AdminPage = () => {
                             className="cursor-pointer"
                             onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
                           >
-                            View trades
+                            Account Statement
                           </DropdownMenuItem>
                         )}
                         {isAdmin && (

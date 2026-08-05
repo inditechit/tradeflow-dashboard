@@ -63,6 +63,23 @@ type PaymentRow = {
   created_at?: string | null;
 };
 
+type TradingControlEvent = {
+  type: "stopped" | "restarted" | string;
+  at: string;
+  note?: string | null;
+  source?: string | null;
+};
+
+type TradingControlHistory = {
+  trading_active_now: boolean;
+  last_stopped_at: string | null;
+  last_restarted_at: string | null;
+  never_restarted_since_last_stop: boolean;
+  stop_count: number;
+  restart_count: number;
+  events: TradingControlEvent[];
+};
+
 function fmtUsd(n: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -70,6 +87,18 @@ function fmtUsd(n: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+}
+
+function formatEventWhen(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return String(iso);
+  }
 }
 
 function tradeOpenedAt(r: UserTradeRow): string {
@@ -120,6 +149,7 @@ const AdminUserTradesPage = () => {
   >([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [stopSettlements, setStopSettlements] = useState<ManualStopSettlementRow[]>([]);
+  const [tradingControl, setTradingControl] = useState<TradingControlHistory | null>(null);
   const [baselineDraft, setBaselineDraft] = useState("");
   const [editingBaseline, setEditingBaseline] = useState(false);
   const [savingBaseline, setSavingBaseline] = useState(false);
@@ -130,17 +160,20 @@ const AdminUserTradesPage = () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesData, summaryRes, paymentsRes, stopsRes] = await Promise.all([
-        fetch(`${API_BASE}/user/profile/${userId}`),
-        fetchAllUserTrades(userId, { admin: true }),
-        fetch(`${API_BASE}/user/summary/${userId}`),
-        fetch(`${API_BASE}/user/payments/${userId}?limit=2000&offset=0`),
-        fetch(`${API_BASE}/admin/users/${userId}/manual-stop-settlements`),
-      ]);
+      const [profileRes, tradesData, summaryRes, paymentsRes, stopsRes, controlRes] =
+        await Promise.all([
+          fetch(`${API_BASE}/user/profile/${userId}`),
+          fetchAllUserTrades(userId, { admin: true }),
+          fetch(`${API_BASE}/user/summary/${userId}`),
+          fetch(`${API_BASE}/user/payments/${userId}?limit=2000&offset=0`),
+          fetch(`${API_BASE}/admin/users/${userId}/manual-stop-settlements`),
+          fetch(`${API_BASE}/admin/users/${userId}/trading-control-history`),
+        ]);
       const profileData = await profileRes.json();
       const summaryData = await summaryRes.json();
       const paymentsData = await paymentsRes.json();
       const stopsData = await stopsRes.json().catch(() => null);
+      const controlData = await controlRes.json().catch(() => null);
       if (summaryData?.success) {
         const wBal = Number(summaryData.wallet_balance ?? 0);
         setWalletBalance(wBal);
@@ -170,6 +203,19 @@ const AdminUserTradesPage = () => {
         setStopSettlements(stopsData.settlements as ManualStopSettlementRow[]);
       } else {
         setStopSettlements([]);
+      }
+      if (controlData?.success) {
+        setTradingControl({
+          trading_active_now: controlData.trading_active_now === true,
+          last_stopped_at: controlData.last_stopped_at ?? null,
+          last_restarted_at: controlData.last_restarted_at ?? null,
+          never_restarted_since_last_stop: controlData.never_restarted_since_last_stop === true,
+          stop_count: Number(controlData.stop_count ?? 0),
+          restart_count: Number(controlData.restart_count ?? 0),
+          events: Array.isArray(controlData.events) ? controlData.events : [],
+        });
+      } else {
+        setTradingControl(null);
       }
       setRows(tradesData.trades as UserTradeRow[]);
       setTotalLoaded(tradesData.total);
@@ -380,6 +426,24 @@ const AdminUserTradesPage = () => {
             <p className="mt-1 text-sm text-slate-500">
               User #{userId} · {openCount} open · {closedCount} closed · {rows.length} assigned
               {totalLoaded > rows.length ? ` (${totalLoaded} total loaded)` : ""}
+              {tradingControl ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span
+                    className={
+                      tradingControl.trading_active_now
+                        ? "font-semibold text-emerald-700"
+                        : "font-semibold text-amber-800"
+                    }
+                  >
+                    {tradingControl.trading_active_now ? "Trading active" : "Trading stopped"}
+                  </span>
+                  {tradingControl.stop_count > 0
+                    ? ` · ${tradingControl.stop_count} stop(s) / ${tradingControl.restart_count} restart(s)`
+                    : null}
+                </>
+              ) : null}
             </p>
           </div>
         </div>
@@ -626,6 +690,74 @@ const AdminUserTradesPage = () => {
             </div>
           </dl>
         </div>
+      </div>
+
+      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-bold text-slate-900">Start / Stop trade history</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Exit pool (stop) and Start Trade (restart) events for this user.
+            {tradingControl?.never_restarted_since_last_stop
+              ? " Currently stopped and has not restarted since the last Exit."
+              : ""}
+          </p>
+        </div>
+        {!tradingControl || tradingControl.events.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500 sm:px-5">
+            No start/stop history recorded for this user yet.
+          </p>
+        ) : (
+          <div className="max-h-72 overflow-auto">
+            <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    When
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Action
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Details
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Source
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[...tradingControl.events].reverse().map((ev, idx) => {
+                  const stopped = ev.type === "stopped";
+                  return (
+                    <tr key={`${ev.type}-${ev.at}-${idx}`} className="hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-700">
+                        {formatEventWhen(ev.at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                            stopped
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-emerald-100 text-emerald-800",
+                          )}
+                        >
+                          {stopped ? "Exit pool / Stop" : "Start Trade / Restart"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-slate-600">
+                        {ev.note || "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-slate-400">
+                        {ev.source || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
