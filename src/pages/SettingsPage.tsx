@@ -62,8 +62,8 @@ export default function SettingsPage({ variant }: SettingsPageProps) {
             {recording.recordingMode ? "Turn recording mode off" : "Turn recording mode on"}
           </Button>
           {recording.recordingMode && (
-            <p className="mt-3 text-xs font-medium text-violet-800">
-              Recording mode is on — panel is view-only until you turn it off.
+            <p className="mt-3 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-900">
+              Recording mode — panel is view-only. Add / update / approve actions are hidden.
             </p>
           )}
         </div>
