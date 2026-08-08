@@ -278,7 +278,7 @@ const UserTransactions = () => {
                     <tr key={row.id} className="hover:bg-slate-50/80">
                       <td className="px-4 py-3 text-slate-600">{formatDate(row.created_at)}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
-                        {formatLedgerEntryType(row.entry_type)}
+                        {formatLedgerEntryType(row.entry_type, row.note)}
                       </td>
                       <td
                         className={`px-4 py-3 font-semibold tabular-nums ${

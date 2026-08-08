@@ -1,5 +1,17 @@
-/** Human-readable labels for wallet ledger entry_type values. */
-export function formatLedgerEntryType(entryType: string | null | undefined): string {
+/** Prefer metadata label/display_type when ledger `note` is JSON from v2. */
+export function formatLedgerEntryType(
+  entryType: string | null | undefined,
+  note?: string | null,
+): string {
+  if (note) {
+    try {
+      const meta = typeof note === "string" ? JSON.parse(note) : note;
+      const label = String(meta?.display_type || meta?.label || "").trim();
+      if (label) return label;
+    } catch {
+      /* plain note string — ignore */
+    }
+  }
   const raw = String(entryType || "").trim();
   if (!raw) return "—";
   const map: Record<string, string> = {

@@ -167,7 +167,7 @@ const AdminWalletLedgerPage = () => {
                       {Number(r.delta_usd).toFixed(4)}
                     </td>
                     <td className="p-3 font-mono">{Number(r.balance_after).toFixed(4)}</td>
-                    <td className="p-3">{formatLedgerEntryType(r.entry_type)}</td>
+                    <td className="p-3">{formatLedgerEntryType(r.entry_type, r.note)}</td>
                     <td className="p-3 text-xs text-slate-500">
                       {r.reference_type ?? "—"} {r.reference_id != null ? `#${r.reference_id}` : ""}
                     </td>
