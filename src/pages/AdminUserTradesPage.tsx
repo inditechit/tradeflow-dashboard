@@ -602,13 +602,28 @@ const AdminUserTradesPage = () => {
             </div>
           );
 
+        const safeToTradingTotal = safeToTrading.reduce(
+          (s, t) => s + (Number(t.amount_usd) || 0),
+          0,
+        );
+        const tradingToSafeTotal = tradingToSafe.reduce(
+          (s, t) => s + (Number(t.amount_usd) || 0),
+          0,
+        );
+
+        const sectionHeading = (label: string, value: string, valueClass = "text-slate-900") => (
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="min-w-0 text-sm font-bold text-slate-800">{label}</h3>
+            <p className={cn("shrink-0 text-sm font-extrabold tabular-nums", valueClass)}>
+              {value}
+            </p>
+          </div>
+        );
+
         return (
           <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4 xl:gap-6">
             <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Safe → Trading · {safeToTrading.length} time
-                {safeToTrading.length === 1 ? "" : "s"}
-              </h3>
+              {sectionHeading("Safe → Trading", fmtUsd(safeToTradingTotal))}
               {dateAmountTable(
                 safeToTrading.map((t) => ({
                   key: `s2t-${t.id}`,
@@ -620,10 +635,7 @@ const AdminUserTradesPage = () => {
             </div>
 
             <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Trading → Safe · {tradingToSafe.length} time
-                {tradingToSafe.length === 1 ? "" : "s"}
-              </h3>
+              {sectionHeading("Trading → Safe", fmtUsd(tradingToSafeTotal))}
               {dateAmountTable(
                 tradingToSafe.map((t) => ({
                   key: `t2s-${t.id}`,
@@ -635,9 +647,7 @@ const AdminUserTradesPage = () => {
             </div>
 
             <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Total deposited {fmtUsd(totalDeposited)}
-              </h3>
+              {sectionHeading("Total deposited", fmtUsd(totalDeposited), "text-emerald-700")}
               {dateAmountTable(
                 successDeposits.map((d, i) => ({
                   key: `dep-${i}`,
@@ -649,9 +659,7 @@ const AdminUserTradesPage = () => {
             </div>
 
             <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Total withdrawn {fmtUsd(totalWithdrawn)}
-              </h3>
+              {sectionHeading("Total withdrawn", fmtUsd(totalWithdrawn))}
               {dateAmountTable(
                 successWithdrawals.map((w) => ({
                   key: `wd-${w.id}`,
