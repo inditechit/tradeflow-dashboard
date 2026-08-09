@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
-import { packageDisplayName } from "@/constants/packages";
 import { isSubscriptionPackageId } from "@/utils/packageDuration";
 import {
   buildUserMistakeInsights,
@@ -70,6 +69,12 @@ type TradingControlEvent = {
   source?: string | null;
 };
 
+type WalletTransferRow = {
+  id: number;
+  amount_usd: number;
+  effective_at?: string | null;
+};
+
 type TradingControlHistory = {
   trading_active_now: boolean;
   last_stopped_at: string | null;
@@ -77,6 +82,10 @@ type TradingControlHistory = {
   never_restarted_since_last_stop: boolean;
   stop_count: number;
   restart_count: number;
+  safe_to_trading_count: number;
+  trading_to_safe_count: number;
+  safe_to_trading: WalletTransferRow[];
+  trading_to_safe: WalletTransferRow[];
   events: TradingControlEvent[];
 };
 
@@ -212,6 +221,14 @@ const AdminUserTradesPage = () => {
           never_restarted_since_last_stop: controlData.never_restarted_since_last_stop === true,
           stop_count: Number(controlData.stop_count ?? 0),
           restart_count: Number(controlData.restart_count ?? 0),
+          safe_to_trading_count: Number(controlData.safe_to_trading_count ?? 0),
+          trading_to_safe_count: Number(controlData.trading_to_safe_count ?? 0),
+          safe_to_trading: Array.isArray(controlData.safe_to_trading)
+            ? controlData.safe_to_trading
+            : [],
+          trading_to_safe: Array.isArray(controlData.trading_to_safe)
+            ? controlData.trading_to_safe
+            : [],
           events: Array.isArray(controlData.events) ? controlData.events : [],
         });
       } else {
@@ -475,10 +492,10 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Complete profit (full wallet credit)
+            Complete profit
           </div>
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-emerald-600 sm:text-base">
             {fmtUsd(tableTotals.profit)}
@@ -486,7 +503,7 @@ const AdminUserTradesPage = () => {
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Complete loss (full wallet credit)
+            Complete loss
           </div>
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-red-600 sm:text-base">
             {fmtUsd(tableTotals.loss)}
@@ -494,7 +511,7 @@ const AdminUserTradesPage = () => {
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Net P/L (full wallet credit)
+            Net P/L
           </div>
           <div
             className={`mt-0.5 text-sm font-extrabold tabular-nums sm:text-base ${plTextClass(tableTotals.net)}`}
@@ -504,35 +521,15 @@ const AdminUserTradesPage = () => {
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Total amount (packages + recharges)
+            Total amount
           </div>
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
             {fmtUsd(paymentTotals.totalAmount)}
           </div>
-          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
-            Packages {fmtUsd(paymentTotals.packageAmount)} · Recharges{" "}
-            {fmtUsd(paymentTotals.rechargeAmount)}
-          </p>
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Total deposited
-          </div>
-          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
-            {fmtUsd(totalDeposited)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
-          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Total withdrawl
-          </div>
-          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
-            {fmtUsd(totalWithdrawn)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
-          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Current wallet (settled)
+            Current wallet
           </div>
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
             {fmtUsd(walletBalance)}
@@ -540,89 +537,13 @@ const AdminUserTradesPage = () => {
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
-            Equity (incl. open P/L)
+            Equity
           </div>
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
             {fmtUsd(equity)}
           </div>
         </div>
       </div>
-
-      {/* All packages — hidden for now
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <h3 className="mb-0.5 text-sm font-bold text-slate-800">
-          All packages ({paymentTotals.packages.length})
-        </h3>
-        <p className="mb-2 text-xs text-slate-500">
-          Successful package purchases. Packages + recharges:{" "}
-          <span className="font-semibold text-slate-700">{fmtUsd(paymentTotals.totalAmount)}</span>
-        </p>
-        {paymentTotals.packages.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500">No successful package purchases.</p>
-        ) : (
-          <div className="max-h-56 overflow-y-auto">
-            <table className="w-full table-fixed text-left text-xs">
-              <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[32%]" />
-                <col className="w-[20%]" />
-                <col className="w-[20%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-500">
-                  <th className="py-1.5 pr-2">Date</th>
-                  <th className="py-1.5 pr-2">Package</th>
-                  <th className="py-1.5 pr-2">Method</th>
-                  <th className="py-1.5 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentTotals.packages.map((p) => (
-                  <tr key={`pkg-${p.id}`} className="border-b border-slate-50">
-                    <td className="py-1.5 pr-2 tabular-nums text-slate-600">
-                      {p.created_at ? formatIsoDateTime(p.created_at) : "—"}
-                    </td>
-                    <td className="truncate py-1.5 pr-2 font-medium text-slate-800">
-                      {packageDisplayName(p.package_id, p.package_name)}
-                    </td>
-                    <td className="py-1.5 pr-2 text-slate-600">{p.payment_method || "—"}</td>
-                    <td className="py-1.5 text-right font-semibold tabular-nums text-emerald-700">
-                      {fmtUsd(Number(p.amount) || 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200">
-                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-700">
-                    Package total
-                  </td>
-                  <td className="py-1.5 text-right font-bold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.packageAmount)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-700">
-                    Recharge total
-                  </td>
-                  <td className="py-1.5 text-right font-bold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.rechargeAmount)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-800">
-                    Grand total (packages + recharges)
-                  </td>
-                  <td className="py-1.5 text-right font-extrabold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.totalAmount)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </div>
-      */}
 
       {(() => {
         const successDeposits = depositHistory.filter((d) => {
@@ -638,96 +559,109 @@ const AdminUserTradesPage = () => {
         const successWithdrawals = withdrawalHistory.filter(
           (w) => String(w.status).toLowerCase() === "completed",
         );
-        if (successDeposits.length === 0 && successWithdrawals.length === 0) return null;
+        const safeToTrading = tradingControl?.safe_to_trading ?? [];
+        const tradingToSafe = tradingControl?.trading_to_safe ?? [];
+
+        const dateAmountTable = (
+          rows: Array<{ id?: number | string; date: string; amount: number; key: string }>,
+          emptyText: string,
+          amountLabel = "Amount",
+        ) =>
+          rows.length === 0 ? (
+            <p className="px-1 py-5 text-center text-sm text-slate-500">{emptyText}</p>
+          ) : (
+            <div className="max-h-56 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <table className="w-full table-fixed text-left text-xs">
+                <colgroup>
+                  <col className="w-[58%]" />
+                  <col className="w-[42%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-500">
+                    <th className="py-2 pr-3 font-semibold">Date</th>
+                    <th className="py-2 pl-2 text-right font-semibold">{amountLabel}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.key} className="border-b border-slate-50 last:border-0">
+                      <td className="whitespace-nowrap py-2.5 pr-3 tabular-nums text-slate-600">
+                        {r.date}
+                      </td>
+                      <td
+                        className={`py-2.5 pl-2 text-right font-semibold tabular-nums ${
+                          r.amount >= 0 ? "text-emerald-700" : "text-red-600"
+                        }`}
+                      >
+                        {fmtUsd(r.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+
         return (
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {successDeposits.length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <h3 className="mb-2 text-sm font-bold text-slate-800">
-                  Deposit record ({successDeposits.length})
-                </h3>
-                <div className="max-h-64 overflow-y-auto">
-                  <table className="w-full table-fixed text-left text-xs">
-                    <colgroup>
-                      <col className="w-[30%]" />
-                      <col className="w-[22%]" />
-                      <col className="w-[24%]" />
-                      <col className="w-[24%]" />
-                    </colgroup>
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-500">
-                        <th className="py-1.5 pr-2">Date</th>
-                        <th className="py-1.5 pr-2">Type</th>
-                        <th className="py-1.5 pr-2">Method</th>
-                        <th className="py-1.5 text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {successDeposits.map((d, i) => (
-                        <tr key={`dep-${i}`} className="border-b border-slate-50">
-                          <td className="py-1.5 pr-2 tabular-nums text-slate-600">
-                            {d.effective_at ? formatIsoDateTime(d.effective_at) : "—"}
-                          </td>
-                          <td className="py-1.5 pr-2 text-slate-700">{d.kind}</td>
-                          <td className="truncate py-1.5 pr-2 text-slate-600">
-                            {d.payment_method || d.package_id || "—"}
-                          </td>
-                          <td
-                            className={`py-1.5 text-right font-semibold tabular-nums ${
-                              d.amount_usd >= 0 ? "text-emerald-700" : "text-red-600"
-                            }`}
-                          >
-                            {fmtUsd(d.amount_usd)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            {successWithdrawals.length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <h3 className="mb-2 text-sm font-bold text-slate-800">
-                  Withdrawal record ({successWithdrawals.length})
-                </h3>
-                <p className="mb-2 text-[11px] text-slate-500">Completed withdrawals only</p>
-                <div className="max-h-64 overflow-y-auto">
-                  <table className="w-full table-fixed text-left text-xs">
-                    <colgroup>
-                      <col className="w-[34%]" />
-                      <col className="w-[22%]" />
-                      <col className="w-[22%]" />
-                      <col className="w-[22%]" />
-                    </colgroup>
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-500">
-                        <th className="py-1.5 pr-2">Date</th>
-                        <th className="py-1.5 pr-2">Status</th>
-                        <th className="py-1.5 text-right">Payout</th>
-                        <th className="py-1.5 text-right">Fee</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {successWithdrawals.map((w) => (
-                        <tr key={`wd-${w.id}`} className="border-b border-slate-50">
-                          <td className="py-1.5 pr-2 tabular-nums text-slate-600">
-                            {formatIsoDateTime(w.completed_at || w.created_at || null)}
-                          </td>
-                          <td className="py-1.5 pr-2 capitalize text-emerald-800">{w.status}</td>
-                          <td className="py-1.5 text-right font-semibold tabular-nums text-slate-800">
-                            {fmtUsd(w.payout_usd)}
-                          </td>
-                          <td className="py-1.5 text-right tabular-nums text-slate-500">
-                            {fmtUsd(w.fee_usd)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4 xl:gap-6">
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">
+                Safe → Trading · {safeToTrading.length} time
+                {safeToTrading.length === 1 ? "" : "s"}
+              </h3>
+              {dateAmountTable(
+                safeToTrading.map((t) => ({
+                  key: `s2t-${t.id}`,
+                  date: formatIsoDateTime(t.effective_at ?? null),
+                  amount: Number(t.amount_usd) || 0,
+                })),
+                "No Safe → Trading transfers.",
+              )}
+            </div>
+
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">
+                Trading → Safe · {tradingToSafe.length} time
+                {tradingToSafe.length === 1 ? "" : "s"}
+              </h3>
+              {dateAmountTable(
+                tradingToSafe.map((t) => ({
+                  key: `t2s-${t.id}`,
+                  date: formatIsoDateTime(t.effective_at ?? null),
+                  amount: Number(t.amount_usd) || 0,
+                })),
+                "No Trading → Safe transfers.",
+              )}
+            </div>
+
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">
+                Total deposited {fmtUsd(totalDeposited)}
+              </h3>
+              {dateAmountTable(
+                successDeposits.map((d, i) => ({
+                  key: `dep-${i}`,
+                  date: d.effective_at ? formatIsoDateTime(d.effective_at) : "—",
+                  amount: d.amount_usd,
+                })),
+                "No deposits recorded.",
+              )}
+            </div>
+
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">
+                Total withdrawn {fmtUsd(totalWithdrawn)}
+              </h3>
+              {dateAmountTable(
+                successWithdrawals.map((w) => ({
+                  key: `wd-${w.id}`,
+                  date: formatIsoDateTime(w.completed_at || w.created_at || null),
+                  amount: Number(w.payout_usd) || 0,
+                })),
+                "No completed withdrawals.",
+                "Payout",
+              )}
+            </div>
           </div>
         );
       })()}
