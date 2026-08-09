@@ -475,31 +475,264 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {(
-          [
-            ["all", `All (${sortedRows.length})`],
-            ["open", `Open (${openCount})`],
-            ["closed", `Closed (${closedCount})`],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            data-recording-safe="true"
-            onClick={() => setStatusFilter(key)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              statusFilter === key
-                ? "bg-yellow-800 text-white"
-                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Complete profit (full wallet credit)
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-emerald-600 sm:text-base">
+            {fmtUsd(tableTotals.profit)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Complete loss (full wallet credit)
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-red-600 sm:text-base">
+            {fmtUsd(tableTotals.loss)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Net P/L (full wallet credit)
+          </div>
+          <div
+            className={`mt-0.5 text-sm font-extrabold tabular-nums sm:text-base ${plTextClass(tableTotals.net)}`}
           >
-            {label}
-          </button>
-        ))}
+            {fmtUsd(tableTotals.net)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Total amount (packages + recharges)
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+            {fmtUsd(paymentTotals.totalAmount)}
+          </div>
+          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+            Packages {fmtUsd(paymentTotals.packageAmount)} · Recharges{" "}
+            {fmtUsd(paymentTotals.rechargeAmount)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Total deposited
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+            {fmtUsd(totalDeposited)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Total withdrawl
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+            {fmtUsd(totalWithdrawn)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Current wallet (settled)
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+            {fmtUsd(walletBalance)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Equity (incl. open P/L)
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+            {fmtUsd(equity)}
+          </div>
+        </div>
       </div>
 
-      <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+      {/* All packages — hidden for now
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <h3 className="mb-0.5 text-sm font-bold text-slate-800">
+          All packages ({paymentTotals.packages.length})
+        </h3>
+        <p className="mb-2 text-xs text-slate-500">
+          Successful package purchases. Packages + recharges:{" "}
+          <span className="font-semibold text-slate-700">{fmtUsd(paymentTotals.totalAmount)}</span>
+        </p>
+        {paymentTotals.packages.length === 0 ? (
+          <p className="py-4 text-center text-sm text-slate-500">No successful package purchases.</p>
+        ) : (
+          <div className="max-h-56 overflow-y-auto">
+            <table className="w-full table-fixed text-left text-xs">
+              <colgroup>
+                <col className="w-[28%]" />
+                <col className="w-[32%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-500">
+                  <th className="py-1.5 pr-2">Date</th>
+                  <th className="py-1.5 pr-2">Package</th>
+                  <th className="py-1.5 pr-2">Method</th>
+                  <th className="py-1.5 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentTotals.packages.map((p) => (
+                  <tr key={`pkg-${p.id}`} className="border-b border-slate-50">
+                    <td className="py-1.5 pr-2 tabular-nums text-slate-600">
+                      {p.created_at ? formatIsoDateTime(p.created_at) : "—"}
+                    </td>
+                    <td className="truncate py-1.5 pr-2 font-medium text-slate-800">
+                      {packageDisplayName(p.package_id, p.package_name)}
+                    </td>
+                    <td className="py-1.5 pr-2 text-slate-600">{p.payment_method || "—"}</td>
+                    <td className="py-1.5 text-right font-semibold tabular-nums text-emerald-700">
+                      {fmtUsd(Number(p.amount) || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200">
+                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-700">
+                    Package total
+                  </td>
+                  <td className="py-1.5 text-right font-bold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.packageAmount)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-700">
+                    Recharge total
+                  </td>
+                  <td className="py-1.5 text-right font-bold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.rechargeAmount)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-1.5 pr-2 font-semibold text-slate-800">
+                    Grand total (packages + recharges)
+                  </td>
+                  <td className="py-1.5 text-right font-extrabold tabular-nums text-slate-900">
+                    {fmtUsd(paymentTotals.totalAmount)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+      */}
+
+      {(() => {
+        const successDeposits = depositHistory.filter((d) => {
+          const kind = String(d.kind || "").toLowerCase();
+          return (
+            d.amount_usd > 0 &&
+            (kind.includes("recharge") ||
+              kind.includes("deposit") ||
+              String(d.package_id || "").toLowerCase() === "recharge" ||
+              !kind.includes("fail"))
+          );
+        });
+        const successWithdrawals = withdrawalHistory.filter(
+          (w) => String(w.status).toLowerCase() === "completed",
+        );
+        if (successDeposits.length === 0 && successWithdrawals.length === 0) return null;
+        return (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {successDeposits.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h3 className="mb-2 text-sm font-bold text-slate-800">
+                  Deposit record ({successDeposits.length})
+                </h3>
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full table-fixed text-left text-xs">
+                    <colgroup>
+                      <col className="w-[30%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[24%]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-500">
+                        <th className="py-1.5 pr-2">Date</th>
+                        <th className="py-1.5 pr-2">Type</th>
+                        <th className="py-1.5 pr-2">Method</th>
+                        <th className="py-1.5 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {successDeposits.map((d, i) => (
+                        <tr key={`dep-${i}`} className="border-b border-slate-50">
+                          <td className="py-1.5 pr-2 tabular-nums text-slate-600">
+                            {d.effective_at ? formatIsoDateTime(d.effective_at) : "—"}
+                          </td>
+                          <td className="py-1.5 pr-2 text-slate-700">{d.kind}</td>
+                          <td className="truncate py-1.5 pr-2 text-slate-600">
+                            {d.payment_method || d.package_id || "—"}
+                          </td>
+                          <td
+                            className={`py-1.5 text-right font-semibold tabular-nums ${
+                              d.amount_usd >= 0 ? "text-emerald-700" : "text-red-600"
+                            }`}
+                          >
+                            {fmtUsd(d.amount_usd)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {successWithdrawals.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h3 className="mb-2 text-sm font-bold text-slate-800">
+                  Withdrawal record ({successWithdrawals.length})
+                </h3>
+                <p className="mb-2 text-[11px] text-slate-500">Completed withdrawals only</p>
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full table-fixed text-left text-xs">
+                    <colgroup>
+                      <col className="w-[34%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[22%]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-500">
+                        <th className="py-1.5 pr-2">Date</th>
+                        <th className="py-1.5 pr-2">Status</th>
+                        <th className="py-1.5 text-right">Payout</th>
+                        <th className="py-1.5 text-right">Fee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {successWithdrawals.map((w) => (
+                        <tr key={`wd-${w.id}`} className="border-b border-slate-50">
+                          <td className="py-1.5 pr-2 tabular-nums text-slate-600">
+                            {formatIsoDateTime(w.completed_at || w.created_at || null)}
+                          </td>
+                          <td className="py-1.5 pr-2 capitalize text-emerald-800">{w.status}</td>
+                          <td className="py-1.5 text-right font-semibold tabular-nums text-slate-800">
+                            {fmtUsd(w.payout_usd)}
+                          </td>
+                          <td className="py-1.5 text-right tabular-nums text-slate-500">
+                            {fmtUsd(w.fee_usd)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
         <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 shadow-sm">
           <div className="flex items-start gap-2 border-b border-amber-200/80 px-4 py-3 sm:px-5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
@@ -692,75 +925,31 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
-      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
-          <h2 className="text-sm font-bold text-slate-900">Start / Stop trade history</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Exit pool (stop) and Start Trade (restart) events for this user.
-            {tradingControl?.never_restarted_since_last_stop
-              ? " Currently stopped and has not restarted since the last Exit."
-              : ""}
-          </p>
-        </div>
-        {!tradingControl || tradingControl.events.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500 sm:px-5">
-            No start/stop history recorded for this user yet.
-          </p>
-        ) : (
-          <div className="max-h-72 overflow-auto">
-            <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    When
-                  </th>
-                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Action
-                  </th>
-                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Details
-                  </th>
-                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Source
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {[...tradingControl.events].reverse().map((ev, idx) => {
-                  const stopped = ev.type === "stopped";
-                  return (
-                    <tr key={`${ev.type}-${ev.at}-${idx}`} className="hover:bg-slate-50/80">
-                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-700">
-                        {formatEventWhen(ev.at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className={cn(
-                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                            stopped
-                              ? "bg-amber-100 text-amber-900"
-                              : "bg-emerald-100 text-emerald-800",
-                          )}
-                        >
-                          {stopped ? "Exit pool / Stop" : "Start Trade / Restart"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-600">
-                        {ev.note || "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-400">
-                        {ev.source || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="mt-4 mb-4 flex flex-wrap gap-2">
+        {(
+          [
+            ["all", `All (${sortedRows.length})`],
+            ["open", `Open (${openCount})`],
+            ["closed", `Closed (${closedCount})`],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            data-recording-safe="true"
+            onClick={() => setStatusFilter(key)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              statusFilter === key
+                ? "bg-yellow-800 text-white"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
         <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -968,213 +1157,69 @@ const AdminUserTradesPage = () => {
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Complete profit (full wallet credit)
-          </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-emerald-600">
-            {fmtUsd(tableTotals.profit)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Complete loss (full wallet credit)
-          </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-red-600">
-            {fmtUsd(tableTotals.loss)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Net P/L (full wallet credit)
-          </div>
-          <div className={`mt-1 text-xl font-extrabold tabular-nums ${plTextClass(tableTotals.net)}`}>
-            {fmtUsd(tableTotals.net)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Total amount (packages + recharges)
-          </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
-            {fmtUsd(paymentTotals.totalAmount)}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-500">
-            Packages {fmtUsd(paymentTotals.packageAmount)} · Recharges{" "}
-            {fmtUsd(paymentTotals.rechargeAmount)}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-bold text-slate-900">Start / Stop trade history</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Exit pool (stop) and Start Trade (restart) events for this user.
+            {tradingControl?.never_restarted_since_last_stop
+              ? " Currently stopped and has not restarted since the last Exit."
+              : ""}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total deposited</div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
-            {fmtUsd(totalDeposited)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total withdrawl</div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
-            {fmtUsd(totalWithdrawn)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Current wallet (settled)
-          </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">
-            {fmtUsd(walletBalance)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Equity (incl. open P/L)
-          </div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums text-slate-900">{fmtUsd(equity)}</div>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-1 text-sm font-bold text-slate-800">
-          All packages ({paymentTotals.packages.length})
-        </h3>
-        <p className="mb-3 text-xs text-slate-500">
-          Successful package purchases for this user. Total amount includes packages + recharges:{" "}
-          <span className="font-semibold text-slate-700">{fmtUsd(paymentTotals.totalAmount)}</span>
-        </p>
-        {paymentTotals.packages.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">No successful package purchases.</p>
+        {!tradingControl || tradingControl.events.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500 sm:px-5">
+            No start/stop history recorded for this user yet.
+          </p>
         ) : (
-          <div className="max-h-72 overflow-y-auto">
-            <table className="w-full text-left text-xs">
+          <div className="max-h-72 overflow-auto">
+            <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-slate-500">
-                  <th className="py-2 pr-2">Date</th>
-                  <th className="py-2 pr-2">Package</th>
-                  <th className="py-2 pr-2">Method</th>
-                  <th className="py-2 text-right">Amount</th>
+                <tr className="border-b border-slate-200">
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    When
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Action
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Details
+                  </th>
+                  <th className="sticky top-0 z-[1] bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Source
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {paymentTotals.packages.map((p) => (
-                  <tr key={`pkg-${p.id}`} className="border-b border-slate-50">
-                    <td className="py-2 pr-2 tabular-nums text-slate-600">
-                      {p.created_at ? formatIsoDateTime(p.created_at) : "—"}
-                    </td>
-                    <td className="py-2 pr-2 font-medium text-slate-800">
-                      {packageDisplayName(p.package_id, p.package_name)}
-                    </td>
-                    <td className="py-2 pr-2 text-slate-600">{p.payment_method || "—"}</td>
-                    <td className="py-2 text-right font-semibold tabular-nums text-emerald-700">
-                      {fmtUsd(Number(p.amount) || 0)}
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-100">
+                {[...tradingControl.events].reverse().map((ev, idx) => {
+                  const stopped = ev.type === "stopped";
+                  return (
+                    <tr key={`${ev.type}-${ev.at}-${idx}`} className="hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-700">
+                        {formatEventWhen(ev.at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                            stopped
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-emerald-100 text-emerald-800",
+                          )}
+                        >
+                          {stopped ? "Exit pool / Stop" : "Start Trade / Restart"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-slate-600">{ev.note || "—"}</td>
+                      <td className="px-4 py-2.5 text-xs text-slate-400">{ev.source || "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200">
-                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-700">
-                    Package total
-                  </td>
-                  <td className="py-2 text-right font-bold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.packageAmount)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-700">
-                    Recharge total
-                  </td>
-                  <td className="py-2 text-right font-bold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.rechargeAmount)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="py-2 pr-2 font-semibold text-slate-800">
-                    Grand total (packages + recharges)
-                  </td>
-                  <td className="py-2 text-right font-extrabold tabular-nums text-slate-900">
-                    {fmtUsd(paymentTotals.totalAmount)}
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}
       </div>
-
-      {(depositHistory.length > 0 || withdrawalHistory.length > 0) && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {depositHistory.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Deposit record ({depositHistory.length})
-              </h3>
-              <div className="max-h-64 overflow-y-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-500">
-                      <th className="py-2 pr-2">Date</th>
-                      <th className="py-2 pr-2">Type</th>
-                      <th className="py-2 pr-2">Method</th>
-                      <th className="py-2 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {depositHistory.map((d, i) => (
-                      <tr key={`dep-${i}`} className="border-b border-slate-50">
-                        <td className="py-2 pr-2 tabular-nums text-slate-600">
-                          {d.effective_at ? formatIsoDateTime(d.effective_at) : "—"}
-                        </td>
-                        <td className="py-2 pr-2 text-slate-700">{d.kind}</td>
-                        <td className="py-2 pr-2 text-slate-600">{d.payment_method || d.package_id || "—"}</td>
-                        <td
-                          className={`py-2 text-right font-semibold tabular-nums ${
-                            d.amount_usd >= 0 ? "text-emerald-700" : "text-red-600"
-                          }`}
-                        >
-                          {fmtUsd(d.amount_usd)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          {withdrawalHistory.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">
-                Withdrawal record ({withdrawalHistory.length})
-              </h3>
-              <div className="max-h-64 overflow-y-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-500">
-                      <th className="py-2 pr-2">Date</th>
-                      <th className="py-2 pr-2">Status</th>
-                      <th className="py-2 text-right">Payout</th>
-                      <th className="py-2 text-right">Fee</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {withdrawalHistory.map((w) => (
-                      <tr key={`wd-${w.id}`} className="border-b border-slate-50">
-                        <td className="py-2 pr-2 tabular-nums text-slate-600">
-                          {formatIsoDateTime(w.completed_at || w.created_at || null)}
-                        </td>
-                        <td className="py-2 pr-2 capitalize text-slate-700">{w.status}</td>
-                        <td className="py-2 text-right font-semibold tabular-nums text-slate-800">
-                          {fmtUsd(w.payout_usd)}
-                        </td>
-                        <td className="py-2 text-right tabular-nums text-slate-500">{fmtUsd(w.fee_usd)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
