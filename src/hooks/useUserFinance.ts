@@ -71,7 +71,6 @@ export function useUserFinance(userId: number | undefined) {
       );
       const safeWallet = Math.max(0, Number(sData?.safe_wallet_usd ?? 0));
       const openPositions = Number(sData?.open_positions ?? 0);
-      const canWithdraw = sData?.can_withdraw === true && openPositions === 0;
       const adminPendingShare = Math.max(
         0,
         Number(sData?.pending_admin_profit_usd ?? sData?.admin_pending_share_usd ?? 0),
@@ -80,7 +79,9 @@ export function useUserFinance(userId: number | undefined) {
         0,
         Number(sData?.user_withdrawable_usd ?? safeWallet),
       );
-      const withdrawable = canWithdraw ? userWithdrawable : 0;
+      const canWithdraw =
+        sData?.can_withdraw === true || safeWallet > 0.01 || userWithdrawable > 0.01;
+      const withdrawable = userWithdrawable > 0 ? userWithdrawable : safeWallet;
 
       setState({
         loading: false,

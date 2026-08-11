@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownToLine, Loader2, Wallet, XCircle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/hooks/use-toast";
-import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { useUserFinance } from "@/hooks/useUserFinance";
-import { getPackageFundWithdrawLock } from "@/utils/trialWithdrawLock";
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { Button } from "@/components/ui/button";
@@ -41,26 +39,11 @@ const WithdrawPage = () => {
   const { currentUser } = useApp();
   const { toast } = useToast();
   const userId = currentUser?.userId;
-  const subscription = useSubscriptionStatus();
-  const fundLock = useMemo(
-    () =>
-      getPackageFundWithdrawLock(
-        subscription.isActive,
-        subscription.activeSegment,
-        subscription.withdrawLock,
-      ),
-    [
-      subscription.isActive,
-      subscription.activeSegment,
-      subscription.withdrawLock,
-    ],
-  );
-
   const { refresh: refreshFinance, ...finance } = useUserFinance(userId);
   const balance = finance.walletBalance;
+  const safeBalance = finance.safeWallet;
   const withdrawableEquity = finance.withdrawable;
   const openPositions = finance.openPositions;
-  const canWithdraw = finance.canWithdraw;
   const softBust = finance.softBust;
   const [payoutSaved, setPayoutSaved] = useState("");
   const [addressDraft, setAddressDraft] = useState("");
@@ -182,16 +165,6 @@ const WithdrawPage = () => {
       });
       return;
     }
-    if (fundLock.locked) {
-      toast({
-        title: "Withdrawal locked",
-        description:
-          fundLock.message ??
-          "Withdrawals are locked until your package fund-lock period ends.",
-        variant: "destructive",
-      });
-      return;
-    }
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt < MIN_TOTAL_WITHDRAW) {
       toast({
@@ -210,19 +183,11 @@ const WithdrawPage = () => {
       });
       return;
     }
-    const maxOut = Math.max(0, finance.withdrawable);
-    if (!canWithdraw) {
-      toast({
-        title: "Open trades active",
-        description: "Settle Trade from the dashboard first. Withdrawals are from Safe Wallet only.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const maxOut = Math.max(0, safeBalance);
     if (amt > maxOut) {
       toast({
-        title: "Insufficient balance",
-        description: `Amount exceeds your withdrawable balance (max $${maxOut.toFixed(2)} incl. $${WITHDRAW_FEE} fee).`,
+        title: "Insufficient Safe Wallet",
+        description: `You can withdraw up to $${maxOut.toFixed(2)} from Safe Wallet (incl. $${WITHDRAW_FEE} fee).`,
         variant: "destructive",
       });
       return;
@@ -357,18 +322,12 @@ const WithdrawPage = () => {
   const hasAddress = Boolean(payoutSaved);
   const kycVerified = kycStatus === "verified";
   const kycBlocked = !kycVerified;
-  const withdrawBlocked = fundLock.locked || !canWithdraw || openPositions > 0 || kycBlocked;
+  const withdrawBlocked = kycBlocked;
   const amountNum = Number(amount);
   const payoutPreview =
     Number.isFinite(amountNum) && amountNum > WITHDRAW_FEE
       ? Math.round((amountNum - WITHDRAW_FEE) * 100) / 100
       : 0;
-  const unlockLabel = fundLock.unlockAt
-    ? new Date(fundLock.unlockAt).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-0 py-4 sm:px-2 md:px-6 md:py-10">
@@ -418,37 +377,6 @@ const WithdrawPage = () => {
         </div>
       )}
 
-      {withdrawBlocked && fundLock.locked && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <p className="font-bold text-amber-900">
-            {fundLock.trialActive ? "Free trial — withdrawals locked" : "Withdrawals locked"}
-          </p>
-          <p className="mt-2">
-            {fundLock.message ??
-              "Your funds stay locked during the package fund-lock period. You can stop trading anytime."}
-          </p>
-          {unlockLabel && (
-            <p className="mt-2 font-semibold tabular-nums">
-              Unlocks: {unlockLabel}
-              {fundLock.daysRemaining > 0
-                ? ` (${fundLock.daysRemaining} day${fundLock.daysRemaining === 1 ? "" : "s"} left)`
-                : ""}
-            </p>
-          )}
-        </div>
-      )}
-
-      {withdrawBlocked && !fundLock.locked && !kycBlocked && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <p className="font-bold text-amber-900">Withdrawal unavailable</p>
-          <p className="mt-2">
-            {openPositions > 0
-              ? "Close all open copy trades before withdrawing."
-              : "Withdrawal is not available right now."}
-          </p>
-        </div>
-      )}
-
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 space-y-3 border-b border-slate-100 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -463,7 +391,7 @@ const WithdrawPage = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm font-medium text-slate-700">Your withdrawable (USDT)</span>
+            <span className="text-sm font-medium text-slate-700">Safe Wallet withdrawable (USDT)</span>
             <p
               className={`text-2xl font-bold tabular-nums ${
                 withdrawableEquity > 0 ? "text-emerald-800" : "text-slate-700"
@@ -474,10 +402,16 @@ const WithdrawPage = () => {
                 : `USD ${withdrawableEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
-          {openPositions > 0 && !loading && !finance.loading && (
+          {balance > 0.01 && safeBalance <= 0.01 && !loading && !finance.loading && (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Funds are in your Trading wallet. Exit pool / Settle to move them to Safe before withdrawing
+              Trading profits.
+            </p>
+          )}
+          {openPositions > 0 && balance > 0.01 && !loading && !finance.loading && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              You have {openPositions} open trade{openPositions === 1 ? "" : "s"}. Use Settle Trade on
-              the dashboard first — withdrawals are from Safe Wallet only and do not take admin share.
+              Open trades do not block Safe withdrawals. Only your Safe balance is withdrawable while
+              trading continues.
             </p>
           )}
           {softBust && openPositions > 0 && !loading && !finance.loading && (
@@ -486,8 +420,8 @@ const WithdrawPage = () => {
             </p>
           )}
           <p className="text-xs text-slate-500">
-            You can withdraw your settled wallet balance (minus the ${WITHDRAW_FEE} processing fee).
-            While trades are open, withdrawable amount stays unavailable until positions are closed.
+            Withdraw from Safe Wallet anytime after KYC verification (minus the ${WITHDRAW_FEE} processing
+            fee). Trading wallet funds stay at risk until you Exit pool / Settle.
           </p>
         </div>
 
