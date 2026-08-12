@@ -63,16 +63,29 @@ const PaymentPage = () => {
     if (!uid) return;
     void (async () => {
       try {
-        const res = await fetch(`${API_BASE}/user/block-access/${uid}`);
-        const data = await res.json();
-        if (data.access?.can_purchase_package === false) {
+        const blockRes = await fetch(`${API_BASE}/user/block-access/${uid}`);
+        const blockData = await blockRes.json();
+        if (blockData.access?.can_purchase_package === false) {
+          navigate("/packages", { replace: true });
+          return;
+        }
+        if (!selectedPackage) return;
+        const subRes = await fetch(`${API_BASE}/user/subscription/${uid}`);
+        const subData = await subRes.json();
+        const blocked = Array.isArray(subData.blockedRepurchasePackageIds)
+          ? subData.blockedRepurchasePackageIds.map(String)
+          : [];
+        if (blocked.includes(selectedPackage.id)) {
+          setErrorMessage(
+            `You have already purchased ${selectedPackage.name} before. Upgrade to a longer plan or skip repurchasing.`,
+          );
           navigate("/packages", { replace: true });
         }
       } catch {
-        /* backend will reject purchase anyway */
+        /* purchase APIs will reject anyway */
       }
     })();
-  }, [currentUser?.userId, navigate]);
+  }, [currentUser?.userId, selectedPackage, navigate]);
 
   const isReferralCheckout = Boolean(
     getStoredReferralKey() || selectedPackage?.hasReferralDiscount,

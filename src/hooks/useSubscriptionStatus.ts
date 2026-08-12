@@ -39,6 +39,8 @@ export type SubscriptionStatus = {
   segments: SubscriptionSegment[];
   activeSegment: SubscriptionSegment | null;
   withdrawLock: WithdrawLockInfo | null;
+  /** Package ids that cannot be repurchased after first purchase (e.g. 1-month). */
+  blockedRepurchasePackageIds: string[];
   /** No active plan (never bought, or stacked period ended) — full app gated except dashboard + withdraw + onboarding. */
   accessRestricted: boolean;
   restrictionReason: RestrictionReason;
@@ -54,6 +56,7 @@ const EMPTY: Omit<SubscriptionStatus, "loading" | "refetch" | "accessRestricted"
   segments: [],
   activeSegment: null,
   withdrawLock: null,
+  blockedRepurchasePackageIds: [],
 };
 
 export function useSubscriptionStatus(): SubscriptionStatus {
@@ -86,6 +89,9 @@ export function useSubscriptionStatus(): SubscriptionStatus {
         segments: Array.isArray(json.segments) ? json.segments : [],
         activeSegment: json.activeSegment ?? null,
         withdrawLock: json.withdrawLock ?? null,
+        blockedRepurchasePackageIds: Array.isArray(json.blockedRepurchasePackageIds)
+          ? json.blockedRepurchasePackageIds.map(String)
+          : [],
       });
     } catch {
       setData(EMPTY);

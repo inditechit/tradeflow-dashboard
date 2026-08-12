@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp, PurchasedPackage } from "@/context/AppContext";
 import { Sparkles, Check, X, AlertTriangle } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   type SubscriptionPackage,
 } from "@/constants/packages";
 import { usePackages, getStoredCouponCode } from "@/hooks/usePackages";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { PackagePriceDisplay } from "@/components/packages/PackagePriceDisplay";
 import { PackageCouponSection } from "@/components/packages/PackageCouponSection";
 import { API_BASE } from "@/config/api";
@@ -31,6 +32,12 @@ const PackagesPage = () => {
   const [purchaseBlocked, setPurchaseBlocked] = useState<string | null>(null);
   const { packages, loading: packagesLoading, referralApplied, couponApplied, reload } = usePackages(
     currentUser?.userId,
+  );
+  const subscription = useSubscriptionStatus();
+
+  const blockedRepurchaseIds = useMemo(
+    () => new Set(subscription.blockedRepurchasePackageIds ?? []),
+    [subscription.blockedRepurchasePackageIds],
   );
 
   useEffect(() => {
@@ -64,6 +71,12 @@ const PackagesPage = () => {
   const handleSelectPackageClick = async (pkg: SubscriptionPackage) => {
     if (purchaseBlocked) {
       alert(purchaseBlocked);
+      return;
+    }
+    if (blockedRepurchaseIds.has(pkg.id)) {
+      alert(
+        `You have already purchased ${pkg.name} before. The 1-month plan cannot be bought again — upgrade to a longer plan or skip repurchasing.`,
+      );
       return;
     }
     setPendingPackage(pkg);
@@ -190,6 +203,7 @@ const PackagesPage = () => {
           const Icon = pkg.icon;
           const isPopular = pkg.popular;
           const isTrial = false;
+          const repurchaseBlocked = blockedRepurchaseIds.has(pkg.id);
 
           return (
             <div
@@ -269,10 +283,17 @@ const PackagesPage = () => {
                 </div>
               </div>
 
+              {repurchaseBlocked ? (
+                <p className="mb-3 text-xs font-medium text-amber-800">
+                  Already purchased — upgrade to 3m / 6m / 1y or skip this plan.
+                </p>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => handleSelectPackageClick(pkg)}
-                className={`w-full py-3 rounded-xl text-sm font-bold transition-all mt-auto
+                disabled={repurchaseBlocked}
+                className={`w-full py-3 rounded-xl text-sm font-bold transition-all mt-auto disabled:cursor-not-allowed disabled:opacity-55
                   ${isPopular
                     ? "bg-[#FFD700] text-black hover:bg-[#E6C200]"
                     : isTrial
@@ -280,7 +301,11 @@ const PackagesPage = () => {
                       : "bg-slate-100 text-slate-900 hover:bg-slate-200"
                   }`}
               >
-                {isTrial ? "Start free trial" : `Select ${pkg.name}`}
+                {repurchaseBlocked
+                  ? "Not available again"
+                  : isTrial
+                    ? "Start free trial"
+                    : `Select ${pkg.name}`}
               </button>
             </div>
           );
