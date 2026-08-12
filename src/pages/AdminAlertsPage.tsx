@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   BellRing,
+  Calendar,
   Loader2,
   PauseCircle,
   PlayCircle,
   RefreshCw,
   CheckCheck,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
@@ -96,6 +98,22 @@ function fmtDateTime(v: string | null | undefined) {
   });
 }
 
+function fmtDateOnly(v: string) {
+  const d = new Date(`${v}T12:00:00`);
+  if (!Number.isFinite(d.getTime())) return v;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function parseDateParam(raw: string | null) {
+  const s = String(raw || "").trim();
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  return s;
+}
+
 function alertTypeLabel(t: string) {
   if (t === "user_stop_trading") return "Stop trading";
   if (t === "user_restart_trading") return "Restart trading";
@@ -145,6 +163,16 @@ const AdminAlertsPage = () => {
     [searchParams],
   );
 
+  const dateFilter = useMemo(
+    () => parseDateParam(searchParams.get("date")),
+    [searchParams],
+  );
+
+  const categoryHeading = useMemo(
+    () => CATEGORY_TABS.find((t) => t.key === category)?.label ?? "All alerts",
+    [category],
+  );
+
   const [readFilter, setReadFilter] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -166,6 +194,7 @@ const AdminAlertsPage = () => {
         });
         if (readFilter === "unread") qs.set("unread", "1");
         if (category !== "all") qs.set("category", category);
+        if (dateFilter) qs.set("date", dateFilter);
         const res = await fetch(`${API_BASE}/admin/alerts?${qs}`);
         const data = await res.json();
         if (data.success) {
@@ -190,7 +219,7 @@ const AdminAlertsPage = () => {
         setListLoading(false);
       }
     },
-    [readFilter, category, toast],
+    [readFilter, category, dateFilter, toast],
   );
 
   const loadDetail = useCallback(
@@ -245,6 +274,17 @@ const AdminAlertsPage = () => {
     setSearchParams(next);
   };
 
+  const setDateFilter = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    const trimmed = parseDateParam(value);
+    if (trimmed) next.set("date", trimmed);
+    else next.delete("date");
+    next.delete("alert");
+    setSearchParams(next);
+  };
+
+  const clearDateFilter = () => setDateFilter("");
+
   const selectAlert = (id: number) => {
     const next = new URLSearchParams(searchParams);
     next.set("alert", String(id));
@@ -294,6 +334,29 @@ const AdminAlertsPage = () => {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+            <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+            <label className="text-xs font-semibold text-slate-600" htmlFor="alerts-date-filter">
+              Date
+            </label>
+            <input
+              id="alerts-date-filter"
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="rounded border-0 bg-transparent py-1 text-sm text-slate-800 focus:outline-none focus:ring-0"
+            />
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={clearDateFilter}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Clear date filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void loadList(page)}>
             <RefreshCw className="mr-1.5 h-4 w-4" />
             Refresh
@@ -338,6 +401,19 @@ const AdminAlertsPage = () => {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <h2 className="text-sm font-bold text-slate-800">{categoryHeading}</h2>
+            {dateFilter ? (
+              <p className="mt-0.5 text-xs text-slate-600">
+                <span className="font-semibold text-slate-800">{total}</span>
+                {total === 1 ? " notification" : " notifications"} on {fmtDateOnly(dateFilter)}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-slate-500">
+                Pick a date to see how many alerts were created that day
+              </p>
+            )}
+          </div>
           <div className="flex border-b border-slate-200">
             {(["all", "unread"] as const).map((f) => (
               <button
@@ -361,7 +437,11 @@ const AdminAlertsPage = () => {
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="p-8 text-center text-sm text-slate-500">No alerts in this category</p>
+            <p className="p-8 text-center text-sm text-slate-500">
+              {dateFilter
+                ? `No alerts on ${fmtDateOnly(dateFilter)} in this category`
+                : "No alerts in this category"}
+            </p>
           ) : (
             <ul className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto">
               {rows.map((a) => (
