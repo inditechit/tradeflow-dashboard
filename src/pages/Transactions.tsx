@@ -3,6 +3,7 @@ import { CalendarRange, RefreshCw } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 
 const PAGE_SIZE = 100;
@@ -374,8 +375,11 @@ const Transactions = () => {
                   <tr key={p.id} className="hover:bg-yellow-50/50 transition">
                     <td className="px-6 py-4 font-bold text-slate-600">{p.id}</td>
                     <td className="px-6 py-4 text-sm text-slate-700">
-                      {p.name ?? "—"}
-                      <span className="block text-xs text-slate-400">#{p.user_id}</span>
+                      <AdminUserTradesLink
+                        userId={p.user_id}
+                        name={p.name ?? "—"}
+                        showId
+                      />
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">{p.email ?? "—"}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{p.mobile ?? "—"}</td>

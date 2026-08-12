@@ -38,6 +38,7 @@ import {
 } from "@/utils/adminLiveFinance";
 import type { UserTradeRowLike } from "@/utils/userTradePl";
 import { plTextClass } from "@/utils/plColors";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
@@ -493,8 +494,14 @@ const AdminFinancialStatsPage = () => {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    {userEarnings.user.name || "User"}{" "}
-                    <span className="font-mono text-base text-slate-500">#{userEarnings.user.id}</span>
+                    <AdminUserTradesLink
+                      userId={userEarnings.user.id}
+                      name={userEarnings.user.name || "User"}
+                      className="text-lg font-bold"
+                    />
+                    <span className="font-mono text-base font-bold text-slate-500">
+                      #{userEarnings.user.id}
+                    </span>
                   </h2>
                   <p className="text-sm text-slate-600">{userEarnings.user.email || "—"}</p>
                   <p className="mt-1 text-xs text-slate-500">

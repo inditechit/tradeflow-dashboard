@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 const WITHDRAW_FEE = 5;
 
@@ -440,8 +441,12 @@ const AdminBulkWithdrawPage = () => {
                         />
                       </td>
                       <td className="px-4 py-3 sm:px-6">
-                        <div className="font-semibold text-slate-900">{u.name ?? "—"}</div>
-                        <div className="text-xs text-slate-500">#{u.user_id}</div>
+                        <AdminUserTradesLink
+                          userId={u.user_id}
+                          name={u.name ?? "—"}
+                          className="font-semibold"
+                          showId
+                        />
                         {u.email && (
                           <div className="text-xs text-slate-600">{u.email}</div>
                         )}

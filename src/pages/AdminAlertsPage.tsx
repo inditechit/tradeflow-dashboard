@@ -13,6 +13,7 @@ import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { cn } from "@/lib/utils";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type AdminAlertRow = {
   id: number;
@@ -448,8 +449,12 @@ const AdminAlertsPage = () => {
                 <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-slate-900">
-                      {detail.user.name || "User"}{" "}
-                      <span className="text-slate-500">#{detail.user.id}</span>
+                      <AdminUserTradesLink
+                        userId={detail.user.id}
+                        name={detail.user.name || "User"}
+                        className="font-semibold"
+                      />
+                      <span className="text-slate-500"> #{detail.user.id}</span>
                     </p>
                     <p className="truncate text-xs text-slate-500">{detail.user.email}</p>
                   </div>

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 import { plTextClass } from "@/utils/plColors";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type ReportUser = {
   id: number;
@@ -216,7 +217,8 @@ function UserHeader({ r }: { r: UserReport }) {
   return (
     <div className="min-w-0">
       <p className="truncate text-sm font-bold text-slate-900">
-        {r.user.name || "User"} <span className="text-slate-500">#{r.user.id}</span>
+        <AdminUserTradesLink userId={r.user.id} name={r.user.name || "User"} className="font-bold" />
+        <span className="text-slate-500"> #{r.user.id}</span>
       </p>
       <p className="truncate text-xs text-slate-500">{r.user.email}</p>
       <div className="mt-1.5">

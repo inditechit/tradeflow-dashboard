@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, FileText, AlertTriangle, Wrench } from "lucide-react";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type WalletDocUser = {
   user_id: number;
@@ -215,8 +216,12 @@ const AdminWalletRebuildDocPage = () => {
                   {topDrift.map((user) => (
                     <tr key={user.user_id} className="hover:bg-yellow-50/40">
                       <td className="px-4 py-3 text-sm">
-                        <div className="font-semibold text-slate-900">{user.name || "User"}</div>
-                        <div className="text-xs text-slate-500">#{user.user_id}</div>
+                        <AdminUserTradesLink
+                          userId={user.user_id}
+                          name={user.name || "User"}
+                          className="font-semibold"
+                          showId
+                        />
                       </td>
                       <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
                         {fmtUsd(user.wallet_june8_usd)}

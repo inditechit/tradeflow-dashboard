@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink, adminUserTradesPath } from "@/components/admin/AdminUserTradesLink";
 
 type PaymentRow = {
   id: number;
@@ -520,11 +521,11 @@ const AdminRechargesPage = () => {
           </div>
           {activeFilter !== null && (
             <Link
-              to={`/admin/user-profile/${activeFilter}`}
+              to={adminUserTradesPath(activeFilter)}
               className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
             >
               <Users className="h-4 w-4" />
-              Open user profile
+              Open user trades
             </Link>
           )}
         </div>
@@ -625,8 +626,12 @@ const AdminRechargesPage = () => {
                         {p.id}
                       </td>
                       <td className="px-4 py-3 sm:px-6 sm:py-4">
-                        <div className="font-semibold text-slate-900">{p.name ?? "—"}</div>
-                        <div className="text-xs text-slate-500">User #{p.user_id}</div>
+                        <AdminUserTradesLink
+                          userId={p.user_id}
+                          name={p.name ?? "—"}
+                          className="font-semibold"
+                          showId
+                        />
                         {p.wallet_address ? (
                           <div className="mt-0.5 max-w-[160px] truncate font-mono text-[10px] text-slate-400" title={p.wallet_address}>
                             {p.wallet_address}

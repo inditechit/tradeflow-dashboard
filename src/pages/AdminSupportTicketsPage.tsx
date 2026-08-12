@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { API_BASE } from "@/config/api";
 import { useApp } from "@/context/AppContext";
 import { maskSupportContactInfo } from "@/utils/supportPrivacy";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type TicketRow = {
   id: number;
@@ -276,9 +277,11 @@ const AdminSupportTicketsPage = () => {
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50/80">
                     <td className="px-4 py-3 font-mono text-xs text-slate-600">#{r.id}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">
-                        {r.user_name || r.user_telegram || `User ${r.user_id}`}
-                      </div>
+                      <AdminUserTradesLink
+                        userId={r.user_id}
+                        name={r.user_name || r.user_telegram || `User ${r.user_id}`}
+                        className="font-medium"
+                      />
                       <div className="text-xs text-slate-500">
                         {r.user_email ? `${r.user_email} · ` : ""}
                         {r.user_telegram ? `@${r.user_telegram}` : ""}
@@ -342,8 +345,15 @@ const AdminSupportTicketsPage = () => {
             </DialogTitle>
             {ticketMeta ? (
               <p className="text-xs text-slate-500">
-                User #{ticketMeta.user_id}
-                {ticketMeta.user_name ? ` · ${ticketMeta.user_name}` : ""}
+                <AdminUserTradesLink
+                  userId={ticketMeta.user_id}
+                  name={
+                    ticketMeta.user_name
+                      ? `User #${ticketMeta.user_id} · ${ticketMeta.user_name}`
+                      : `User #${ticketMeta.user_id}`
+                  }
+                  className="text-xs font-normal text-slate-500 hover:text-yellow-900"
+                />
                 {ticketMeta.user_telegram ? ` · @${ticketMeta.user_telegram}` : ""}
               </p>
             ) : null}

@@ -5,6 +5,7 @@ import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { cn } from "@/lib/utils";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type LoginLocationLog = {
   id: number;
@@ -185,12 +186,11 @@ export default function AdminLoginLocationLogsPage() {
                         {fmtDateTime(row.logged_at)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link
-                          to={`/admin/users?userId=${row.user_id}`}
-                          className="font-semibold text-slate-900 hover:underline"
-                        >
-                          {row.user_name || `User #${row.user_id}`}
-                        </Link>
+                        <AdminUserTradesLink
+                          userId={row.user_id}
+                          name={row.user_name || `User #${row.user_id}`}
+                          className="font-semibold"
+                        />
                         <p className="text-xs text-slate-500">
                           #{row.user_id}
                           {row.user_email ? ` · ${row.user_email}` : ""}

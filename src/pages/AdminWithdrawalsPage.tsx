@@ -27,6 +27,7 @@ import {
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE } from "@/config/api";
 import { Link, useSearchParams } from "react-router-dom";
+import { AdminUserTradesLink, adminUserTradesPath } from "@/components/admin/AdminUserTradesLink";
 
 type WithdrawalRow = {
   id: number;
@@ -508,11 +509,11 @@ const confirmApprove = async () => {
                 Clear user
               </Button>
               <Link
-                to={`/admin/user-profile/${activeUserId}`}
+                to={adminUserTradesPath(activeUserId)}
                 className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-sm font-semibold text-neutral-900 hover:bg-yellow-100"
               >
                 <Users className="h-4 w-4" />
-                Open user profile
+                Open user trades
               </Link>
             </>
           )}
@@ -616,14 +617,12 @@ const confirmApprove = async () => {
                   <tr key={r.id} className="border-b border-slate-100 hover:bg-yellow-50/40">
                     <td className="px-4 py-3 font-mono text-sm text-slate-700 sm:px-6">{r.id}</td>
                     <td className="px-4 py-3 sm:px-6">
-                      <Link
-                        to={`/admin/user-profile/${r.user_id}`}
-                        className="text-left hover:underline"
-                        title="Open user profile"
-                      >
-                        <div className="font-semibold text-slate-900">{r.user_name ?? "—"}</div>
-                        <div className="text-xs text-slate-500">#{r.user_id}</div>
-                      </Link>
+                      <AdminUserTradesLink
+                        userId={r.user_id}
+                        name={r.user_name ?? "—"}
+                        className="font-semibold"
+                        showId
+                      />
                       <div className="break-all text-xs text-slate-600">{r.user_email}</div>
                     </td>
                     <td className="px-4 py-3 sm:px-6">

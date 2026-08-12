@@ -4,6 +4,7 @@ import { AlertTriangle, ExternalLink, Filter, Loader2, RefreshCw, X } from "luci
 import { API_BASE } from "@/config/api";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { Button } from "@/components/ui/button";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type UnmatchedRow = {
   id: number;
@@ -225,13 +226,15 @@ const AdminUnmatchedPaymentsPage = () => {
                     <td className="p-3">
                       {r.user_id ? (
                         <div className="space-y-0.5">
-                          <Link
-                            to={`/admin/user-profile/${r.user_id}`}
-                            className="font-semibold text-neutral-900 hover:underline"
-                          >
-                            #{r.user_id}
-                            {r.user_name ? ` · ${r.user_name}` : ""}
-                          </Link>
+                          <AdminUserTradesLink
+                            userId={r.user_id}
+                            name={
+                              r.user_name
+                                ? `#${r.user_id} · ${r.user_name}`
+                                : `#${r.user_id}`
+                            }
+                            className="font-semibold text-neutral-900"
+                          />
                           {r.user_email ? (
                             <p className="text-xs text-slate-500">{r.user_email}</p>
                           ) : null}

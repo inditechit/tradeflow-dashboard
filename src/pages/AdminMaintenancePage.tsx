@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type MaintUser = {
   id: number;
@@ -259,7 +260,7 @@ const AdminMaintenancePage = () => {
                     />
                   </td>
                   <td className="px-4 py-3 font-medium text-slate-900">
-                    {u.name || "—"}
+                    <AdminUserTradesLink userId={u.id} name={u.name || "—"} className="font-medium" />
                     <span className="ml-2 text-xs text-slate-400">#{u.id}</span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{u.email || "—"}</td>

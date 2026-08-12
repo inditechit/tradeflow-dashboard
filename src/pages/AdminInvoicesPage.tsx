@@ -6,6 +6,7 @@ import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type Invoice = {
   id: number;
@@ -185,10 +186,14 @@ const AdminInvoicesPage = () => {
                   <tr key={inv.id} className="border-b last:border-0 hover:bg-slate-50/80">
                     <td className="px-4 py-3 font-mono text-xs font-semibold">{inv.invoice_number || `#${inv.id}`}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{inv.user_name || "—"}</div>
-                      <div className="text-xs text-slate-400">
-                        #{inv.user_id} · {inv.user_email || "—"}
-                      </div>
+                      <AdminUserTradesLink
+                        userId={inv.user_id}
+                        name={inv.user_name || "—"}
+                        className="font-medium"
+                        showId
+                        idClassName="text-slate-400"
+                      />
+                      <div className="text-xs text-slate-400">{inv.user_email || "—"}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{inv.package_name}</td>
                     <td className="px-4 py-3 font-semibold">${Number(inv.amount).toFixed(2)}</td>
@@ -236,7 +241,7 @@ const AdminInvoicesPage = () => {
             </button>
             <h2 className="text-lg font-bold text-slate-900">Invoice {selected.invoice_number}</h2>
             <p className="text-sm text-slate-500">
-              {selected.user_name} (#{selected.user_id})
+              <AdminUserTradesLink userId={selected.user_id} name={selected.user_name || "User"} />
             </p>
             <dl className="mt-6 space-y-3 text-sm">
               <div className="flex justify-between gap-4 border-b pb-2">

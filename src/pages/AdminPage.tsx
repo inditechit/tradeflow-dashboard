@@ -19,6 +19,7 @@ import AdminVoicePanel from '../components/admin/AdminVoicePanel';
 import UserDetailDialog from '../components/admin/UserDetailDialog';
 import ExtendSubscriptionModal from '../components/admin/ExtendSubscriptionModal';
 import { FilterCheckboxDropdown } from '../components/admin/FilterCheckboxDropdown';
+import { AdminUserTradesLink } from '../components/admin/AdminUserTradesLink';
 import { AdminUsersColumnPicker } from '../components/admin/AdminUsersColumnPicker';
 import { MaskedPii, useAdminPiiReveal, piiDisplay } from '../components/admin/AdminPiiReveal';
 import { Button } from "@/components/ui/button";
@@ -1496,18 +1497,23 @@ const AdminPage = () => {
                 >
                   {showCol("name") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex max-w-full items-center gap-1 text-left font-semibold text-yellow-900 underline-offset-2 hover:underline"
-                        >
-                          <span className="truncate">
-                            <MaskedPii value={loc.name} kind="name" />
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                        </button>
-                      </DropdownMenuTrigger>
+                    <div className="flex items-start gap-0.5">
+                      <AdminUserTradesLink
+                        userId={loc.id}
+                        className="inline-flex max-w-[calc(100%-1.25rem)] truncate font-semibold"
+                      >
+                        <MaskedPii value={loc.name} kind="name" />
+                      </AdminUserTradesLink>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="shrink-0 rounded p-0.5 text-yellow-900 opacity-70 hover:opacity-100"
+                            aria-label="User actions"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-56 border-slate-200 bg-white shadow-lg">
                         <DropdownMenuItem
                           className="cursor-pointer"
@@ -1566,7 +1572,13 @@ const AdminPage = () => {
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <div className="mt-0.5 font-mono text-[11px] text-slate-400">#{loc.id}</div>
+                    </div>
+                    <AdminUserTradesLink
+                      userId={loc.id}
+                      className="mt-0.5 font-mono text-[11px] font-normal text-slate-400 hover:text-yellow-900"
+                    >
+                      #{loc.id}
+                    </AdminUserTradesLink>
                     {!showCol("package") && loc.active_package_id ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[11px] font-medium text-slate-600">

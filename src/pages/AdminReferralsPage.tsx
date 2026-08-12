@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { adminUserTradesPath } from "@/components/admin/AdminUserTradesLink";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
@@ -108,8 +109,8 @@ const AdminReferralsPage = () => {
     return r.referrer_id ? `#${r.referrer_id}` : "—";
   };
 
-  const openProfile = (id: number) => {
-    navigate(`/admin/user-profile/${id}`);
+  const openUserTrades = (id: number) => {
+    navigate(adminUserTradesPath(id));
   };
 
   if (loading && rows.length === 0) {
@@ -125,7 +126,7 @@ const AdminReferralsPage = () => {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Refer a friend</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Click a user name to open their profile. Referrer names filter the list.
+          Click a user name to open their trades. Referrer names filter the list.
         </p>
       </div>
 
@@ -191,7 +192,7 @@ const AdminReferralsPage = () => {
                       <td className="p-3 font-mono">
                         <button
                           type="button"
-                          onClick={() => openProfile(r.id)}
+                          onClick={() => openUserTrades(r.id)}
                           className="font-medium text-indigo-700 underline-offset-2 hover:underline"
                         >
                           {r.id}
@@ -202,7 +203,7 @@ const AdminReferralsPage = () => {
                         {r.name ? (
                           <button
                             type="button"
-                            onClick={() => openProfile(r.id)}
+                            onClick={() => openUserTrades(r.id)}
                             className="text-left font-medium text-slate-800 underline-offset-2 hover:text-indigo-700 hover:underline"
                           >
                             {r.name}
@@ -219,7 +220,7 @@ const AdminReferralsPage = () => {
                             onClick={() =>
                               filterByReferrer(Number(r.referrer_id), refName)
                             }
-                            onDoubleClick={() => openProfile(Number(r.referrer_id))}
+                            onDoubleClick={() => openUserTrades(Number(r.referrer_id))}
                             className={`text-left font-medium underline-offset-2 hover:underline ${
                               referrerFilter?.id === r.referrer_id
                                 ? "text-indigo-700"
@@ -282,7 +283,7 @@ const AdminReferralsPage = () => {
                   <button
                     type="button"
                     onClick={() => filterByReferrer(t.user_id, label)}
-                    onDoubleClick={() => openProfile(t.user_id)}
+                    onDoubleClick={() => openUserTrades(t.user_id)}
                     className={`flex w-full items-start gap-2 p-3 text-left transition hover:bg-indigo-50/60 ${
                       active ? "bg-indigo-50" : ""
                     }`}

@@ -31,6 +31,7 @@ import { useApp } from "@/context/AppContext";
 import { API_BASE } from "@/config/api";
 import { EmployeeAccessModal } from "@/components/admin/EmployeeAccessModal";
 import { MaskedPii, piiDisplay, useAdminPiiReveal } from "@/components/admin/AdminPiiReveal";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type UserDetailDialogProps = {
   user: Record<string, unknown> | null;
@@ -273,7 +274,9 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-left">
-            <MaskedPii value={user.name ?? "User"} kind="name" />
+            <AdminUserTradesLink userId={userId} className="text-lg font-semibold">
+              <MaskedPii value={user.name ?? "User"} kind="name" />
+            </AdminUserTradesLink>
           </DialogTitle>
           <DialogDescription className="text-left break-all">
             <MaskedPii value={user.email} kind="email" empty="" />

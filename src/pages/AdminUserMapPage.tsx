@@ -16,6 +16,7 @@ import {
   normalizeCountryLabel,
   MAP_PROFITABLE_MIN_DEPOSIT_USD,
 } from "@/utils/adminUserMapUtils";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type AdminUserRow = {
   id: number | string;
@@ -437,9 +438,11 @@ const AdminUserMapPage: React.FC = () => {
                   >
                     <Popup>
                       <div className="min-w-[220px] space-y-1 text-sm">
-                        <div className="font-semibold text-slate-900">
-                          {p.name || p.telegram || `User #${p.id}`}
-                        </div>
+                        <AdminUserTradesLink
+                          userId={p.id}
+                          name={p.name || p.telegram || `User #${p.id}`}
+                          className="font-semibold"
+                        />
                         {p.email && <div className="text-slate-600 break-all">{p.email}</div>}
                         {(p.city || p.state || p.country) && (
                           <div className="text-slate-600">

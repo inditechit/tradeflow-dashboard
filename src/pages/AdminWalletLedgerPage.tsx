@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { plTextClass } from "@/utils/plColors";
 import { formatLedgerEntryType } from "@/utils/ledgerEntryLabels";
@@ -159,8 +160,12 @@ const AdminWalletLedgerPage = () => {
                       {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                     </td>
                     <td className="p-3">
-                      <span className="font-mono text-xs">{r.user_id}</span>{" "}
-                      <span className="text-slate-700">{r.user_telegram ?? ""}</span>
+                      <AdminUserTradesLink
+                        userId={r.user_id}
+                        name={r.user_telegram ? `@${r.user_telegram}` : undefined}
+                        className="font-mono text-xs"
+                        showId
+                      />
                     </td>
                     <td className={`p-3 font-mono ${plTextClass(Number(r.delta_usd))}`}>
                       {Number(r.delta_usd) >= 0 ? "+" : ""}

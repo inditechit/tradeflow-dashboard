@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { FileText, Loader2, RefreshCw, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
 import { AdminTableColumnPicker } from "@/components/admin/AdminTableColumnPicker";
 import { Button } from "@/components/ui/button";
@@ -321,7 +322,11 @@ const AdminCapitalStatementPage = () => {
       ) : statement && s ? (
         <>
           <div className="mb-2 text-sm text-slate-600">
-            <span className="font-semibold text-slate-900">{statement.user.name || "User"}</span>
+            <AdminUserTradesLink
+              userId={statement.user.id}
+              name={statement.user.name || "User"}
+              className="font-semibold"
+            />
             <span className="font-mono text-slate-500"> #{statement.user.id}</span>
             {statement.user.email ? <span className="text-slate-500"> · {statement.user.email}</span> : null}
           </div>

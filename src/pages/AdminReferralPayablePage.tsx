@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { API_BASE } from "@/config/api";
+import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
 
 type PayableUser = {
   user_id: number;
@@ -322,12 +323,11 @@ const AdminReferralPayablePage = () => {
                       return (
                         <tr key={row.user_id} className="hover:bg-slate-50/80">
                           <td className="px-4 py-3">
-                            <Link
-                              to={`/admin/user-profile/${row.user_id}`}
-                              className="font-medium text-slate-900 hover:underline"
-                            >
-                              {userLabel(row)}
-                            </Link>
+                            <AdminUserTradesLink
+                              userId={row.user_id}
+                              name={userLabel(row)}
+                              className="font-medium"
+                            />
                             {pending && (
                               <p className="mt-0.5 text-xs text-amber-700">Pending withdrawal in queue</p>
                             )}
@@ -425,12 +425,11 @@ const AdminReferralPayablePage = () => {
                             {new Date(row.completed_at || row.created_at).toLocaleString()}
                           </td>
                           <td className="px-4 py-3">
-                            <Link
-                              to={`/admin/user-profile/${row.user_id}`}
-                              className="font-medium text-slate-900 hover:underline"
-                            >
-                              {userLabel(row)}
-                            </Link>
+                            <AdminUserTradesLink
+                              userId={row.user_id}
+                              name={userLabel(row)}
+                              className="font-medium"
+                            />
                           </td>
                           <td className="px-4 py-3 text-right font-medium tabular-nums">
                             ${fmt(row.payout_amount_usd)}
