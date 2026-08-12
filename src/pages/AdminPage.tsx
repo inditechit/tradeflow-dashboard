@@ -83,6 +83,27 @@ import { useAdminUsersFiltersCollapsed } from "@/utils/adminUsersFiltersCollapse
 const USER_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 const DEFAULT_USER_PAGE_SIZE = 10;
 
+type UserSortMode =
+  | "wallet_high"
+  | "wallet_low"
+  | "joined_new"
+  | "joined_old"
+  | "trading_wallet_high"
+  | "safe_wallet_high";
+
+const WALLET_COLUMN_SORT_MIN_USD = 0.02;
+
+function tradingWalletUsd(loc: {
+  trading_wallet_usd?: unknown;
+  wallet_balance?: unknown;
+}): number {
+  return Number(loc.trading_wallet_usd ?? loc.wallet_balance ?? 0);
+}
+
+function safeWalletUsd(loc: { safe_wallet_usd?: unknown }): number {
+  return Number(loc.safe_wallet_usd ?? 0);
+}
+
 /** Paid packs matched by the Package filter "Active plan" shortcut. */
 const ACTIVE_PLAN_PACKAGE_IDS = new Set(
   SUBSCRIPTION_PACKAGES.filter((pkg) => !pkg.isTrial).map((pkg) => pkg.id),
@@ -209,7 +230,7 @@ const AdminPage = () => {
   const [filterJoinFrom, setFilterJoinFrom] = useState('');
   const [filterJoinTo, setFilterJoinTo] = useState('');
   const [userPageSize, setUserPageSize] = useState<number>(DEFAULT_USER_PAGE_SIZE);
-  const [userSort, setUserSort] = useState<'wallet_high' | 'wallet_low' | 'joined_new' | 'joined_old'>('wallet_high');
+  const [userSort, setUserSort] = useState<UserSortMode>("wallet_high");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
@@ -251,6 +272,9 @@ const AdminPage = () => {
 
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [walletUser, setWalletUser] = useState<any>(null);
+  const toggleWalletColumnSort = useCallback((mode: "trading_wallet_high" | "safe_wallet_high") => {
+    setUserSort((prev) => (prev === mode ? "wallet_high" : mode));
+  }, []);
   const [walletBalance, setWalletBalance] = useState<number | string>("");
   const [isWalletLoading, setIsWalletLoading] = useState(false);
 
@@ -712,6 +736,12 @@ const AdminPage = () => {
         (filterWallet === "with_balance" && bal > 0.02) ||
         (filterWallet === "empty" && bal <= 0.02);
 
+      const matchTradingWalletColumn =
+        userSort !== "trading_wallet_high" ||
+        tradingWalletUsd(loc) > WALLET_COLUMN_SORT_MIN_USD;
+      const matchSafeWalletColumn =
+        userSort !== "safe_wallet_high" || safeWalletUsd(loc) > WALLET_COLUMN_SORT_MIN_USD;
+
       const activePkg = String(loc.active_package_id ?? "").trim();
       const matchPackage =
         filterPackages.length === 0
@@ -761,6 +791,8 @@ const AdminPage = () => {
         matchTag &&
         matchRisk &&
         matchWallet &&
+        matchTradingWalletColumn &&
+        matchSafeWalletColumn &&
         matchPackage &&
         matchTrading &&
         matchOpenPl &&
@@ -782,6 +814,18 @@ const AdminPage = () => {
 
       if (userSort === "joined_new" || userSort === "joined_old") {
         return compareUsersByJoin(a, b, userSort);
+      }
+
+      if (userSort === "trading_wallet_high") {
+        const diff = tradingWalletUsd(b) - tradingWalletUsd(a);
+        if (diff !== 0) return diff;
+        return Number(b.id) - Number(a.id);
+      }
+
+      if (userSort === "safe_wallet_high") {
+        const diff = safeWalletUsd(b) - safeWalletUsd(a);
+        if (diff !== 0) return diff;
+        return Number(b.id) - Number(a.id);
       }
 
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
@@ -879,6 +923,10 @@ const AdminPage = () => {
         return "join date (newest first)";
       case "joined_old":
         return "join date (oldest first)";
+      case "trading_wallet_high":
+        return "trading wallet (high → low, hide $0)";
+      case "safe_wallet_high":
+        return "safe wallet (high → low, hide $0)";
       default:
         return "wallet balance (high → low)";
     }
@@ -1313,7 +1361,7 @@ const AdminPage = () => {
           <select
             value={userSort}
             onChange={(e) =>
-              setUserSort(e.target.value as "wallet_high" | "wallet_low" | "joined_new" | "joined_old")
+              setUserSort(e.target.value as UserSortMode)
             }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
@@ -1372,9 +1420,22 @@ const AdminPage = () => {
 
       {totals && (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => toggleWalletColumnSort("trading_wallet_high")}
+            className={cn(
+              "rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
+              userSort === "trading_wallet_high"
+                ? "border-amber-400 bg-amber-100 ring-2 ring-amber-300/60"
+                : "border-amber-200 bg-amber-50/50",
+            )}
+            title="Sort users by trading wallet (high → low). Hides $0 balances. Click again to reset."
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
               Trading Wallet total
+              {userSort === "trading_wallet_high" ? (
+                <span className="ml-1 normal-case text-[10px] font-bold">· sorted</span>
+              ) : null}
             </p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
               USD{" "}
@@ -1383,10 +1444,23 @@ const AdminPage = () => {
                 maximumFractionDigits: 2,
               })}
             </p>
-          </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleWalletColumnSort("safe_wallet_high")}
+            className={cn(
+              "rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
+              userSort === "safe_wallet_high"
+                ? "border-emerald-400 bg-emerald-100 ring-2 ring-emerald-300/60"
+                : "border-emerald-200 bg-emerald-50/50",
+            )}
+            title="Sort users by safe wallet (high → low). Hides $0 balances. Click again to reset."
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900">
               Safe Wallet total
+              {userSort === "safe_wallet_high" ? (
+                <span className="ml-1 normal-case text-[10px] font-bold">· sorted</span>
+              ) : null}
             </p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
               USD{" "}
@@ -1395,7 +1469,7 @@ const AdminPage = () => {
                 maximumFractionDigits: 2,
               })}
             </p>
-          </div>
+          </button>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Total withdraw
@@ -1458,14 +1532,51 @@ const AdminPage = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200">
-                {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => (
+                {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => {
+                  const isTradingWalletCol = col.id === "wallet";
+                  const isSafeWalletCol = col.id === "safe_wallet";
+
+                  return (
                   <th
                     key={col.id}
-                    className="sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-6 sm:py-4"
+                    className={cn(
+                      "sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-6 sm:py-4",
+                      (isTradingWalletCol || isSafeWalletCol) &&
+                        "cursor-pointer select-none hover:bg-slate-100",
+                      isTradingWalletCol &&
+                        userSort === "trading_wallet_high" &&
+                        "bg-amber-50 text-amber-900",
+                      isSafeWalletCol &&
+                        userSort === "safe_wallet_high" &&
+                        "bg-emerald-50 text-emerald-900",
+                    )}
+                    onClick={
+                      isTradingWalletCol
+                        ? () => toggleWalletColumnSort("trading_wallet_high")
+                        : isSafeWalletCol
+                          ? () => toggleWalletColumnSort("safe_wallet_high")
+                          : undefined
+                    }
+                    title={
+                      isTradingWalletCol
+                        ? "Sort by trading wallet (high → low). Hides $0. Click again to reset."
+                        : isSafeWalletCol
+                          ? "Sort by safe wallet (high → low). Hides $0. Click again to reset."
+                          : undefined
+                    }
                   >
-                    {col.label}
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {isTradingWalletCol && userSort === "trading_wallet_high" ? (
+                        <span className="text-[10px] font-bold normal-case text-amber-800">↓</span>
+                      ) : null}
+                      {isSafeWalletCol && userSort === "safe_wallet_high" ? (
+                        <span className="text-[10px] font-bold normal-case text-emerald-800">↓</span>
+                      ) : null}
+                    </span>
                   </th>
-                ))}
+                  );
+                })}
               </tr>
             </thead>
 
@@ -1644,12 +1755,18 @@ const AdminPage = () => {
 
                   {showCol("wallet") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="font-semibold tabular-nums text-slate-900">
-                      {loc.wallet_currency ?? "USD"}{" "}
-                      {fmtUsdCell(
-                        Number(loc.trading_wallet_usd ?? loc.wallet_balance ?? walletBal),
+                    <button
+                      type="button"
+                      onClick={() => toggleWalletColumnSort("trading_wallet_high")}
+                      className={cn(
+                        "text-left font-semibold tabular-nums text-slate-900 underline-offset-2 hover:text-amber-900 hover:underline",
+                        userSort === "trading_wallet_high" && "text-amber-900",
                       )}
-                    </div>
+                      title="Sort by trading wallet (high → low)"
+                    >
+                      {loc.wallet_currency ?? "USD"}{" "}
+                      {fmtUsdCell(tradingWalletUsd(loc))}
+                    </button>
                     {Number(loc.has_wallet) === 0 && (
                       <span className="text-xs text-slate-400">No wallet</span>
                     )}
@@ -1658,10 +1775,18 @@ const AdminPage = () => {
 
                   {showCol("safe_wallet") && (
                   <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="font-semibold tabular-nums text-slate-900">
+                    <button
+                      type="button"
+                      onClick={() => toggleWalletColumnSort("safe_wallet_high")}
+                      className={cn(
+                        "text-left font-semibold tabular-nums text-slate-900 underline-offset-2 hover:text-emerald-800 hover:underline",
+                        userSort === "safe_wallet_high" && "text-emerald-800",
+                      )}
+                      title="Sort by safe wallet (high → low)"
+                    >
                       {loc.wallet_currency ?? "USD"}{" "}
-                      {fmtUsdCell(Number(loc.safe_wallet_usd ?? 0))}
-                    </div>
+                      {fmtUsdCell(safeWalletUsd(loc))}
+                    </button>
                   </td>
                   )}
 
