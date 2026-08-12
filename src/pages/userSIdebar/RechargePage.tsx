@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { QRCodeCanvas } from "qrcode.react";
+import { API_BASE } from "@/config/api";
 
 const MIN_RECHARGE_USD = 100;
+
+type CreditTarget = "safe" | "trading";
 
 const Recharge = () => {
   const [amount, setAmount] = useState("");
   const [method] = useState("USD");
+  const [creditTarget, setCreditTarget] = useState<CreditTarget>("safe");
   const [loading, setLoading] = useState(false);
-  const [paymentData, setPaymentData] = useState(null);
+  const [paymentData, setPaymentData] = useState<{
+    paymentId: number;
+    amount: number;
+    wallet: string;
+    credit_target?: CreditTarget;
+  } | null>(null);
 
   // ✅ NEW STATES (added only)
   const [isChecking, setIsChecking] = useState(false);
@@ -16,7 +25,6 @@ const Recharge = () => {
 
   const userData = JSON.parse(localStorage.getItem("mt5_user"));
   const userId = userData?.userId;
-  const API_BASE = 'https://api.copytradeengine.org/api';
 
   const amountUsd = Number(amount);
   const amountTooLow =
@@ -38,7 +46,8 @@ const Recharge = () => {
       const res = await axios.post(`${API_BASE}/recharge`, {
         userId,
         amount: amountUsd,
-        payment_method: "USDT"
+        payment_method: "USDT",
+        credit_target: creditTarget,
       });
 
       setPaymentData(res.data);
@@ -123,6 +132,42 @@ const Recharge = () => {
 
           <div className="mb-6">
             <label className="block font-medium mb-3">
+              Deposit to
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCreditTarget("safe")}
+                className={`py-3 px-4 rounded-lg border text-left transition ${
+                  creditTarget === "safe"
+                    ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span className="block font-semibold">Safe wallet</span>
+                <span className="block text-xs text-gray-500 mt-1">
+                  Default — withdraw anytime; move to trading when ready
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreditTarget("trading")}
+                className={`py-3 px-4 rounded-lg border text-left transition ${
+                  creditTarget === "trading"
+                    ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span className="block font-semibold">Trading wallet</span>
+                <span className="block text-xs text-gray-500 mt-1">
+                  Funds go directly to your trading balance
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block font-medium mb-3">
               Payment Method
             </label>
             <div className="w-full py-3 rounded-lg border font-semibold bg-black text-white text-center">
@@ -155,7 +200,12 @@ const Recharge = () => {
                 </svg>
               </div>
               <h2 className="text-3xl font-bold text-[#21c17a] mb-2">Payment Successful!</h2>
-              <p className="text-gray-600 font-medium">Your recharge has been verified securely.</p>
+              <p className="text-gray-600 font-medium">
+                Your recharge has been verified and credited to your{" "}
+                {(paymentData?.credit_target ?? creditTarget) === "trading"
+                  ? "trading wallet"
+                  : "safe wallet"}.
+              </p>
             </div>
           ) : (
             /* ⏳ PENDING UI */
@@ -175,6 +225,14 @@ const Recharge = () => {
                   <p className="mb-2">
                     Amount:{" "}
                     <b>{Number(paymentData.amount).toFixed(0)} USD</b>
+                  </p>
+                  <p className="mb-2 text-sm text-gray-600">
+                    Credit to:{" "}
+                    <b>
+                      {(paymentData.credit_target ?? creditTarget) === "trading"
+                        ? "Trading wallet"
+                        : "Safe wallet"}
+                    </b>
                   </p>
 
                   {/* QR */}

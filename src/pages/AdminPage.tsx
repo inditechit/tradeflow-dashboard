@@ -87,11 +87,21 @@ const ACTIVE_PLAN_PACKAGE_IDS = new Set(
   SUBSCRIPTION_PACKAGES.filter((pkg) => !pkg.isTrial).map((pkg) => pkg.id),
 );
 
-/** Default package filter: paid active plans only (1m / 3m / 6m / 1y). */
-const DEFAULT_FILTER_PACKAGES = ["active"] as const;
+const ADMIN_OVERRIDE_PACKAGE_ID = "admin-override";
+
+/** Default: show users without an active paid plan (hide active + admin override). */
+const DEFAULT_FILTER_PACKAGES: string[] = [];
 
 function isDefaultPackageFilter(packages: string[]): boolean {
-  return packages.length === 1 && packages[0] === "active";
+  return packages.length === 0;
+}
+
+function userHasActivePaidOrOverridePlan(loc: {
+  active_package_id?: unknown;
+}): boolean {
+  const activePkg = String(loc.active_package_id ?? "").trim();
+  if (!activePkg) return false;
+  return ACTIVE_PLAN_PACKAGE_IDS.has(activePkg) || activePkg === ADMIN_OVERRIDE_PACKAGE_ID;
 }
 
 /** Whole days remaining until a package end date (null if no/invalid date). */
@@ -640,7 +650,7 @@ const AdminPage = () => {
   const packageFilterOptions = useMemo(
     () => [
       { value: "none", label: "No active plan" },
-      { value: "active", label: "Active plan" },
+      { value: "active", label: "Active plan (+ admin override)" },
       { value: "expired", label: "Expired plan" },
       ...SUBSCRIPTION_PACKAGES.map((pkg) => ({ value: pkg.id, label: pkg.name })),
     ],
@@ -703,13 +713,14 @@ const AdminPage = () => {
 
       const activePkg = String(loc.active_package_id ?? "").trim();
       const matchPackage =
-        filterPackages.length === 0 ||
-        filterPackages.some((selected) => {
-          if (selected === "none") return !activePkg;
-          if (selected === "active") return ACTIVE_PLAN_PACKAGE_IDS.has(activePkg);
-          if (selected === "expired") return userPackageExpired(loc);
-          return activePkg === selected;
-        });
+        filterPackages.length === 0
+          ? !userHasActivePaidOrOverridePlan(loc)
+          : filterPackages.some((selected) => {
+              if (selected === "none") return !activePkg;
+              if (selected === "active") return userHasActivePaidOrOverridePlan(loc);
+              if (selected === "expired") return userPackageExpired(loc);
+              return activePkg === selected;
+            });
 
       const copyActive = isTradeActive(loc);
       const matchTrading =
@@ -1206,7 +1217,7 @@ const AdminPage = () => {
           selected={filterPackages}
           onToggle={toggleFilterPackage}
           onClear={() => setFilterPackages([])}
-          emptyLabel="All packages"
+          emptyLabel="Default (hide active plans)"
           className="sm:col-span-2"
         />
         <div>
