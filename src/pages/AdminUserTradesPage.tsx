@@ -16,7 +16,16 @@ import {
   type MistakeInsight,
 } from "@/utils/adminUserMistakeInsights";
 import { MaskedPii } from "@/components/admin/AdminPiiReveal";
+import { AdminTableColumnPicker } from "@/components/admin/AdminTableColumnPicker";
 import { cn } from "@/lib/utils";
+import {
+  ADMIN_USER_TRADES_TABLE_COLUMNS,
+  defaultAdminUserTradesColumnVisibility,
+  loadAdminUserTradesColumnVisibility,
+  saveAdminUserTradesColumnVisibility,
+  type AdminUserTradesColumnId,
+  type AdminUserTradesColumnVisibility,
+} from "@/utils/adminUserTradesTableColumns";
 
 const PAGE_SIZE = 50;
 import {
@@ -87,6 +96,40 @@ type TradingControlHistory = {
   safe_to_trading: WalletTransferRow[];
   trading_to_safe: WalletTransferRow[];
   events: TradingControlEvent[];
+};
+
+type BaselineHistoryEvent = {
+  at: string;
+  kind: string;
+  label: string;
+  change_usd: number;
+  baseline_before_usd: number;
+  baseline_after_usd: number;
+  source_id?: number;
+};
+
+type BaselinePeriodRow = {
+  from: string | null;
+  to: string | null;
+  baseline_usd: number;
+  reason: string;
+  change_usd?: number;
+  kind?: string;
+  ongoing?: boolean;
+};
+
+type BaselineAuditRow = {
+  id: number;
+  event_type: string;
+  amount_usd: number;
+  baseline_before_usd: number;
+  baseline_after_usd: number;
+  wallet_before_usd: number | null;
+  wallet_after_usd: number | null;
+  effective_at: string | null;
+  source_table: string | null;
+  source_id: number | null;
+  note: string | null;
 };
 
 function fmtUsd(n: number) {
@@ -162,14 +205,38 @@ const AdminUserTradesPage = () => {
   const [baselineDraft, setBaselineDraft] = useState("");
   const [editingBaseline, setEditingBaseline] = useState(false);
   const [savingBaseline, setSavingBaseline] = useState(false);
+  const [baselineHistory, setBaselineHistory] = useState<{
+    events: BaselineHistoryEvent[];
+    periods: BaselinePeriodRow[];
+    audit_log: BaselineAuditRow[];
+    baseline_locked?: boolean;
+  } | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [columnVisibility, setColumnVisibility] = useState<AdminUserTradesColumnVisibility>(() =>
+    loadAdminUserTradesColumnVisibility(),
+  );
+
+  const showCol = useCallback(
+    (id: AdminUserTradesColumnId) => columnVisibility[id] === true,
+    [columnVisibility],
+  );
+
+  const visibleColumnCount = useMemo(
+    () => ADMIN_USER_TRADES_TABLE_COLUMNS.filter((c) => showCol(c.id)).length,
+    [showCol],
+  );
+
+  const handleColumnVisibilityChange = useCallback((next: AdminUserTradesColumnVisibility) => {
+    setColumnVisibility(next);
+    saveAdminUserTradesColumnVisibility(next);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [profileRes, tradesData, summaryRes, paymentsRes, stopsRes, controlRes] =
+      const [profileRes, tradesData, summaryRes, paymentsRes, stopsRes, controlRes, baselineRes] =
         await Promise.all([
           fetch(`${API_BASE}/user/profile/${userId}`),
           fetchAllUserTrades(userId, { admin: true }),
@@ -177,12 +244,14 @@ const AdminUserTradesPage = () => {
           fetch(`${API_BASE}/user/payments/${userId}?limit=2000&offset=0`),
           fetch(`${API_BASE}/admin/users/${userId}/manual-stop-settlements`),
           fetch(`${API_BASE}/admin/users/${userId}/trading-control-history`),
+          fetch(`${API_BASE}/admin/users/${userId}/baseline-history`),
         ]);
       const profileData = await profileRes.json();
       const summaryData = await summaryRes.json();
       const paymentsData = await paymentsRes.json();
       const stopsData = await stopsRes.json().catch(() => null);
       const controlData = await controlRes.json().catch(() => null);
+      const baselineData = await baselineRes.json().catch(() => null);
       if (summaryData?.success) {
         const wBal = Number(summaryData.wallet_balance ?? 0);
         setWalletBalance(wBal);
@@ -233,6 +302,16 @@ const AdminUserTradesPage = () => {
         });
       } else {
         setTradingControl(null);
+      }
+      if (baselineData?.success) {
+        setBaselineHistory({
+          events: Array.isArray(baselineData.events) ? baselineData.events : [],
+          periods: Array.isArray(baselineData.periods) ? baselineData.periods : [],
+          audit_log: Array.isArray(baselineData.audit_log) ? baselineData.audit_log : [],
+          baseline_locked: baselineData.baseline_locked === true,
+        });
+      } else {
+        setBaselineHistory(null);
       }
       setRows(tradesData.trades as UserTradeRow[]);
       setTotalLoaded(tradesData.total);
@@ -419,7 +498,8 @@ const AdminUserTradesPage = () => {
     return <Navigate to="/admin/users" replace />;
   }
 
-  const COL_COUNT = 16;
+  const thClass =
+    "sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]";
 
   return (
     <div className="mx-auto max-w-[110rem] px-0 py-4 sm:px-2 md:px-6 md:py-8">
@@ -867,6 +947,130 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
+      <div className="mb-4 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
+        <div className="border-b border-indigo-100 bg-indigo-50/40 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-bold text-slate-900">Deposit baseline history</h2>
+          <p className="mt-0.5 text-xs text-slate-600">
+            Recharges (incl. Safe wallet), withdrawals, admin edits, and system syncs. Current baseline{" "}
+            <span className="font-semibold tabular-nums">{fmtUsd(depositBaseline)}</span>
+            {baselineHistory?.baseline_locked ? (
+              <span className="ml-1 font-semibold text-amber-800">(locked)</span>
+            ) : null}
+          </p>
+        </div>
+        <div className="max-h-[20rem] overflow-auto">
+          <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 font-bold uppercase tracking-wide text-slate-500">
+                  When
+                </th>
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 font-bold uppercase tracking-wide text-slate-500">
+                  Event
+                </th>
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                  Change
+                </th>
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                  Before
+                </th>
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 text-right font-bold uppercase tracking-wide text-slate-500">
+                  After
+                </th>
+                <th className="sticky top-0 z-[1] bg-slate-50 px-3 py-2 font-bold uppercase tracking-wide text-slate-500">
+                  Source
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {baselineHistory == null && loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Loading…</td>
+                </tr>
+              ) : baselineHistory &&
+                baselineHistory.audit_log.length + baselineHistory.events.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    No baseline history recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {(baselineHistory?.audit_log ?? []).map((row) => (
+                    <tr key={`audit-${row.id}`} className="hover:bg-indigo-50/30">
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">
+                        {formatEventWhen(row.effective_at)}
+                      </td>
+                      <td className="px-3 py-2 text-slate-800">
+                        <span className="font-semibold">{row.event_type}</span>
+                        {row.note ? (
+                          <span className="mt-0.5 block text-[11px] text-slate-500">{row.note}</span>
+                        ) : null}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-semibold tabular-nums ${plTextClass(row.amount_usd)}`}
+                      >
+                        {row.amount_usd >= 0 ? "+" : ""}
+                        {fmtUsd(row.amount_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                        {fmtUsd(row.baseline_before_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-extrabold tabular-nums text-slate-900">
+                        {fmtUsd(row.baseline_after_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-[11px] text-slate-500">
+                        {row.source_table ? `${row.source_table} #${row.source_id ?? "—"}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {(baselineHistory?.events ?? []).map((ev, i) => (
+                    <tr key={`recon-${ev.at}-${i}`} className="hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">
+                        {formatEventWhen(ev.at)}
+                      </td>
+                      <td className="px-3 py-2 text-slate-800">
+                        <span className="font-semibold">{ev.label}</span>
+                        <span className="ml-1 text-[10px] uppercase text-slate-400">reconstructed</span>
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-semibold tabular-nums ${plTextClass(ev.change_usd)}`}
+                      >
+                        {ev.change_usd >= 0 ? "+" : ""}
+                        {fmtUsd(ev.change_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                        {fmtUsd(ev.baseline_before_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-extrabold tabular-nums text-slate-900">
+                        {fmtUsd(ev.baseline_after_usd)}
+                      </td>
+                      <td className="px-3 py-2 text-[11px] text-slate-500">
+                        {ev.kind}
+                        {ev.source_id != null ? ` #${ev.source_id}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {baselineHistory && baselineHistory.periods.length > 0 ? (
+          <div className="border-t border-indigo-100 bg-slate-50/50 px-4 py-2 text-[11px] text-slate-600 sm:px-5">
+            <span className="font-semibold text-slate-700">Periods: </span>
+            {baselineHistory.periods
+              .slice(-3)
+              .map((p) =>
+                `${p.from ? new Date(p.from).toLocaleDateString() : "start"} → ${
+                  p.ongoing ? "now" : p.to ? new Date(p.to).toLocaleDateString() : "—"
+                }: ${fmtUsd(p.baseline_usd)}`,
+              )
+              .join(" · ")}
+          </div>
+        ) : null}
+      </div>
+
       <div className="mt-4 mb-4 flex flex-wrap gap-2">
         {(
           [
@@ -892,82 +1096,48 @@ const AdminUserTradesPage = () => {
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
-        <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
-          <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Per trade: gross P/L, wallet credit (after baseline recovery + performance fee), exposure
-            split, and admin risk on uncovered trade size.
-          </p>
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+          <div>
+            <h2 className="text-base font-semibold text-slate-800">Per-trade P/L</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Per trade: gross P/L, wallet credit (after baseline recovery + performance fee), exposure
+              split, and admin risk on uncovered trade size.
+            </p>
+          </div>
+          <AdminTableColumnPicker
+            columns={ADMIN_USER_TRADES_TABLE_COLUMNS}
+            visibility={columnVisibility}
+            onChange={handleColumnVisibilityChange}
+            onReset={() => handleColumnVisibilityChange(defaultAdminUserTradesColumnVisibility())}
+          />
         </div>
         {/* ~5 rows visible; scroll for the rest */}
         <div className="max-h-[22.5rem] overflow-auto">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Ticket
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Symbol
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Side
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Opened
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Closed
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Vol.
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Buy price
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Sell price
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Fee
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Gross P/L
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  User exp.
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Admin risk
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Risk P/L
-                </th>
-                <th
-                  className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]"
-                  title="Positive = admin claim on profit; negative = admin loss clawback"
-                >
-                  Admin share
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Wallet P/L
-                </th>
-                <th className="sticky top-0 z-10 bg-slate-50 px-3 py-3 text-xs font-bold uppercase text-slate-500 shadow-[inset_0_-1px_0_0_rgb(241_245_249)]">
-                  Status
-                </th>
+                {ADMIN_USER_TRADES_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => (
+                  <th
+                    key={col.id}
+                    className={thClass}
+                    title={col.title}
+                  >
+                    {col.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={visibleColumnCount || 1} className="px-6 py-12 text-center text-slate-500">
                     <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin text-yellow-800" />
                     Loading…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={visibleColumnCount || 1} className="px-6 py-12 text-center text-slate-500">
                     No assigned trades.
                   </td>
                 </tr>
@@ -998,91 +1168,123 @@ const AdminUserTradesPage = () => {
 
                   return (
                     <tr key={rowKey} className="hover:bg-yellow-50/40">
-                      <td className="px-3 py-3 text-sm font-medium text-slate-800">{r.ticket_id}</td>
-                      <td className="px-3 py-3 text-sm font-semibold text-slate-900">{r.symbol ?? "—"}</td>
-                      <td className="px-3 py-3 text-sm">
-                        {side === "—" ? (
-                          <span className="text-slate-400">—</span>
-                        ) : (
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              side === "Buy"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-red-50 text-red-700"
-                            }`}
-                          >
-                            {side}
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-slate-600">
-                        {tradeOpenedAt(r)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-slate-600">
-                        {tradeClosedAt(r)}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {vol <= 0 ? "—" : vol.toFixed(4)}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {buyPrice != null ? `${buyIsLive ? "~" : ""}${fmtMt5Price(buyPrice, r.symbol)}` : "—"}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {sellPrice != null ? `${sellIsLive ? "~" : ""}${fmtMt5Price(sellPrice, r.symbol)}` : "—"}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {fee <= 0 ? "—" : fmtUsd(fee)}
-                      </td>
-                      <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(gross)}`}>
-                        {open ? "~" : ""}
-                        {fmtUsd(gross)}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {userExposure != null && userExposure > 0 ? fmtUsd(userExposure) : "—"}
-                      </td>
-                      <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
-                        {adminExposure != null && adminExposure > 0.01 ? fmtUsd(adminExposure) : "—"}
-                      </td>
-                      <td
-                        className={`px-3 py-3 text-sm font-semibold tabular-nums ${
-                          adminRiskPl != null ? plTextClass(adminRiskPl) : "text-slate-400"
-                        }`}
-                      >
-                        {adminRiskPl != null && Math.abs(adminRiskPl) > 0.001
-                          ? `${open ? "~" : ""}${fmtUsd(adminRiskPl)}`
-                          : "—"}
-                      </td>
-                      <td
-                        className={`px-3 py-3 text-sm font-semibold tabular-nums ${
-                          !open && Math.abs(perfFee) > 0.001 ? plTextClass(perfFee) : "text-slate-400"
-                        }`}
-                      >
-                        {!open && Math.abs(perfFee) > 0.001
-                          ? fmtUsd(perfFee)
-                          : open
-                            ? "~"
-                            : "—"}
-                      </td>
-                      <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(walletPl)}`}>
-                        {open ? "~" : ""}
-                        {fmtUsd(walletPl)}
-                      </td>
-                      <td className="px-3 py-3 text-sm">
-                        <div className="flex flex-col items-start gap-1">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              open
-                                ? "bg-sky-50 text-sky-700"
-                                : "border border-slate-200 bg-slate-100 text-slate-700"
-                            }`}
-                          >
-                            {open ? String(r.mt5_status ?? "Open") : "Closed"}
-                          </span>
-                          {isUserStoppedTrade(r) && (
-                            <UserStoppedTradeBadge row={r} variant="admin" showTime />
+                      {showCol("ticket") ? (
+                        <td className="px-3 py-3 text-sm font-medium text-slate-800">{r.ticket_id}</td>
+                      ) : null}
+                      {showCol("symbol") ? (
+                        <td className="px-3 py-3 text-sm font-semibold text-slate-900">{r.symbol ?? "—"}</td>
+                      ) : null}
+                      {showCol("side") ? (
+                        <td className="px-3 py-3 text-sm">
+                          {side === "—" ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                side === "Buy"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {side}
+                            </span>
                           )}
-                        </div>
-                      </td>
+                        </td>
+                      ) : null}
+                      {showCol("opened") ? (
+                        <td className="whitespace-nowrap px-3 py-3 text-sm text-slate-600">
+                          {tradeOpenedAt(r)}
+                        </td>
+                      ) : null}
+                      {showCol("closed") ? (
+                        <td className="whitespace-nowrap px-3 py-3 text-sm text-slate-600">
+                          {tradeClosedAt(r)}
+                        </td>
+                      ) : null}
+                      {showCol("volume") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {vol <= 0 ? "—" : vol.toFixed(4)}
+                        </td>
+                      ) : null}
+                      {showCol("buy_price") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {buyPrice != null ? `${buyIsLive ? "~" : ""}${fmtMt5Price(buyPrice, r.symbol)}` : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("sell_price") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {sellPrice != null ? `${sellIsLive ? "~" : ""}${fmtMt5Price(sellPrice, r.symbol)}` : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("fee") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {fee <= 0 ? "—" : fmtUsd(fee)}
+                        </td>
+                      ) : null}
+                      {showCol("gross_pl") ? (
+                        <td className={`px-3 py-3 text-sm font-semibold tabular-nums ${plTextClass(gross)}`}>
+                          {open ? "~" : ""}
+                          {fmtUsd(gross)}
+                        </td>
+                      ) : null}
+                      {showCol("user_exposure") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {userExposure != null && userExposure > 0 ? fmtUsd(userExposure) : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("admin_risk") ? (
+                        <td className="px-3 py-3 text-sm tabular-nums text-slate-600">
+                          {adminExposure != null && adminExposure > 0.01 ? fmtUsd(adminExposure) : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("risk_pl") ? (
+                        <td
+                          className={`px-3 py-3 text-sm font-semibold tabular-nums ${
+                            adminRiskPl != null ? plTextClass(adminRiskPl) : "text-slate-400"
+                          }`}
+                        >
+                          {adminRiskPl != null && Math.abs(adminRiskPl) > 0.001
+                            ? `${open ? "~" : ""}${fmtUsd(adminRiskPl)}`
+                            : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("admin_share") ? (
+                        <td
+                          className={`px-3 py-3 text-sm font-semibold tabular-nums ${
+                            !open && Math.abs(perfFee) > 0.001 ? plTextClass(perfFee) : "text-slate-400"
+                          }`}
+                        >
+                          {!open && Math.abs(perfFee) > 0.001
+                            ? fmtUsd(perfFee)
+                            : open
+                              ? "~"
+                              : "—"}
+                        </td>
+                      ) : null}
+                      {showCol("wallet_pl") ? (
+                        <td className={`px-3 py-3 text-sm font-bold tabular-nums ${plTextClass(walletPl)}`}>
+                          {open ? "~" : ""}
+                          {fmtUsd(walletPl)}
+                        </td>
+                      ) : null}
+                      {showCol("status") ? (
+                        <td className="px-3 py-3 text-sm">
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                open
+                                  ? "bg-sky-50 text-sky-700"
+                                  : "border border-slate-200 bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {open ? String(r.mt5_status ?? "Open") : "Closed"}
+                            </span>
+                            {isUserStoppedTrade(r) && (
+                              <UserStoppedTradeBadge row={r} variant="admin" showTime />
+                            )}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   );
                 })

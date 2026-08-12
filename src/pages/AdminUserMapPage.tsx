@@ -2,10 +2,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
+import { Loader2, MapPin, RefreshCw, Search, TrendingUp } from "lucide-react";
 import { API_BASE } from "@/config/api";
 import { walletBalanceOf } from "@/utils/adminUserDisplay";
 import { isAdminRoleUser } from "@/utils/userRole";
+import {
+  isMapAboveBaselineUser,
+  isMapProfitableUser,
+  mapUserDepositedUsd,
+  mapUserSafeUsd,
+  mapUserTradingUsd,
+  mapUserWithdrawnUsd,
+  normalizeCountryLabel,
+  MAP_PROFITABLE_MIN_DEPOSIT_USD,
+} from "@/utils/adminUserMapUtils";
 
 type AdminUserRow = {
   id: number | string;
@@ -26,16 +36,22 @@ type AdminUserRow = {
   wallet_balance?: number | string | null;
   wallet_currency?: string | null;
   has_wallet?: number | boolean | null;
+  trading_wallet_usd?: number | string | null;
+  safe_wallet_usd?: number | string | null;
+  recharge_total_usd?: number | string | null;
+  total_deposited_usd?: number | string | null;
+  total_withdrawn_usd?: number | string | null;
+  completed_withdraw_usd?: number | string | null;
+  deposit_baseline_usd?: number | string | null;
 };
 
 type PinUser = AdminUserRow & {
   lat: number;
   lon: number;
+  profitable: boolean;
+  aboveBaseline: boolean;
 };
 
-// react-leaflet does not bundle default marker images that play nice with bundlers.
-// Use small inline SVG pins (no extra network calls, no broken icon URLs).
-// Center dot: green = online (last_seen within ~90s), red = offline.
 function pinSvg(bodyFill: string, bodyStroke: string, dotFill: string, filterId: string) {
   return encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="48" viewBox="0 0 34 48">
@@ -77,10 +93,23 @@ const pendingOnlineIcon = L.icon({
   iconAnchor: [17, 46],
   popupAnchor: [0, -42],
 });
+const profitableIcon = L.icon({
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#059669", "#064e3b", "#a7f3d0", "s-pr")}`,
+  iconSize: [34, 48],
+  iconAnchor: [17, 46],
+  popupAnchor: [0, -42],
+});
+const profitableOnlineIcon = L.icon({
+  iconUrl: `data:image/svg+xml;charset=UTF-8,${pinSvg("#059669", "#064e3b", DOT_ONLINE, "s-pro")}`,
+  iconSize: [34, 48],
+  iconAnchor: [17, 46],
+  popupAnchor: [0, -42],
+});
 
 function markerIconForUser(p: PinUser): L.Icon {
   const verified = String(p.kyc_status ?? "").toLowerCase() === "verified";
   const online = Number(p.is_online) === 1;
+  if (p.profitable) return online ? profitableOnlineIcon : profitableIcon;
   if (verified) return online ? goldOnlineIcon : goldIcon;
   return online ? pendingOnlineIcon : pendingIcon;
 }
@@ -114,6 +143,10 @@ function MapAutoFit({ pins }: { pins: PinUser[] }) {
   return null;
 }
 
+function fmtUsd(n: number) {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 const AdminUserMapPage: React.FC = () => {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,6 +154,10 @@ const AdminUserMapPage: React.FC = () => {
   const [query, setQuery] = useState("");
   const [onlineFilter, setOnlineFilter] = useState<"all" | "online" | "offline">("all");
   const [walletFilter, setWalletFilter] = useState<"all" | "funded" | "unfunded">("all");
+  const [countryFilter, setCountryFilter] = useState<string>("all");
+  const [profitableFilter, setProfitableFilter] = useState<"all" | "profitable" | "not_profitable">(
+    "all",
+  );
 
   const fetchUsers = async () => {
     try {
@@ -145,18 +182,36 @@ const AdminUserMapPage: React.FC = () => {
     fetchUsers();
   }, []);
 
+  const traderUsers = useMemo(
+    () => users.filter((u) => !isAdminRoleUser(u)),
+    [users],
+  );
+
+  const countryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const u of traderUsers) {
+      set.add(normalizeCountryLabel(u.country));
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [traderUsers]);
+
   const allPins: PinUser[] = useMemo(() => {
     const out: PinUser[] = [];
-    for (const u of users) {
-      if (isAdminRoleUser(u)) continue;
+    for (const u of traderUsers) {
       const lat = toCoord(u.latitude);
       const lon = toCoord(u.longitude);
       if (lat == null || lon == null) continue;
       if (lat === 0 && lon === 0) continue;
-      out.push({ ...u, lat, lon });
+      out.push({
+        ...u,
+        lat,
+        lon,
+        profitable: isMapProfitableUser(u),
+        aboveBaseline: isMapAboveBaselineUser(u),
+      });
     }
     return out;
-  }, [users]);
+  }, [traderUsers]);
 
   const filteredPins: PinUser[] = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -166,6 +221,9 @@ const AdminUserMapPage: React.FC = () => {
       const bal = walletBalanceOf(p);
       if (walletFilter === "funded" && bal <= 0.02) return false;
       if (walletFilter === "unfunded" && bal > 0.02) return false;
+      if (countryFilter !== "all" && normalizeCountryLabel(p.country) !== countryFilter) return false;
+      if (profitableFilter === "profitable" && !p.profitable) return false;
+      if (profitableFilter === "not_profitable" && p.profitable) return false;
       if (!q) return true;
       const haystack = [
         p.id,
@@ -183,9 +241,39 @@ const AdminUserMapPage: React.FC = () => {
         .join(" ");
       return haystack.includes(q);
     });
-  }, [allPins, query, onlineFilter, walletFilter]);
+  }, [allPins, query, onlineFilter, walletFilter, countryFilter, profitableFilter]);
 
-  const usersWithoutLocation = users.length - allPins.length;
+  const countryStats = useMemo(() => {
+    const map = new Map<
+      string,
+      { country: string; traders: number; pinned: number; profitable: number }
+    >();
+    for (const u of traderUsers) {
+      const country = normalizeCountryLabel(u.country);
+      const row = map.get(country) ?? { country, traders: 0, pinned: 0, profitable: 0 };
+      row.traders += 1;
+      if (isMapProfitableUser(u)) row.profitable += 1;
+      map.set(country, row);
+    }
+    for (const p of allPins) {
+      const country = normalizeCountryLabel(p.country);
+      const row = map.get(country) ?? { country, traders: 0, pinned: 0, profitable: 0 };
+      row.pinned += 1;
+      map.set(country, row);
+    }
+    return Array.from(map.values()).sort((a, b) => b.traders - a.traders);
+  }, [traderUsers, allPins]);
+
+  const profitableOnMap = useMemo(
+    () => filteredPins.filter((p) => p.profitable).length,
+    [filteredPins],
+  );
+  const totalProfitableTraders = useMemo(
+    () => traderUsers.filter((u) => isMapProfitableUser(u)).length,
+    [traderUsers],
+  );
+
+  const usersWithoutLocation = traderUsers.length - allPins.length;
 
   return (
     <div className="mx-auto max-w-7xl p-4">
@@ -201,16 +289,41 @@ const AdminUserMapPage: React.FC = () => {
           <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-1 ring-emerald-600/30" />
-              Online (live)
+              Online
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-red-600/30" />
               Offline
             </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full bg-emerald-600 ring-1 ring-emerald-800/30" />
+              Profitable (≥{MAP_PROFITABLE_MIN_DEPOSIT_USD} deposited &amp; total &gt; ${MAP_PROFITABLE_MIN_DEPOSIT_USD})
+            </span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+          >
+            <option value="all">All countries</option>
+            {countryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={profitableFilter}
+            onChange={(e) =>
+              setProfitableFilter(e.target.value as "all" | "profitable" | "not_profitable")
+            }
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+          >
+            <option value="all">All traders</option>
+            <option value="profitable">Profitable only</option>
+            <option value="not_profitable">Not profitable</option>
+          </select>
           <select
             value={onlineFilter}
             onChange={(e) => setOnlineFilter(e.target.value as "all" | "online" | "offline")}
@@ -250,6 +363,36 @@ const AdminUserMapPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Traders</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{traderUsers.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+            Profitable (all)
+          </p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-900">
+            {totalProfitableTraders}
+          </p>
+          <p className="text-[11px] text-emerald-800/80">
+            Deposited ≥ ${MAP_PROFITABLE_MIN_DEPOSIT_USD}, trading+safe+withdraw &gt; ${MAP_PROFITABLE_MIN_DEPOSIT_USD}
+          </p>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+            <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+            Profitable on map
+          </p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-700">{profitableOnMap}</p>
+          <p className="text-[11px] text-slate-500">Of {filteredPins.length} visible pins</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Countries</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{countryOptions.length}</p>
+        </div>
+      </div>
+
       {err && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {err}
@@ -280,6 +423,12 @@ const AdminUserMapPage: React.FC = () => {
               {filteredPins.map((p) => {
                 const verified = String(p.kyc_status ?? "").toLowerCase() === "verified";
                 const online = isUserOnline(p);
+                const trading = mapUserTradingUsd(p);
+                const safe = mapUserSafeUsd(p);
+                const withdrawn = mapUserWithdrawnUsd(p);
+                const deposited = mapUserDepositedUsd(p);
+                const total = trading + safe + withdrawn;
+                const baseline = Number(p.deposit_baseline_usd ?? 0);
                 return (
                   <Marker
                     key={String(p.id)}
@@ -287,49 +436,47 @@ const AdminUserMapPage: React.FC = () => {
                     icon={markerIconForUser(p)}
                   >
                     <Popup>
-                      <div className="min-w-[210px] space-y-1 text-sm">
+                      <div className="min-w-[220px] space-y-1 text-sm">
                         <div className="font-semibold text-slate-900">
                           {p.name || p.telegram || `User #${p.id}`}
                         </div>
-                        {p.email && (
-                          <div className="text-slate-600 break-all">{p.email}</div>
-                        )}
-                        {p.mobile && (
-                          <div className="text-slate-600">📞 {p.mobile}</div>
-                        )}
-                        {p.telegram && (
-                          <div className="text-slate-600">✈ {p.telegram}</div>
-                        )}
+                        {p.email && <div className="text-slate-600 break-all">{p.email}</div>}
                         {(p.city || p.state || p.country) && (
                           <div className="text-slate-600">
                             {[p.city, p.state, p.country].filter(Boolean).join(", ")}
                           </div>
                         )}
                         <div className="text-slate-700 font-medium tabular-nums">
-                          Wallet: {p.wallet_currency ?? "USD"}{" "}
-                          {walletBalanceOf(p).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          Trading: {fmtUsd(trading)} · Safe: {fmtUsd(safe)}
                         </div>
-                        <div className="pt-1 text-xs text-slate-400 tabular-nums">
-                          {p.lat.toFixed(5)}, {p.lon.toFixed(5)}
+                        <div className="text-slate-600 tabular-nums text-xs">
+                          Deposited {fmtUsd(deposited)} · Withdrawn {fmtUsd(withdrawn)}
+                        </div>
+                        <div className="text-slate-700 tabular-nums text-xs">
+                          Total value: {fmtUsd(total)}
+                          {baseline > 0.01 ? ` · Baseline ${fmtUsd(baseline)}` : ""}
                         </div>
                         <div className="flex flex-wrap gap-1 pt-1">
+                          {p.profitable ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
+                              Profitable
+                            </span>
+                          ) : null}
+                          {p.aboveBaseline ? (
+                            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-indigo-800">
+                              Above baseline
+                            </span>
+                          ) : null}
                           <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                              online
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-slate-100 text-slate-600"
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              online ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
                             }`}
                           >
                             {online ? "Online" : "Offline"}
                           </span>
                           <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                              verified
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-slate-100 text-slate-700"
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              verified ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-700"
                             }`}
                           >
                             KYC: {p.kyc_status ?? "pending"}
@@ -345,10 +492,47 @@ const AdminUserMapPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-3">
+          <h2 className="text-sm font-bold text-slate-900">Traders by country</h2>
+          <p className="text-xs text-slate-500">Click a country in the filter above to focus the map.</p>
+        </div>
+        <div className="max-h-64 overflow-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
+                <th className="px-4 py-2">Country</th>
+                <th className="px-4 py-2 text-right">Traders</th>
+                <th className="px-4 py-2 text-right">On map</th>
+                <th className="px-4 py-2 text-right">Profitable</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {countryStats.map((row) => (
+                <tr
+                  key={row.country}
+                  className={`cursor-pointer hover:bg-yellow-50/50 ${
+                    countryFilter === row.country ? "bg-yellow-50" : ""
+                  }`}
+                  onClick={() => setCountryFilter(row.country)}
+                >
+                  <td className="px-4 py-2 font-medium text-slate-800">{row.country}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{row.traders}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{row.pinned}</td>
+                  <td className="px-4 py-2 text-right font-semibold tabular-nums text-emerald-700">
+                    {row.profitable}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {filteredPins.length === 0 && !loading && (
         <div className="mt-4 rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-500">
           No users with a location
-          {query || onlineFilter !== "all" || walletFilter !== "all"
+          {query || onlineFilter !== "all" || walletFilter !== "all" || countryFilter !== "all" || profitableFilter !== "all"
             ? " match your filters."
             : " yet."}
         </div>

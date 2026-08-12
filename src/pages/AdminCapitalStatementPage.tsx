@@ -1,11 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { FileText, Loader2, RefreshCw, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/config/api";
 import { UserSearchSelect } from "@/components/admin/UserSearchSelect";
+import { AdminTableColumnPicker } from "@/components/admin/AdminTableColumnPicker";
 import { Button } from "@/components/ui/button";
 import { plTextClass } from "@/utils/plColors";
+import {
+  STATEMENT_BASELINE_COLUMNS,
+  STATEMENT_BASELINE_COLUMNS_STORAGE_KEY,
+  STATEMENT_ENTRIES_COLUMNS,
+  STATEMENT_ENTRIES_COLUMNS_STORAGE_KEY,
+  STATEMENT_TRADING_COLUMNS,
+  STATEMENT_TRADING_COLUMNS_STORAGE_KEY,
+  defaultStatementColumnVisibility,
+  loadStatementColumnVisibility,
+  saveStatementColumnVisibility,
+  type StatementBaselineColumnId,
+  type StatementEntriesColumnId,
+  type StatementTradingColumnId,
+} from "@/utils/adminCapitalStatementTableColumns";
 
 type StatementEntry = {
   at: string;
@@ -129,6 +144,63 @@ const AdminCapitalStatementPage = () => {
   );
   const [statement, setStatement] = useState<Statement | null>(null);
   const [loading, setLoading] = useState(false);
+  const [baselineColumnVisibility, setBaselineColumnVisibility] = useState(() =>
+    loadStatementColumnVisibility(STATEMENT_BASELINE_COLUMNS_STORAGE_KEY, STATEMENT_BASELINE_COLUMNS),
+  );
+  const [entriesColumnVisibility, setEntriesColumnVisibility] = useState(() =>
+    loadStatementColumnVisibility(STATEMENT_ENTRIES_COLUMNS_STORAGE_KEY, STATEMENT_ENTRIES_COLUMNS),
+  );
+  const [tradingColumnVisibility, setTradingColumnVisibility] = useState(() =>
+    loadStatementColumnVisibility(STATEMENT_TRADING_COLUMNS_STORAGE_KEY, STATEMENT_TRADING_COLUMNS),
+  );
+
+  const showBaselineCol = useCallback(
+    (id: StatementBaselineColumnId) => baselineColumnVisibility[id] === true,
+    [baselineColumnVisibility],
+  );
+  const showEntriesCol = useCallback(
+    (id: StatementEntriesColumnId) => entriesColumnVisibility[id] === true,
+    [entriesColumnVisibility],
+  );
+  const showTradingCol = useCallback(
+    (id: StatementTradingColumnId) => tradingColumnVisibility[id] === true,
+    [tradingColumnVisibility],
+  );
+
+  const baselineVisibleCount = useMemo(
+    () => STATEMENT_BASELINE_COLUMNS.filter((c) => showBaselineCol(c.id)).length,
+    [showBaselineCol],
+  );
+  const entriesVisibleCount = useMemo(
+    () => STATEMENT_ENTRIES_COLUMNS.filter((c) => showEntriesCol(c.id)).length,
+    [showEntriesCol],
+  );
+  const tradingVisibleCount = useMemo(
+    () => STATEMENT_TRADING_COLUMNS.filter((c) => showTradingCol(c.id)).length,
+    [showTradingCol],
+  );
+
+  const handleBaselineColumnChange = useCallback(
+    (next: Record<StatementBaselineColumnId, boolean>) => {
+      setBaselineColumnVisibility(next);
+      saveStatementColumnVisibility(STATEMENT_BASELINE_COLUMNS_STORAGE_KEY, next);
+    },
+    [],
+  );
+  const handleEntriesColumnChange = useCallback(
+    (next: Record<StatementEntriesColumnId, boolean>) => {
+      setEntriesColumnVisibility(next);
+      saveStatementColumnVisibility(STATEMENT_ENTRIES_COLUMNS_STORAGE_KEY, next);
+    },
+    [],
+  );
+  const handleTradingColumnChange = useCallback(
+    (next: Record<StatementTradingColumnId, boolean>) => {
+      setTradingColumnVisibility(next);
+      saveStatementColumnVisibility(STATEMENT_TRADING_COLUMNS_STORAGE_KEY, next);
+    },
+    [],
+  );
 
   const load = useCallback(
     async (uid: number | null) => {
@@ -323,34 +395,42 @@ const AdminCapitalStatementPage = () => {
 
           {/* —— Baseline history —— */}
           <div className="mb-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
-            <div className="border-b border-indigo-100 bg-indigo-50/40 px-4 py-3 sm:px-6">
-              <h2 className="text-base font-semibold text-slate-900">Deposit baseline history</h2>
-              <p className="mt-0.5 text-xs text-slate-600">
-                From this day → that day, baseline was this amount (recharge / withdraw / admin set).
-              </p>
+            <div className="flex flex-col gap-3 border-b border-indigo-100 bg-indigo-50/40 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Deposit baseline history</h2>
+                <p className="mt-0.5 text-xs text-slate-600">
+                  From this day → that day, baseline was this amount (recharge / withdraw / admin set).
+                </p>
+              </div>
+              <AdminTableColumnPicker
+                columns={STATEMENT_BASELINE_COLUMNS}
+                visibility={baselineColumnVisibility}
+                onChange={handleBaselineColumnChange}
+                onReset={() =>
+                  handleBaselineColumnChange(
+                    defaultStatementColumnVisibility(STATEMENT_BASELINE_COLUMNS),
+                  )
+                }
+              />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/95">
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      From
-                    </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      To
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Baseline
-                    </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Why it changed
-                    </th>
+                    {STATEMENT_BASELINE_COLUMNS.filter((c) => showBaselineCol(c.id)).map((col) => (
+                      <th
+                        key={col.id}
+                        className={`px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6 ${col.headerClassName ?? ""}`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {baselineHistory.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+                      <td colSpan={baselineVisibleCount || 1} className="px-6 py-10 text-center text-slate-500">
                         No baseline history for this user.
                       </td>
                     </tr>
@@ -360,34 +440,42 @@ const AdminCapitalStatementPage = () => {
                         key={`${p.from}-${p.to}-${i}`}
                         className={`border-b border-slate-100 ${p.ongoing ? "bg-indigo-50/30" : "hover:bg-slate-50/80"}`}
                       >
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700 sm:px-6">
-                          {p.from ? fmtDay(p.from) : "start"}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700 sm:px-6">
-                          {p.ongoing ? (
-                            <span className="font-semibold text-indigo-800">now (current)</span>
-                          ) : (
-                            fmtDay(p.to)
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right text-base font-extrabold tabular-nums text-slate-900 sm:px-6">
-                          {money(p.baseline_usd)}
-                        </td>
-                        <td className="px-4 py-3 sm:px-6">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${kindBadgeClass(p.kind || "")}`}
-                          >
-                            {p.reason}
-                          </span>
-                          {p.change_usd != null && Math.abs(p.change_usd) > 0.009 ? (
+                        {showBaselineCol("from") ? (
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700 sm:px-6">
+                            {p.from ? fmtDay(p.from) : "start"}
+                          </td>
+                        ) : null}
+                        {showBaselineCol("to") ? (
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700 sm:px-6">
+                            {p.ongoing ? (
+                              <span className="font-semibold text-indigo-800">now (current)</span>
+                            ) : (
+                              fmtDay(p.to)
+                            )}
+                          </td>
+                        ) : null}
+                        {showBaselineCol("baseline") ? (
+                          <td className="px-4 py-3 text-right text-base font-extrabold tabular-nums text-slate-900 sm:px-6">
+                            {money(p.baseline_usd)}
+                          </td>
+                        ) : null}
+                        {showBaselineCol("reason") ? (
+                          <td className="px-4 py-3 sm:px-6">
                             <span
-                              className={`ml-2 text-xs font-semibold tabular-nums ${plTextClass(p.change_usd)}`}
+                              className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${kindBadgeClass(p.kind || "")}`}
                             >
-                              {p.change_usd >= 0 ? "+" : ""}
-                              {money(p.change_usd)}
+                              {p.reason}
                             </span>
-                          ) : null}
-                        </td>
+                            {p.change_usd != null && Math.abs(p.change_usd) > 0.009 ? (
+                              <span
+                                className={`ml-2 text-xs font-semibold tabular-nums ${plTextClass(p.change_usd)}`}
+                              >
+                                {p.change_usd >= 0 ? "+" : ""}
+                                {money(p.change_usd)}
+                              </span>
+                            ) : null}
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   )}
@@ -398,36 +486,42 @@ const AdminCapitalStatementPage = () => {
 
           {/* —— Capital cash entries —— */}
           <div className="mb-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-neutral-900/8">
-            <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
-              <h2 className="text-base font-semibold text-slate-800">Capital cash entries</h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Deposits, withdrawals, admin credits · {statement.entries.length} row(s)
-              </p>
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">Capital cash entries</h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Deposits, withdrawals, admin credits · {statement.entries.length} row(s)
+                </p>
+              </div>
+              <AdminTableColumnPicker
+                columns={STATEMENT_ENTRIES_COLUMNS}
+                visibility={entriesColumnVisibility}
+                onChange={handleEntriesColumnChange}
+                onReset={() =>
+                  handleEntriesColumnChange(
+                    defaultStatementColumnVisibility(STATEMENT_ENTRIES_COLUMNS),
+                  )
+                }
+              />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/95">
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">Date</th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">Entry</th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Amount
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 sm:table-cell sm:px-6">
-                      Capital
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 md:table-cell sm:px-6">
-                      From profit
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 lg:table-cell sm:px-6">
-                      Withdrawn
-                    </th>
+                    {STATEMENT_ENTRIES_COLUMNS.filter((c) => showEntriesCol(c.id)).map((col) => (
+                      <th
+                        key={col.id}
+                        className={`px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6 ${col.headerClassName ?? ""}`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {statement.entries.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={entriesVisibleCount || 1} className="px-6 py-12 text-center text-slate-500">
                         No deposit or withdrawal events for this user.
                       </td>
                     </tr>
@@ -437,39 +531,56 @@ const AdminCapitalStatementPage = () => {
                         key={`${e.at}-${e.source_id ?? i}`}
                         className="border-b border-slate-100 hover:bg-yellow-50/30"
                       >
-                        <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-600 sm:px-6">
-                          {fmtWhen(e.at)}
-                        </td>
-                        <td className="px-4 py-3 sm:px-6">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${kindBadgeClass(e.kind)}`}
+                        {showEntriesCol("date") ? (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-600 sm:px-6">
+                            {fmtWhen(e.at)}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("entry") ? (
+                          <td className="px-4 py-3 sm:px-6">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${kindBadgeClass(e.kind)}`}
+                            >
+                              {e.label}
+                            </span>
+                            {e.payment_method ? (
+                              <div className="mt-1 text-[11px] text-slate-500">{e.payment_method}</div>
+                            ) : null}
+                            {e.tx_hash ? (
+                              <div className="mt-0.5 max-w-[14rem] truncate font-mono text-[10px] text-slate-400">
+                                {e.tx_hash}
+                              </div>
+                            ) : null}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("amount") ? (
+                          <td
+                            className={`px-4 py-3 text-right text-sm font-bold tabular-nums sm:px-6 ${plTextClass(e.amount_usd)}`}
                           >
-                            {e.label}
-                          </span>
-                          {e.payment_method ? (
-                            <div className="mt-1 text-[11px] text-slate-500">{e.payment_method}</div>
-                          ) : null}
-                          {e.tx_hash ? (
-                            <div className="mt-0.5 max-w-[14rem] truncate font-mono text-[10px] text-slate-400">
-                              {e.tx_hash}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-right text-sm font-bold tabular-nums sm:px-6 ${plTextClass(e.amount_usd)}`}
-                        >
-                          {e.amount_usd >= 0 ? "+" : ""}
-                          {money(e.amount_usd)}
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-slate-700 sm:table-cell sm:px-6">
-                          {money(e.running_user_capital_usd)}
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-amber-800 md:table-cell sm:px-6">
-                          {money(e.running_from_profit_usd)}
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-slate-700 lg:table-cell sm:px-6">
-                          {money(e.running_withdrawn_usd)}
-                        </td>
+                            {e.amount_usd >= 0 ? "+" : ""}
+                            {money(e.amount_usd)}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("capital") ? (
+                          <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700 sm:px-6">
+                            {money(e.running_user_capital_usd)}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("from_profit") ? (
+                          <td className="px-4 py-3 text-right text-sm tabular-nums text-amber-800 sm:px-6">
+                            {money(e.running_from_profit_usd)}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("withdrawn") ? (
+                          <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700 sm:px-6">
+                            {money(e.running_withdrawn_usd)}
+                          </td>
+                        ) : null}
+                        {showEntriesCol("cash") ? (
+                          <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700 sm:px-6">
+                            {money(e.running_cash_usd)}
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   )}
@@ -480,39 +591,47 @@ const AdminCapitalStatementPage = () => {
 
           {/* —— BOTTOM: trading —— */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-6">
-              <h2 className="text-base font-semibold text-slate-900">Trading settlements</h2>
-              <p className="mt-0.5 text-xs text-slate-600">
-                Settled trades for this user (newest first) · engine net{" "}
-                <span className="font-semibold tabular-nums">{money(s.settlements_net_usd)}</span>{" "}
-                across {s.settlements_count} trade(s) · implied P/L{" "}
-                <span className={`font-semibold tabular-nums ${plTextClass(s.implied_trading_pl_usd)}`}>
-                  {money(s.implied_trading_pl_usd)}
-                </span>
-              </p>
+            <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Trading settlements</h2>
+                <p className="mt-0.5 text-xs text-slate-600">
+                  Settled trades for this user (newest first) · engine net{" "}
+                  <span className="font-semibold tabular-nums">{money(s.settlements_net_usd)}</span>{" "}
+                  across {s.settlements_count} trade(s) · implied P/L{" "}
+                  <span className={`font-semibold tabular-nums ${plTextClass(s.implied_trading_pl_usd)}`}>
+                    {money(s.implied_trading_pl_usd)}
+                  </span>
+                </p>
+              </div>
+              <AdminTableColumnPicker
+                columns={STATEMENT_TRADING_COLUMNS}
+                visibility={tradingColumnVisibility}
+                onChange={handleTradingColumnChange}
+                onReset={() =>
+                  handleTradingColumnChange(
+                    defaultStatementColumnVisibility(STATEMENT_TRADING_COLUMNS),
+                  )
+                }
+              />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/95">
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Settled
-                    </th>
-                    <th className="px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Ticket
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      User share
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase text-slate-500 sm:px-6">
-                      Admin share
-                    </th>
+                    {STATEMENT_TRADING_COLUMNS.filter((c) => showTradingCol(c.id)).map((col) => (
+                      <th
+                        key={col.id}
+                        className={`px-4 py-3 text-xs font-bold uppercase text-slate-500 sm:px-6 ${col.headerClassName ?? ""}`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {trading.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={tradingVisibleCount || 1} className="px-6 py-12 text-center text-slate-500">
                         No settled trades on record for this user.
                       </td>
                     </tr>
@@ -522,20 +641,46 @@ const AdminCapitalStatementPage = () => {
                         key={`${t.ticket ?? "x"}-${t.at ?? i}`}
                         className="border-b border-slate-100 hover:bg-slate-50/80"
                       >
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600 sm:px-6">
-                          {fmtWhen(t.at)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-800 sm:px-6">
-                          {t.ticket ?? "—"}
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-right font-semibold tabular-nums sm:px-6 ${plTextClass(t.user_share_usd)}`}
-                        >
-                          {money(t.user_share_usd)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-700 sm:px-6">
-                          {money(t.admin_share_usd)}
-                        </td>
+                        {showTradingCol("settled") ? (
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600 sm:px-6">
+                            {fmtWhen(t.at)}
+                          </td>
+                        ) : null}
+                        {showTradingCol("ticket") ? (
+                          <td className="px-4 py-3 font-mono text-xs text-slate-800 sm:px-6">
+                            {t.ticket ?? "—"}
+                          </td>
+                        ) : null}
+                        {showTradingCol("symbol") ? (
+                          <td className="px-4 py-3 text-slate-700 sm:px-6">{t.symbol ?? "—"}</td>
+                        ) : null}
+                        {showTradingCol("user_share") ? (
+                          <td
+                            className={`px-4 py-3 text-right font-semibold tabular-nums sm:px-6 ${plTextClass(t.user_share_usd)}`}
+                          >
+                            {money(t.user_share_usd)}
+                          </td>
+                        ) : null}
+                        {showTradingCol("admin_share") ? (
+                          <td className="px-4 py-3 text-right tabular-nums text-slate-700 sm:px-6">
+                            {money(t.admin_share_usd)}
+                          </td>
+                        ) : null}
+                        {showTradingCol("master_profit") ? (
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums sm:px-6 ${plTextClass(t.master_profit_usd ?? 0)}`}
+                          >
+                            {t.master_profit_usd != null ? money(t.master_profit_usd) : "—"}
+                          </td>
+                        ) : null}
+                        {showTradingCol("status") ? (
+                          <td className="px-4 py-3 text-slate-600 sm:px-6">{t.status || "—"}</td>
+                        ) : null}
+                        {showTradingCol("note") ? (
+                          <td className="max-w-[14rem] truncate px-4 py-3 text-xs text-slate-500 sm:px-6">
+                            {t.note || "—"}
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   )}
