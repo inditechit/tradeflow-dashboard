@@ -172,6 +172,8 @@ const AdminUserTradesPage = () => {
   const [exporting, setExporting] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [netDepositUsd, setNetDepositUsd] = useState(0);
+  const [lifetimeNetDepositUsd, setLifetimeNetDepositUsd] = useState(0);
   const [depositBaseline, setDepositBaseline] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
@@ -259,6 +261,12 @@ const AdminUserTradesPage = () => {
           summaryData.deposit_baseline ?? summaryData.total_invested ?? 0,
         );
         setDepositBaseline(baseline);
+        setNetDepositUsd(
+          Number(summaryData.net_deposit_usd ?? summaryData.deposit_baseline ?? baseline),
+        );
+        setLifetimeNetDepositUsd(
+          Number(summaryData.lifetime_net_deposit_usd ?? Math.max(0, Number(summaryData.total_deposited_usd ?? 0) - Number(summaryData.total_withdrawn_usd ?? 0))),
+        );
         setBaselineDraft(String(baseline));
         setTotalDeposited(Number(summaryData.total_deposited_usd ?? 0));
         setTotalWithdrawn(Number(summaryData.total_withdrawn_usd ?? 0));
@@ -572,7 +580,7 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
             Complete profit
@@ -614,6 +622,17 @@ const AdminUserTradesPage = () => {
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
             {fmtUsd(walletBalance)}
           </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Net deposit
+          </div>
+          <div className="mt-0.5 text-sm font-extrabold tabular-nums text-indigo-900 sm:text-base">
+            {fmtUsd(netDepositUsd)}
+          </div>
+          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+            From pocket · lifetime net {fmtUsd(lifetimeNetDepositUsd)}
+          </p>
         </div>
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
@@ -870,7 +889,9 @@ const AdminUserTradesPage = () => {
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 Deposit baseline
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">Recovery baseline for profit share</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Recovery baseline for profit share · net deposit (pocket) {fmtUsd(netDepositUsd)}
+              </p>
             </div>
             {!editingBaseline ? (
               <Button

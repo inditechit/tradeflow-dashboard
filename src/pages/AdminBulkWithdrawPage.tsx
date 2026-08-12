@@ -43,6 +43,12 @@ type BulkUserRow = {
   wallet_balance: number;
   safe_wallet?: number;
   trading_wallet?: number;
+  deposit_baseline?: number | null;
+  settle_baseline_usd?: number | null;
+  net_deposit_usd?: number | null;
+  lifetime_net_deposit_usd?: number | null;
+  total_deposited_usd?: number | null;
+  total_withdrawn_usd?: number | null;
   open_positions: number;
   has_trc20: boolean;
   pending_withdraw: boolean;
@@ -266,9 +272,11 @@ const AdminBulkWithdrawPage = () => {
             Bulk withdraw
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Shows users with <span className="font-semibold">Safe Wallet</span> balance. Enter how
-            much USDT to send each user (capped at Safe − ${WITHDRAW_FEE} fee). Trading wallet is
-            not debited.
+            Shows users with <span className="font-semibold">Safe Wallet</span> balance.{" "}
+            <span className="font-semibold">Net deposit</span> is pocket capital (withdrawals recycle
+            profit; redeposited profit does not stack as new pocket money).{" "}
+            <span className="font-semibold">Baseline</span> is the deposit recovery baseline for profit
+            share.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Approve queued requests on{" "}
@@ -365,7 +373,7 @@ const AdminBulkWithdrawPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/95">
                 <th className="px-4 py-3 sm:px-6">
@@ -377,6 +385,12 @@ const AdminBulkWithdrawPage = () => {
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   User
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
+                  Net deposit
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
+                  Baseline
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Safe available
@@ -402,6 +416,8 @@ const AdminBulkWithdrawPage = () => {
                   const safe = rowSafe(u);
                   const maxPay = maxPayoutFromSafe(safe);
                   const trading = Number(u.trading_wallet ?? 0);
+                  const netDeposit = Number(u.net_deposit_usd ?? u.deposit_baseline ?? 0);
+                  const baseline = Number(u.deposit_baseline ?? netDeposit);
                   return (
                     <tr
                       key={u.user_id}
@@ -428,6 +444,22 @@ const AdminBulkWithdrawPage = () => {
                         <div className="text-xs text-slate-500">#{u.user_id}</div>
                         {u.email && (
                           <div className="text-xs text-slate-600">{u.email}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums font-semibold text-indigo-900 sm:px-6">
+                        {money(netDeposit)}
+                        {Number(u.lifetime_net_deposit_usd ?? 0) !== netDeposit && (
+                          <div className="text-[11px] font-normal text-slate-500">
+                            lifetime {money(u.lifetime_net_deposit_usd)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-800 sm:px-6">
+                        {money(baseline)}
+                        {Number(u.settle_baseline_usd ?? 0) > baseline + 0.01 && (
+                          <div className="text-[11px] font-normal text-slate-500">
+                            settle {money(u.settle_baseline_usd)}
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 tabular-nums font-semibold text-emerald-800 sm:px-6">
