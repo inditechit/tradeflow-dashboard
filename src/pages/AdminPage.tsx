@@ -79,17 +79,21 @@ import {
   type AdminUsersColumnVisibility,
 } from "@/utils/adminUsersTableColumns";
 import { useAdminUsersFiltersCollapsed } from "@/utils/adminUsersFiltersCollapsed";
+import { withAdminReturn } from "@/utils/adminNavigation";
+import {
+  ADMIN_USERS_DEFAULT_PAGE_SIZE,
+  ADMIN_USERS_PAGE_SIZE_OPTIONS,
+  defaultAdminUsersUrlState,
+  parseAdminUsersUrlState,
+  serializeAdminUsersUrlState,
+  type AdminUsersSortMode,
+  type AdminUsersUrlState,
+} from "@/utils/adminUsersListUrlState";
 
-const USER_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
-const DEFAULT_USER_PAGE_SIZE = 10;
+const USER_PAGE_SIZE_OPTIONS = ADMIN_USERS_PAGE_SIZE_OPTIONS;
+const DEFAULT_USER_PAGE_SIZE = ADMIN_USERS_DEFAULT_PAGE_SIZE;
 
-type UserSortMode =
-  | "wallet_high"
-  | "wallet_low"
-  | "joined_new"
-  | "joined_old"
-  | "trading_wallet_high"
-  | "safe_wallet_high";
+type UserSortMode = AdminUsersSortMode;
 
 const WALLET_COLUMN_SORT_MIN_USD = 0.02;
 
@@ -201,6 +205,39 @@ const AdminPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const listState = useMemo(() => parseAdminUsersUrlState(searchParams), [searchParams]);
+  const {
+    filterSelectedUserIds,
+    filterEmail,
+    filterUserId,
+    filterKyc,
+    filterOnline,
+    filterWallet,
+    filterPackages,
+    filterTrading,
+    filterOpenPl,
+    filterReferrer,
+    filterTag,
+    filterRisks,
+    filterJoinFrom,
+    filterJoinTo,
+    userSort,
+    page: userPage,
+    pageSize: userPageSize,
+  } = listState;
+
+  const patchListState = useCallback(
+    (patch: Partial<AdminUsersUrlState>, opts?: { resetPage?: boolean }) => {
+      const next = { ...listState, ...patch };
+      if (opts?.resetPage) next.page = 1;
+      const nextParams = serializeAdminUsersUrlState(next);
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [listState, searchParams, setSearchParams],
+  );
+
   const [locations, setLocations] = useState<any[]>([]);
   const [totals, setTotals] = useState<{
     sum_trading_wallet_usd: number;
@@ -212,25 +249,6 @@ const AdminPage = () => {
   const [error, setError] = useState('');
   const [labelsVersion, setLabelsVersion] = useState(0);
 
-  const [filterSelectedUserIds, setFilterSelectedUserIds] = useState<string[]>([]);
-  const [filterEmail, setFilterEmail] = useState('');
-  const [filterUserId, setFilterUserId] = useState(() => {
-    const raw = new URLSearchParams(window.location.search).get('userId')?.trim() ?? '';
-    return raw && /^\d+$/.test(raw) ? raw : '';
-  });
-  const [filterKyc, setFilterKyc] = useState('all');
-  const [filterOnline, setFilterOnline] = useState<'all' | 'live'>('all');
-  const [filterWallet, setFilterWallet] = useState<'all' | 'with_balance' | 'empty'>('all');
-  const [filterPackages, setFilterPackages] = useState<string[]>([...DEFAULT_FILTER_PACKAGES]);
-  const [filterTrading, setFilterTrading] = useState<'all' | 'active' | 'stopped'>('all');
-  const [filterOpenPl, setFilterOpenPl] = useState<'all' | 'profit' | 'loss'>('all');
-  const [filterReferrer, setFilterReferrer] = useState<string>('all');
-  const [filterTag, setFilterTag] = useState('all');
-  const [filterRisks, setFilterRisks] = useState<Array<'none' | RiskId>>([]);
-  const [filterJoinFrom, setFilterJoinFrom] = useState('');
-  const [filterJoinTo, setFilterJoinTo] = useState('');
-  const [userPageSize, setUserPageSize] = useState<number>(DEFAULT_USER_PAGE_SIZE);
-  const [userSort, setUserSort] = useState<UserSortMode>("wallet_high");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [financeOverlay, setFinanceOverlay] = useState<Record<number, AdminFinanceOverlay>>({});
@@ -273,8 +291,11 @@ const AdminPage = () => {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [walletUser, setWalletUser] = useState<any>(null);
   const toggleWalletColumnSort = useCallback((mode: "trading_wallet_high" | "safe_wallet_high") => {
-    setUserSort((prev) => (prev === mode ? "wallet_high" : mode));
-  }, []);
+    patchListState(
+      { userSort: userSort === mode ? "wallet_high" : mode },
+      { resetPage: true },
+    );
+  }, [patchListState, userSort]);
   const [walletBalance, setWalletBalance] = useState<number | string>("");
   const [isWalletLoading, setIsWalletLoading] = useState(false);
 
@@ -385,26 +406,6 @@ const AdminPage = () => {
     }
   }, []);
 
-  // Notification / sidebar link: ?sort=joined_new — must react while already on this page.
-  // Also support ?userId=123 deep-links from finance stats.
-  useEffect(() => {
-    const sortHint = searchParams.get("sort");
-    if (sortHint === "joined_new" || sortHint === "joined_old") {
-      setUserSort(sortHint);
-      void fetchLocations({ silent: true });
-    }
-    const uid = searchParams.get("userId")?.trim() ?? "";
-    if (uid && /^\d+$/.test(uid)) setFilterUserId(uid);
-    else if (searchParams.has("userId") && !uid) setFilterUserId("");
-
-    if (sortHint === "joined_new" || sortHint === "joined_old") {
-      const next = new URLSearchParams(searchParams);
-      next.delete("sort");
-      next.delete("from");
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams, fetchLocations]);
-
   useEffect(() => {
     markAdminUsersSeen();
   }, []);
@@ -422,12 +423,12 @@ const AdminPage = () => {
 
   useEffect(() => {
     const onNewUser = () => {
-      setUserSort("joined_new");
+      patchListState({ userSort: "joined_new" }, { resetPage: true });
       void fetchLocations({ silent: true });
     };
     window.addEventListener("admin-new-user-registered", onNewUser);
     return () => window.removeEventListener("admin-new-user-registered", onNewUser);
-  }, [fetchLocations]);
+  }, [fetchLocations, patchListState]);
 
   useEffect(() => {
     const prev = prevUserCountRef.current;
@@ -643,22 +644,25 @@ const AdminPage = () => {
   };
 
   const toggleFilterPackage = useCallback((value: string) => {
-    setFilterPackages((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
-    );
-  }, []);
+    const next = filterPackages.includes(value)
+      ? filterPackages.filter((v) => v !== value)
+      : [...filterPackages, value];
+    patchListState({ filterPackages: next }, { resetPage: true });
+  }, [filterPackages, patchListState]);
 
   const toggleFilterRisk = useCallback((value: 'none' | RiskId) => {
-    setFilterRisks((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
-    );
-  }, []);
+    const next = filterRisks.includes(value)
+      ? filterRisks.filter((v) => v !== value)
+      : [...filterRisks, value];
+    patchListState({ filterRisks: next }, { resetPage: true });
+  }, [filterRisks, patchListState]);
 
   const toggleFilterUser = useCallback((value: string) => {
-    setFilterSelectedUserIds((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
-    );
-  }, []);
+    const next = filterSelectedUserIds.includes(value)
+      ? filterSelectedUserIds.filter((v) => v !== value)
+      : [...filterSelectedUserIds, value];
+    patchListState({ filterSelectedUserIds: next }, { resetPage: true });
+  }, [filterSelectedUserIds, patchListState]);
 
   const userNameFilterOptions = useMemo(() => {
     return [...locations]
@@ -960,34 +964,13 @@ const AdminPage = () => {
   };
 
   const {
-    page: userPage,
-    setPage: setUserPage,
     pageItems: pagedLocations,
     totalPages: userTotalPages,
     total: filteredUserTotal,
-  } = useClientPagination(filteredLocations, userPageSize);
-
-  useEffect(() => {
-    setUserPage(1);
-  }, [
-    filterSelectedUserIds,
-    filterEmail,
-    filterKyc,
-    filterOnline,
-    filterWallet,
-    filterPackages,
-    filterTrading,
-    filterOpenPl,
-    filterReferrer,
-    filterTag,
-    filterRisks,
-    filterJoinFrom,
-    filterJoinTo,
-    filterUserId,
-    userSort,
-    userPageSize,
-    setUserPage,
-  ]);
+  } = useClientPagination(filteredLocations, userPageSize, {
+    page: userPage,
+    onPageChange: (p) => patchListState({ page: p }),
+  });
 
   const visibleUserCols = useMemo(
     () => ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).length,
@@ -1008,7 +991,10 @@ const AdminPage = () => {
               <button
                 type="button"
                 onClick={() =>
-                  setFilterOnline((prev) => (prev === "live" ? "all" : "live"))
+                  patchListState(
+                    { filterOnline: filterOnline === "live" ? "all" : "live" },
+                    { resetPage: true },
+                  )
                 }
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
                   filterOnline === "live"
@@ -1029,7 +1015,10 @@ const AdminPage = () => {
               <button
                 type="button"
                 onClick={() =>
-                  setFilterTrading((prev) => (prev === "stopped" ? "all" : "stopped"))
+                  patchListState(
+                    { filterTrading: filterTrading === "stopped" ? "all" : "stopped" },
+                    { resetPage: true },
+                  )
                 }
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
                   filterTrading === "stopped"
@@ -1052,7 +1041,10 @@ const AdminPage = () => {
               <button
                 type="button"
                 onClick={() =>
-                  setFilterOpenPl((prev) => (prev === "profit" ? "all" : "profit"))
+                  patchListState(
+                    { filterOpenPl: filterOpenPl === "profit" ? "all" : "profit" },
+                    { resetPage: true },
+                  )
                 }
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
                   filterOpenPl === "profit"
@@ -1068,7 +1060,10 @@ const AdminPage = () => {
               <button
                 type="button"
                 onClick={() =>
-                  setFilterOpenPl((prev) => (prev === "loss" ? "all" : "loss"))
+                  patchListState(
+                    { filterOpenPl: filterOpenPl === "loss" ? "all" : "loss" },
+                    { resetPage: true },
+                  )
                 }
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
                   filterOpenPl === "loss"
@@ -1161,7 +1156,7 @@ const AdminPage = () => {
           options={userNameFilterOptions}
           selected={filterSelectedUserIds}
           onToggle={toggleFilterUser}
-          onClear={() => setFilterSelectedUserIds([])}
+          onClear={() => patchListState({ filterSelectedUserIds: [] }, { resetPage: true })}
           searchable
           searchPlaceholder="Search users…"
           emptyLabel="All users"
@@ -1178,19 +1173,19 @@ const AdminPage = () => {
               inputMode="numeric"
               placeholder="e.g. 147"
               value={filterUserId}
-              onChange={(e) => setFilterUserId(e.target.value.replace(/[^\d]/g, ""))}
+              onChange={(e) =>
+                patchListState(
+                  { filterUserId: e.target.value.replace(/[^\d]/g, "") },
+                  { resetPage: true },
+                )
+              }
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             {filterUserId && (
               <button
                 type="button"
                 className="rounded-lg border border-slate-200 px-2 text-xs text-slate-600 hover:bg-slate-50"
-                onClick={() => {
-                  setFilterUserId("");
-                  const next = new URLSearchParams(searchParams);
-                  next.delete("userId");
-                  setSearchParams(next, { replace: true });
-                }}
+                onClick={() => patchListState({ filterUserId: "" }, { resetPage: true })}
               >
                 Clear
               </button>
@@ -1206,7 +1201,7 @@ const AdminPage = () => {
             type="text"
             placeholder="Filter by email..."
             value={filterEmail}
-            onChange={(e) => setFilterEmail(e.target.value)}
+            onChange={(e) => patchListState({ filterEmail: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -1218,7 +1213,7 @@ const AdminPage = () => {
           </label>
           <select
             value={filterKyc}
-            onChange={(e) => setFilterKyc(e.target.value)}
+            onChange={(e) => patchListState({ filterKyc: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All Statuses</option>
@@ -1236,7 +1231,12 @@ const AdminPage = () => {
           </label>
           <select
             value={filterOnline}
-            onChange={(e) => setFilterOnline(e.target.value as "all" | "live")}
+            onChange={(e) =>
+              patchListState(
+                { filterOnline: e.target.value as "all" | "live" },
+                { resetPage: true },
+              )
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
@@ -1251,7 +1251,12 @@ const AdminPage = () => {
           </label>
           <select
             value={filterWallet}
-            onChange={(e) => setFilterWallet(e.target.value as "all" | "with_balance" | "empty")}
+            onChange={(e) =>
+              patchListState(
+                { filterWallet: e.target.value as "all" | "with_balance" | "empty" },
+                { resetPage: true },
+              )
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
@@ -1265,7 +1270,7 @@ const AdminPage = () => {
           options={packageFilterOptions}
           selected={filterPackages}
           onToggle={toggleFilterPackage}
-          onClear={() => setFilterPackages([])}
+          onClear={() => patchListState({ filterPackages: [] }, { resetPage: true })}
           emptyLabel="Default (hide active plans)"
           className="sm:col-span-2"
         />
@@ -1275,7 +1280,12 @@ const AdminPage = () => {
           </label>
           <select
             value={filterTrading}
-            onChange={(e) => setFilterTrading(e.target.value as "all" | "active" | "stopped")}
+            onChange={(e) =>
+              patchListState(
+                { filterTrading: e.target.value as "all" | "active" | "stopped" },
+                { resetPage: true },
+              )
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All users</option>
@@ -1290,7 +1300,7 @@ const AdminPage = () => {
           </label>
           <select
             value={filterTag}
-            onChange={(e) => setFilterTag(e.target.value)}
+            onChange={(e) => patchListState({ filterTag: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All tags</option>
@@ -1306,7 +1316,7 @@ const AdminPage = () => {
           options={riskFilterOptions}
           selected={filterRisks}
           onToggle={(value) => toggleFilterRisk(value as "none" | RiskId)}
-          onClear={() => setFilterRisks([])}
+          onClear={() => patchListState({ filterRisks: [] }, { resetPage: true })}
           emptyLabel="All risks"
           className="sm:col-span-2"
         />
@@ -1318,7 +1328,7 @@ const AdminPage = () => {
           </label>
           <select
             value={filterReferrer}
-            onChange={(e) => setFilterReferrer(e.target.value)}
+            onChange={(e) => patchListState({ filterReferrer: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All referrers</option>
@@ -1338,7 +1348,7 @@ const AdminPage = () => {
           <input
             type="date"
             value={filterJoinFrom}
-            onChange={(e) => setFilterJoinFrom(e.target.value)}
+            onChange={(e) => patchListState({ filterJoinFrom: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -1349,7 +1359,7 @@ const AdminPage = () => {
           <input
             type="date"
             value={filterJoinTo}
-            onChange={(e) => setFilterJoinTo(e.target.value)}
+            onChange={(e) => patchListState({ filterJoinTo: e.target.value }, { resetPage: true })}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -1361,7 +1371,7 @@ const AdminPage = () => {
           <select
             value={userSort}
             onChange={(e) =>
-              setUserSort(e.target.value as UserSortMode)
+              patchListState({ userSort: e.target.value as UserSortMode }, { resetPage: true })
             }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
@@ -1376,7 +1386,12 @@ const AdminPage = () => {
           <Button
             type="button"
             variant={userSort === "joined_new" ? "default" : "outline"}
-            onClick={() => setUserSort((prev) => (prev === "joined_new" ? "wallet_high" : "joined_new"))}
+            onClick={() =>
+              patchListState(
+                { userSort: userSort === "joined_new" ? "wallet_high" : "joined_new" },
+                { resetPage: true },
+              )
+            }
             className={`h-[38px] rounded-lg px-4 ${
               userSort === "joined_new"
                 ? "bg-slate-900 text-white hover:bg-slate-800"
@@ -1388,22 +1403,11 @@ const AdminPage = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              setFilterSelectedUserIds([]);
-              setFilterEmail('');
-              setFilterKyc('all');
-              setFilterOnline('all');
-              setFilterWallet('all');
-              setFilterPackages([...DEFAULT_FILTER_PACKAGES]);
-              setFilterTrading('all');
-              setFilterOpenPl('all');
-              setFilterReferrer('all');
-              setFilterTag('all');
-              setFilterRisks([]);
-              setFilterJoinFrom('');
-              setFilterJoinTo('');
-              setUserSort('wallet_high');
-            }}
+            onClick={() =>
+              setSearchParams(serializeAdminUsersUrlState(defaultAdminUsersUrlState()), {
+                replace: true,
+              })
+            }
             className="h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:px-8"
           >
             Clear Filters
@@ -1511,7 +1515,9 @@ const AdminPage = () => {
               Rows
               <select
                 value={userPageSize}
-                onChange={(e) => setUserPageSize(Number(e.target.value))}
+                onChange={(e) =>
+                  patchListState({ pageSize: Number(e.target.value) }, { resetPage: true })
+                }
                 className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
                 {USER_PAGE_SIZE_OPTIONS.map((n) => (
@@ -1668,7 +1674,9 @@ const AdminPage = () => {
                         {can("action:users:view_trades") && (
                           <DropdownMenuItem
                             className="cursor-pointer"
-                            onClick={() => navigate(`/admin/users/${loc.id}/trades`)}
+                            onClick={() =>
+                              navigate(withAdminReturn(`/admin/users/${loc.id}/trades`))
+                            }
                           >
                             Account Statement
                           </DropdownMenuItem>
@@ -2047,7 +2055,7 @@ const AdminPage = () => {
           totalPages={userTotalPages}
           total={filteredUserTotal}
           pageSize={userPageSize}
-          onPageChange={setUserPage}
+          onPageChange={(p) => patchListState({ page: p })}
           itemLabel="users"
         />
       </div>

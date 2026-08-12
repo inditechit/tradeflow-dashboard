@@ -1,0 +1,166 @@
+import type { RiskId } from "@/constants/riskProfiles";
+import { VALID_RISK_IDS } from "@/constants/riskProfiles";
+
+export const ADMIN_USERS_DEFAULT_PAGE_SIZE = 10;
+export const ADMIN_USERS_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
+export type AdminUsersSortMode =
+  | "wallet_high"
+  | "wallet_low"
+  | "joined_new"
+  | "joined_old"
+  | "trading_wallet_high"
+  | "safe_wallet_high";
+
+export type AdminUsersUrlState = {
+  filterSelectedUserIds: string[];
+  filterEmail: string;
+  filterUserId: string;
+  filterKyc: string;
+  filterOnline: "all" | "live";
+  filterWallet: "all" | "with_balance" | "empty";
+  filterPackages: string[];
+  filterTrading: "all" | "active" | "stopped";
+  filterOpenPl: "all" | "profit" | "loss";
+  filterReferrer: string;
+  filterTag: string;
+  filterRisks: Array<"none" | RiskId>;
+  filterJoinFrom: string;
+  filterJoinTo: string;
+  userSort: AdminUsersSortMode;
+  page: number;
+  pageSize: number;
+};
+
+const SORT_MODES = new Set<AdminUsersSortMode>([
+  "wallet_high",
+  "wallet_low",
+  "joined_new",
+  "joined_old",
+  "trading_wallet_high",
+  "safe_wallet_high",
+]);
+
+const RISK_IDS = new Set<RiskId>(VALID_RISK_IDS);
+
+export function defaultAdminUsersUrlState(): AdminUsersUrlState {
+  return {
+    filterSelectedUserIds: [],
+    filterEmail: "",
+    filterUserId: "",
+    filterKyc: "all",
+    filterOnline: "all",
+    filterWallet: "all",
+    filterPackages: [],
+    filterTrading: "all",
+    filterOpenPl: "all",
+    filterReferrer: "all",
+    filterTag: "all",
+    filterRisks: [],
+    filterJoinFrom: "",
+    filterJoinTo: "",
+    userSort: "wallet_high",
+    page: 1,
+    pageSize: ADMIN_USERS_DEFAULT_PAGE_SIZE,
+  };
+}
+
+function parseCsv(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseRisks(raw: string | null): Array<"none" | RiskId> {
+  const out: Array<"none" | RiskId> = [];
+  for (const part of parseCsv(raw)) {
+    if (part === "none") out.push("none");
+    else if (RISK_IDS.has(part as RiskId)) out.push(part as RiskId);
+  }
+  return out;
+}
+
+export function parseAdminUsersUrlState(params: URLSearchParams): AdminUsersUrlState {
+  const defaults = defaultAdminUsersUrlState();
+  const page = Math.max(1, Number.parseInt(params.get("page") || "1", 10) || 1);
+  const pageSizeRaw = Number(params.get("pageSize"));
+  const pageSize = ADMIN_USERS_PAGE_SIZE_OPTIONS.includes(
+    pageSizeRaw as (typeof ADMIN_USERS_PAGE_SIZE_OPTIONS)[number],
+  )
+    ? pageSizeRaw
+    : defaults.pageSize;
+
+  const onlineRaw = params.get("online");
+  const filterOnline: AdminUsersUrlState["filterOnline"] =
+    onlineRaw === "live" ? "live" : "all";
+
+  const walletRaw = params.get("wallet");
+  const filterWallet: AdminUsersUrlState["filterWallet"] =
+    walletRaw === "with_balance" || walletRaw === "empty" ? walletRaw : "all";
+
+  const tradingRaw = params.get("trading");
+  const filterTrading: AdminUsersUrlState["filterTrading"] =
+    tradingRaw === "active" || tradingRaw === "stopped" ? tradingRaw : "all";
+
+  const openPlRaw = params.get("openPl");
+  const filterOpenPl: AdminUsersUrlState["filterOpenPl"] =
+    openPlRaw === "profit" || openPlRaw === "loss" ? openPlRaw : "all";
+
+  const sortRaw = params.get("sort") || defaults.userSort;
+  const userSort: AdminUsersSortMode = SORT_MODES.has(sortRaw as AdminUsersSortMode)
+    ? (sortRaw as AdminUsersSortMode)
+    : defaults.userSort;
+
+  const filterUserId = (params.get("userId") || "").replace(/[^\d]/g, "");
+
+  return {
+    filterSelectedUserIds: parseCsv(params.get("names")),
+    filterEmail: params.get("email") || "",
+    filterUserId,
+    filterKyc: params.get("kyc") || defaults.filterKyc,
+    filterOnline,
+    filterWallet,
+    filterPackages: parseCsv(params.get("pkg")),
+    filterTrading,
+    filterOpenPl,
+    filterReferrer: params.get("referrer") || defaults.filterReferrer,
+    filterTag: params.get("tag") || defaults.filterTag,
+    filterRisks: parseRisks(params.get("risks")),
+    filterJoinFrom: params.get("joinFrom") || "",
+    filterJoinTo: params.get("joinTo") || "",
+    userSort,
+    page,
+    pageSize,
+  };
+}
+
+export function serializeAdminUsersUrlState(state: AdminUsersUrlState): URLSearchParams {
+  const defaults = defaultAdminUsersUrlState();
+  const params = new URLSearchParams();
+
+  if (state.filterSelectedUserIds.length) {
+    params.set("names", state.filterSelectedUserIds.join(","));
+  }
+  if (state.filterEmail.trim()) params.set("email", state.filterEmail.trim());
+  if (state.filterUserId.trim()) params.set("userId", state.filterUserId.trim());
+  if (state.filterKyc !== defaults.filterKyc) params.set("kyc", state.filterKyc);
+  if (state.filterOnline !== defaults.filterOnline) params.set("online", state.filterOnline);
+  if (state.filterWallet !== defaults.filterWallet) params.set("wallet", state.filterWallet);
+  if (state.filterPackages.length) params.set("pkg", state.filterPackages.join(","));
+  if (state.filterTrading !== defaults.filterTrading) params.set("trading", state.filterTrading);
+  if (state.filterOpenPl !== defaults.filterOpenPl) params.set("openPl", state.filterOpenPl);
+  if (state.filterReferrer !== defaults.filterReferrer) {
+    params.set("referrer", state.filterReferrer);
+  }
+  if (state.filterTag !== defaults.filterTag) params.set("tag", state.filterTag);
+  if (state.filterRisks.length) params.set("risks", state.filterRisks.join(","));
+  if (state.filterJoinFrom) params.set("joinFrom", state.filterJoinFrom);
+  if (state.filterJoinTo) params.set("joinTo", state.filterJoinTo);
+  if (state.userSort !== defaults.userSort) params.set("sort", state.userSort);
+  if (state.page > 1) params.set("page", String(state.page));
+  if (state.pageSize !== defaults.pageSize) params.set("pageSize", String(state.pageSize));
+
+  return params;
+}

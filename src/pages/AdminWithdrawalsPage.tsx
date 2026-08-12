@@ -103,6 +103,7 @@ const AdminWithdrawalsPage = () => {
   const [txFixHash, setTxFixHash] = useState("");
   const [txFixBusy, setTxFixBusy] = useState(false);
   const [page, setPage] = useState(1);
+  const pageFromUrl = Math.max(1, Number(searchParams.get("page")) || 1);
   const [total, setTotal] = useState(0);
   const pageSize = 100;
   const WITHDRAW_FEE = 5;
@@ -123,6 +124,13 @@ const AdminWithdrawalsPage = () => {
     name: string | null;
     totalPayout: number;
   } | null>(null);
+
+  const setPageInUrl = (pageNum: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (pageNum <= 1) next.delete("page");
+    else next.set("page", String(pageNum));
+    setSearchParams(next, { replace: true });
+  };
 
   const load = useCallback(
     async (pageNum = 1, status: StatusFilter = filter, userId: number | null = activeUserId) => {
@@ -179,13 +187,15 @@ const AdminWithdrawalsPage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    void load(1, filter, activeUserId);
-  }, [filter, activeUserId, load]);
+    setPage(pageFromUrl);
+    void load(pageFromUrl, filter, activeUserId);
+  }, [pageFromUrl, filter, activeUserId, load]);
 
   const setStatusAndUrl = (status: StatusFilter) => {
     const next = new URLSearchParams(searchParams);
     if (status === "pending") next.delete("status");
     else next.set("status", status);
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -197,12 +207,14 @@ const AdminWithdrawalsPage = () => {
       // Show all of that user's withdrawals when filtering by user
       next.set("status", "all");
     }
+    next.delete("page");
     setSearchParams(next);
   };
 
   const clearUserFilter = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("userId");
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -727,7 +739,7 @@ const confirmApprove = async () => {
         totalPages={Math.max(1, Math.ceil(total / pageSize))}
         total={total}
         pageSize={pageSize}
-        onPageChange={(p) => void load(p)}
+        onPageChange={(p) => setPageInUrl(p)}
         itemLabel="withdrawals"
       />
 

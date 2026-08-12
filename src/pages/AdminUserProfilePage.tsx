@@ -1,11 +1,12 @@
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
+import { useAdminBackNavigation } from "@/hooks/useAdminBackNavigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
 
 const AdminUserProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+  const { goBack } = useAdminBackNavigation("/admin/users");
 
   if (!userId) {
     return <Navigate to="/admin/users" replace />;
@@ -19,7 +20,7 @@ const AdminUserProfilePage = () => {
           variant="outline"
           size="sm"
           className="w-fit touch-manipulation"
-          onClick={() => navigate("/admin/users")}
+          onClick={() => goBack()}
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Users

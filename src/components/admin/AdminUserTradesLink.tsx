@@ -1,10 +1,13 @@
 import type { ReactNode, MouseEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { withAdminReturn } from "@/utils/adminNavigation";
 
-export function adminUserTradesPath(userId: number | string): string {
+export function adminUserTradesPath(userId: number | string, returnPath?: string): string {
   const id = Number(userId);
-  return Number.isFinite(id) && id > 0 ? `/admin/users/${id}/trades` : "/admin/users";
+  const base =
+    Number.isFinite(id) && id > 0 ? `/admin/users/${id}/trades` : "/admin/users";
+  return withAdminReturn(base, returnPath);
 }
 
 type AdminUserTradesLinkProps = {
@@ -26,8 +29,10 @@ export function AdminUserTradesLink({
   idClassName,
   onClick,
 }: AdminUserTradesLinkProps) {
+  const location = useLocation();
   const id = Number(userId);
   const label = children ?? name ?? (id > 0 ? `User #${id}` : "—");
+  const returnPath = `${location.pathname}${location.search}`;
 
   if (!Number.isFinite(id) || id <= 0) {
     return <span className={className}>{label}</span>;
@@ -35,7 +40,7 @@ export function AdminUserTradesLink({
 
   return (
     <Link
-      to={adminUserTradesPath(id)}
+      to={adminUserTradesPath(id, returnPath)}
       className={cn(
         "text-slate-900 underline-offset-2 hover:text-yellow-900 hover:underline",
         className,

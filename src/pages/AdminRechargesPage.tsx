@@ -119,8 +119,16 @@ const AdminRechargesPage = () => {
   const [pullingAllTrx, setPullingAllTrx] = useState(false);
   const [balancesById, setBalancesById] = useState<Record<number, TempBalances>>({});
   const [page, setPage] = useState(1);
+  const pageFromUrl = Math.max(1, Number(searchParams.get("page")) || 1);
   const [total, setTotal] = useState(0);
   const pageSize = 100;
+
+  const setPageInUrl = (pageNum: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (pageNum <= 1) next.delete("page");
+    else next.set("page", String(pageNum));
+    setSearchParams(next, { replace: true });
+  };
 
   const fetchPayments = useCallback(
     async (
@@ -193,8 +201,9 @@ const AdminRechargesPage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    fetchPayments(activeFilter, statusFilter, sweepFilter, 1);
-  }, [activeFilter, statusFilter, sweepFilter, fetchPayments]);
+    setPage(pageFromUrl);
+    fetchPayments(activeFilter, statusFilter, sweepFilter, pageFromUrl);
+  }, [activeFilter, statusFilter, sweepFilter, pageFromUrl, fetchPayments]);
 
   const applyUserFilter = () => {
     const t = filterUserId.trim();
@@ -205,12 +214,14 @@ const AdminRechargesPage = () => {
     const next = new URLSearchParams(searchParams);
     if (!t) next.delete("userId");
     else next.set("userId", t);
+    next.delete("page");
     setSearchParams(next);
   };
 
   const clearUserFilter = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("userId");
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -218,6 +229,7 @@ const AdminRechargesPage = () => {
     const next = new URLSearchParams(searchParams);
     if (status === "all") next.delete("status");
     else next.set("status", status);
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -225,6 +237,7 @@ const AdminRechargesPage = () => {
     const next = new URLSearchParams(searchParams);
     if (sweep === "all") next.delete("sweepStatus");
     else next.set("sweepStatus", sweep);
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -762,7 +775,7 @@ const AdminRechargesPage = () => {
         totalPages={Math.max(1, Math.ceil(total / pageSize))}
         total={total}
         pageSize={pageSize}
-        onPageChange={(p) => void fetchPayments(activeFilter, statusFilter, sweepFilter, p)}
+        onPageChange={(p) => setPageInUrl(p)}
         itemLabel="recharges"
       />
     </div>

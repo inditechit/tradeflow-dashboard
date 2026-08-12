@@ -1,14 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 
-export function useClientPagination<T>(items: T[], pageSize = 50) {
-  const [page, setPage] = useState(1);
+type ClientPaginationOptions = {
+  page?: number;
+  onPageChange?: (page: number) => void;
+};
+
+export function useClientPagination<T>(
+  items: T[],
+  pageSize = 50,
+  options?: ClientPaginationOptions,
+) {
+  const [internalPage, setInternalPage] = useState(options?.page ?? 1);
+  const page = options?.page ?? internalPage;
+  const setPage = options?.onPageChange ?? setInternalPage;
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(page, 1), totalPages);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (options?.page != null && options.page !== internalPage) {
+      setInternalPage(options.page);
+    }
+  }, [options?.page, internalPage]);
+
+  useEffect(() => {
+    if (safePage !== page) setPage(safePage);
+  }, [safePage, page, setPage]);
 
   const pageItems = useMemo(() => {
     const start = (safePage - 1) * pageSize;

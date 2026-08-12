@@ -173,8 +173,16 @@ const AdminAlertsPage = () => {
     [category],
   );
 
-  const [readFilter, setReadFilter] = useState<"all" | "unread">("all");
-  const [page, setPage] = useState(1);
+  const readFilter = useMemo(
+    () => (searchParams.get("read") === "unread" ? "unread" : "all") as "all" | "unread",
+    [searchParams],
+  );
+
+  const page = useMemo(
+    () => Math.max(1, Number(searchParams.get("page")) || 1),
+    [searchParams],
+  );
+
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
@@ -209,7 +217,6 @@ const AdminAlertsPage = () => {
               (c: CategoryStat) => c.key !== "withdraw" && c.key !== "withdrawal",
             ),
           );
-          setPage(pageNum);
         } else {
           toast({ title: "Error", description: data.error, variant: "destructive" });
         }
@@ -221,6 +228,21 @@ const AdminAlertsPage = () => {
     },
     [readFilter, category, dateFilter, toast],
   );
+
+  const setListPage = (pageNum: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (pageNum <= 1) next.delete("page");
+    else next.set("page", String(pageNum));
+    setSearchParams(next, { replace: true });
+  };
+
+  const setReadFilter = (value: "all" | "unread") => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "unread") next.set("read", "unread");
+    else next.delete("read");
+    next.delete("page");
+    setSearchParams(next, { replace: true });
+  };
 
   const loadDetail = useCallback(
     async (alertId: number) => {
@@ -258,8 +280,8 @@ const AdminAlertsPage = () => {
   );
 
   useEffect(() => {
-    void loadList(1);
-  }, [loadList]);
+    void loadList(page);
+  }, [loadList, page]);
 
   useEffect(() => {
     if (selectedAlertId) void loadDetail(selectedAlertId);
@@ -271,6 +293,7 @@ const AdminAlertsPage = () => {
     if (key === "all") next.delete("category");
     else next.set("category", key);
     next.delete("alert");
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -280,6 +303,7 @@ const AdminAlertsPage = () => {
     if (trimmed) next.set("date", trimmed);
     else next.delete("date");
     next.delete("alert");
+    next.delete("page");
     setSearchParams(next);
   };
 
@@ -491,7 +515,7 @@ const AdminAlertsPage = () => {
             totalPages={totalPages}
             total={total}
             pageSize={PAGE_SIZE}
-            onPageChange={(p) => void loadList(p)}
+            onPageChange={(p) => setListPage(p)}
             itemLabel="alerts"
           />
         </div>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, RefreshCw, AlertTriangle, Pencil } from "lucide-react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
+import { useAdminBackNavigation } from "@/hooks/useAdminBackNavigation";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/api";
 import { fetchAllUserTrades } from "@/utils/fetchAllUserTrades";
@@ -164,7 +165,7 @@ function tradeClosedAt(r: UserTradeRow): string {
 
 const AdminUserTradesPage = () => {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+  const { goBack } = useAdminBackNavigation("/admin/users");
   const { toast } = useToast();
   const [userName, setUserName] = useState("");
   const [rows, setRows] = useState<UserTradeRow[]>([]);
@@ -519,7 +520,7 @@ const AdminUserTradesPage = () => {
             size="sm"
             className="w-fit"
             allowInRecording
-            onClick={() => navigate("/admin/users")}
+            onClick={() => goBack()}
           >
             <ArrowLeft className="mr-1 h-4 w-4" />
             Users
