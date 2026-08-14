@@ -10,7 +10,11 @@ export type AdminUsersSortMode =
   | "joined_new"
   | "joined_old"
   | "trading_wallet_high"
-  | "safe_wallet_high";
+  | "safe_wallet_high"
+  | "assignments_high";
+
+/** Default sort on first visit (no `sort` query param). */
+export const ADMIN_USERS_INITIAL_SORT: AdminUsersSortMode = "assignments_high";
 
 export type AdminUsersUrlState = {
   filterSelectedUserIds: string[];
@@ -39,6 +43,7 @@ const SORT_MODES = new Set<AdminUsersSortMode>([
   "joined_old",
   "trading_wallet_high",
   "safe_wallet_high",
+  "assignments_high",
 ]);
 
 const RISK_IDS = new Set<RiskId>(VALID_RISK_IDS);
@@ -108,10 +113,10 @@ export function parseAdminUsersUrlState(params: URLSearchParams): AdminUsersUrlS
   const filterOpenPl: AdminUsersUrlState["filterOpenPl"] =
     openPlRaw === "profit" || openPlRaw === "loss" ? openPlRaw : "all";
 
-  const sortRaw = params.get("sort") || defaults.userSort;
+  const sortRaw = params.has("sort") ? params.get("sort") : ADMIN_USERS_INITIAL_SORT;
   const userSort: AdminUsersSortMode = SORT_MODES.has(sortRaw as AdminUsersSortMode)
     ? (sortRaw as AdminUsersSortMode)
-    : defaults.userSort;
+    : ADMIN_USERS_INITIAL_SORT;
 
   const filterUserId = (params.get("userId") || "").replace(/[^\d]/g, "");
 

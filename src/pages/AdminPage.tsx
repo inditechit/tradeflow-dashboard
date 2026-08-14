@@ -83,6 +83,7 @@ import { withAdminReturn } from "@/utils/adminNavigation";
 import {
   ADMIN_USERS_DEFAULT_PAGE_SIZE,
   ADMIN_USERS_PAGE_SIZE_OPTIONS,
+  ADMIN_USERS_INITIAL_SORT,
   defaultAdminUsersUrlState,
   parseAdminUsersUrlState,
   serializeAdminUsersUrlState,
@@ -149,6 +150,16 @@ function rowLivePl(
   const uid = Number(loc.id);
   if (uid && overlay[uid]?.live_pl != null) return Number(overlay[uid].live_pl);
   return Number(loc.live_pl ?? 0);
+}
+
+function rowOpenAssignmentCount(
+  loc: { id?: unknown; open_positions?: unknown },
+  openRowsByUser: Record<number, UserTradeRowLike[]>,
+): number {
+  const uid = Number(loc.id);
+  const fromRows = uid > 0 ? openRowsByUser[uid]?.length ?? 0 : 0;
+  const fromApi = Number(loc.open_positions ?? 0);
+  return Math.max(fromRows, fromApi);
 }
 
 function rowEquity(
@@ -293,6 +304,13 @@ const AdminPage = () => {
   const toggleWalletColumnSort = useCallback((mode: "trading_wallet_high" | "safe_wallet_high") => {
     patchListState(
       { userSort: userSort === mode ? "wallet_high" : mode },
+      { resetPage: true },
+    );
+  }, [patchListState, userSort]);
+
+  const toggleAssignmentSort = useCallback(() => {
+    patchListState(
+      { userSort: userSort === "assignments_high" ? "wallet_high" : "assignments_high" },
       { resetPage: true },
     );
   }, [patchListState, userSort]);
@@ -746,6 +764,10 @@ const AdminPage = () => {
       const matchSafeWalletColumn =
         userSort !== "safe_wallet_high" || safeWalletUsd(loc) > WALLET_COLUMN_SORT_MIN_USD;
 
+      const openAssignCount = rowOpenAssignmentCount(loc, openRowsByUser);
+      const matchAssignmentsColumn =
+        userSort !== "assignments_high" || openAssignCount > 0;
+
       const activePkg = String(loc.active_package_id ?? "").trim();
       const matchPackage =
         filterPackages.length === 0
@@ -797,6 +819,7 @@ const AdminPage = () => {
         matchWallet &&
         matchTradingWalletColumn &&
         matchSafeWalletColumn &&
+        matchAssignmentsColumn &&
         matchPackage &&
         matchTrading &&
         matchOpenPl &&
@@ -832,6 +855,14 @@ const AdminPage = () => {
         return Number(b.id) - Number(a.id);
       }
 
+      if (userSort === "assignments_high") {
+        const diff =
+          rowOpenAssignmentCount(b, openRowsByUser) -
+          rowOpenAssignmentCount(a, openRowsByUser);
+        if (diff !== 0) return diff;
+        return Number(b.id) - Number(a.id);
+      }
+
       const diff = walletBalanceOf(b) - walletBalanceOf(a);
       const primary = userSort === "wallet_high" ? diff : -diff;
       if (primary !== 0) return primary;
@@ -855,6 +886,7 @@ const AdminPage = () => {
     filterJoinTo,
     userSort,
     financeOverlay,
+    openRowsByUser,
   ]);
 
   const totalUserCount = locations.length;
@@ -899,7 +931,7 @@ const AdminPage = () => {
       filterRisks.length > 0 ||
       Boolean(filterJoinFrom) ||
       Boolean(filterJoinTo) ||
-      userSort !== "wallet_high",
+      userSort !== "wallet_high" && userSort !== ADMIN_USERS_INITIAL_SORT,
     [
       filterSelectedUserIds,
       filterEmail,
@@ -931,6 +963,8 @@ const AdminPage = () => {
         return "trading wallet (high → low, hide $0)";
       case "safe_wallet_high":
         return "safe wallet (high → low, hide $0)";
+      case "assignments_high":
+        return "open trade assignments (most → least, hide none)";
       default:
         return "wallet balance (high → low)";
     }
@@ -1375,6 +1409,7 @@ const AdminPage = () => {
             }
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
+            <option value="assignments_high">Trade assignments — most first</option>
             <option value="wallet_high">Wallet — highest first</option>
             <option value="wallet_low">Wallet — lowest first</option>
             <option value="joined_new">Join date — newest first</option>
@@ -1541,13 +1576,14 @@ const AdminPage = () => {
                 {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => {
                   const isTradingWalletCol = col.id === "wallet";
                   const isSafeWalletCol = col.id === "safe_wallet";
+                  const isEquityCol = col.id === "equity";
 
                   return (
                   <th
                     key={col.id}
                     className={cn(
                       "sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-6 sm:py-4",
-                      (isTradingWalletCol || isSafeWalletCol) &&
+                      (isTradingWalletCol || isSafeWalletCol || isEquityCol) &&
                         "cursor-pointer select-none hover:bg-slate-100",
                       isTradingWalletCol &&
                         userSort === "trading_wallet_high" &&
@@ -1555,20 +1591,27 @@ const AdminPage = () => {
                       isSafeWalletCol &&
                         userSort === "safe_wallet_high" &&
                         "bg-emerald-50 text-emerald-900",
+                      isEquityCol &&
+                        userSort === "assignments_high" &&
+                        "bg-sky-50 text-sky-900",
                     )}
                     onClick={
                       isTradingWalletCol
                         ? () => toggleWalletColumnSort("trading_wallet_high")
                         : isSafeWalletCol
                           ? () => toggleWalletColumnSort("safe_wallet_high")
-                          : undefined
+                          : isEquityCol
+                            ? () => toggleAssignmentSort()
+                            : undefined
                     }
                     title={
                       isTradingWalletCol
                         ? "Sort by trading wallet (high → low). Hides $0. Click again to reset."
                         : isSafeWalletCol
                           ? "Sort by safe wallet (high → low). Hides $0. Click again to reset."
-                          : undefined
+                          : isEquityCol
+                            ? "Sort by open trade assignments (most → least). Hides users with none. Click again to reset."
+                            : undefined
                     }
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1578,6 +1621,9 @@ const AdminPage = () => {
                       ) : null}
                       {isSafeWalletCol && userSort === "safe_wallet_high" ? (
                         <span className="text-[10px] font-bold normal-case text-emerald-800">↓</span>
+                      ) : null}
+                      {isEquityCol && userSort === "assignments_high" ? (
+                        <span className="text-[10px] font-bold normal-case text-sky-800">↓</span>
                       ) : null}
                     </span>
                   </th>
@@ -1595,7 +1641,7 @@ const AdminPage = () => {
                 const equityVal = fin?.equity ?? Number(loc.equity ?? walletBal);
                 const withdrawableVal =
                   fin?.withdrawable_equity ?? Number(loc.withdrawable_equity ?? walletBal);
-                const openPos = Number(loc.open_positions ?? 0);
+                const openPos = rowOpenAssignmentCount(loc, openRowsByUser);
                 const adminShare = sumOpenAdminShareUsd(
                   (openRowsByUser[uid] ?? []) as AdminOpenAssignRow[],
                 );
