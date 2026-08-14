@@ -100,7 +100,6 @@ const EditUserModal: React.FC<Props> = ({
                 if (piiRevealed) lock();
                 else requestUnlock();
               }}
-              title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
               className={`input ${!piiRevealed ? "cursor-pointer bg-slate-50" : "cursor-pointer"}`}
             />
           </div>
@@ -111,7 +110,6 @@ const EditUserModal: React.FC<Props> = ({
               if (piiRevealed) lock();
               else requestUnlock();
             }}
-            title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
           >
             <label className="label">Email</label>
             <input
@@ -136,7 +134,6 @@ const EditUserModal: React.FC<Props> = ({
               if (piiRevealed) lock();
               else requestUnlock();
             }}
-            title={piiRevealed ? "Double-click to hide" : "Double-click to reveal"}
           >
             <label className="label">Mobile</label>
             <input

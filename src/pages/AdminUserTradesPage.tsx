@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientPagination } from "@/hooks/useClientPagination";
 import { ListPaginationBar } from "@/components/trades/TradesPaginationBar";
 import { formatIsoDateTime } from "@/utils/mt5TradeDates";
+import { packageDisplayName } from "@/constants/packages";
+import { formatAdminDate } from "@/utils/adminUserDisplay";
 import { isSubscriptionPackageId } from "@/utils/packageDuration";
 import {
   buildUserMistakeInsights,
@@ -163,11 +165,32 @@ function tradeClosedAt(r: UserTradeRow): string {
   return formatIsoDateTime(tradeEffectiveCloseAt(r));
 }
 
+type UserPackageInfo = {
+  active_package_id: string | null;
+  package_expires_at: string | null;
+  package_expired?: boolean;
+};
+
+function daysLeftUntil(value: unknown): number | null {
+  if (!value) return null;
+  const end = new Date(String(value)).getTime();
+  if (Number.isNaN(end)) return null;
+  return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function daysLeftBadgeClass(days: number): string {
+  if (days <= 0) return "border-red-200 bg-red-100 text-red-700";
+  if (days <= 3) return "border-red-200 bg-red-50 text-red-700";
+  if (days <= 7) return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
 const AdminUserTradesPage = () => {
   const { userId } = useParams<{ userId: string }>();
   const { goBack } = useAdminBackNavigation("/admin/users");
   const { toast } = useToast();
   const [userName, setUserName] = useState("");
+  const [userPackage, setUserPackage] = useState<UserPackageInfo | null>(null);
   const [rows, setRows] = useState<UserTradeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -273,6 +296,16 @@ const AdminUserTradesPage = () => {
         );
         setFeePerLotUsd(Number(summaryData.fee_per_lot_usd ?? 30));
         setEquity(Number(summaryData.equity ?? wBal));
+        const activePkg = summaryData.active_package_id
+          ? String(summaryData.active_package_id)
+          : null;
+        setUserPackage({
+          active_package_id: activePkg,
+          package_expires_at: summaryData.package_expires_at ?? null,
+          package_expired: summaryData.package_expired === true,
+        });
+      } else {
+        setUserPackage(null);
       }
       if (profileData?.success && profileData.profile?.name) {
         setUserName(String(profileData.profile.name));
@@ -533,6 +566,39 @@ const AdminUserTradesPage = () => {
             <p className="mt-1 text-sm text-slate-500">
               User #{userId} · {openCount} open · {closedCount} closed · {rows.length} assigned
               {totalLoaded > rows.length ? ` (${totalLoaded} total loaded)` : ""}
+              {userPackage?.active_package_id ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="font-semibold text-slate-700">
+                    {packageDisplayName(userPackage.active_package_id)}
+                  </span>
+                  {(() => {
+                    const days = daysLeftUntil(userPackage.package_expires_at);
+                    if (days == null) return null;
+                    return (
+                      <span
+                        className={cn(
+                          "ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                          daysLeftBadgeClass(days),
+                        )}
+                      >
+                        {days <= 0 ? "Expired" : `${days}d left`}
+                      </span>
+                    );
+                  })()}
+                  {userPackage.package_expires_at ? (
+                    <span className="ml-1 text-slate-500">
+                      · ends {formatAdminDate(String(userPackage.package_expires_at))}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {" "}
+                  · <span className="text-slate-400">No active plan</span>
+                </>
+              )}
               {tradingControl ? (
                 <>
                   {" "}
@@ -582,7 +648,7 @@ const AdminUserTradesPage = () => {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-8">
         <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
           <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
           Gross profit
@@ -649,6 +715,39 @@ const AdminUserTradesPage = () => {
           <div className="mt-0.5 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
             {fmtUsd(equity)}
           </div>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+          <div className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-500">
+            Package
+          </div>
+          {userPackage?.active_package_id ? (
+            <>
+              <div className="mt-0.5 text-sm font-extrabold leading-tight text-slate-900 sm:text-base">
+                {packageDisplayName(userPackage.active_package_id)}
+              </div>
+              {(() => {
+                const days = daysLeftUntil(userPackage.package_expires_at);
+                if (days == null) return null;
+                return (
+                  <span
+                    className={cn(
+                      "mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      daysLeftBadgeClass(days),
+                    )}
+                  >
+                    {days <= 0 ? "Expired" : `${days}d left`}
+                  </span>
+                );
+              })()}
+              {userPackage.package_expires_at ? (
+                <p className="mt-1 text-[10px] leading-tight text-slate-500">
+                  Ends {formatAdminDate(String(userPackage.package_expires_at))}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <div className="mt-0.5 text-sm font-semibold text-slate-400">No active plan</div>
+          )}
         </div>
       </div>
 

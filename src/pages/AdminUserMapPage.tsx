@@ -4,8 +4,19 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader2, MapPin, RefreshCw, Search, TrendingUp } from "lucide-react";
 import { API_BASE } from "@/config/api";
-import { walletBalanceOf } from "@/utils/adminUserDisplay";
+import { walletBalanceOf, formatAdminDate } from "@/utils/adminUserDisplay";
 import { isAdminRoleUser } from "@/utils/userRole";
+import { packageDisplayName } from "@/constants/packages";
+import {
+  type AdminOpenAssignRow,
+  groupOpenRowsByUser,
+} from "@/utils/adminLiveFinance";
+import {
+  isTradeClosed,
+  rowGrossPl,
+  type UserTradeRowLike,
+} from "@/utils/userTradePl";
+import { plTextClass } from "@/utils/plColors";
 import {
   isMapAboveBaselineUser,
   isMapProfitableUser,
@@ -18,6 +29,7 @@ import {
   MAP_PROFITABLE_MIN_DEPOSIT_USD,
 } from "@/utils/adminUserMapUtils";
 import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
+import { MaskedPii } from "@/components/admin/AdminPiiReveal";
 import { cn } from "@/lib/utils";
 
 type MapStatCard = "traders" | "profitable_all" | "profitable_map" | "countries";
@@ -49,6 +61,12 @@ type AdminUserRow = {
   completed_withdraw_usd?: number | string | null;
   deposit_baseline_usd?: number | string | null;
   live_pl?: number | string | null;
+  open_positions?: number | string | null;
+  active_package_id?: string | null;
+  package_expires_at?: string | null;
+  package_expired?: boolean | number | null;
+  last_package_id?: string | null;
+  last_package_end_at?: string | null;
 };
 
 type PinUser = AdminUserRow & {
@@ -153,8 +171,41 @@ function fmtUsd(n: number) {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function openTradesForUser(
+  userId: number,
+  openRowsByUser: Record<number, UserTradeRowLike[]>,
+): UserTradeRowLike[] {
+  if (!userId) return [];
+  return (openRowsByUser[userId] ?? []).filter((r) => !isTradeClosed(r));
+}
+
+function openTradeCount(
+  user: AdminUserRow,
+  openRowsByUser: Record<number, UserTradeRowLike[]>,
+): number {
+  const uid = Number(user.id);
+  const fromRows = openTradesForUser(uid, openRowsByUser).length;
+  const fromApi = Number(user.open_positions ?? 0);
+  return Math.max(fromRows, fromApi);
+}
+
+function daysLeftUntil(value: unknown): number | null {
+  if (!value) return null;
+  const end = new Date(String(value)).getTime();
+  if (Number.isNaN(end)) return null;
+  return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function daysLeftBadgeClass(days: number): string {
+  if (days <= 0) return "border-red-200 bg-red-100 text-red-700";
+  if (days <= 3) return "border-red-200 bg-red-50 text-red-700";
+  if (days <= 7) return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
 const AdminUserMapPage: React.FC = () => {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [openRowsByUser, setOpenRowsByUser] = useState<Record<number, UserTradeRowLike[]>>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -169,14 +220,23 @@ const AdminUserMapPage: React.FC = () => {
     try {
       setLoading(true);
       setErr(null);
-      const res = await fetch(`${API_BASE}/admin/users?finance=1`);
-      const data = await res.json();
+      const [usersRes, assignRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/users?finance=1`),
+        fetch(`${API_BASE}/admin/open-assignments`),
+      ]);
+      const data = await usersRes.json();
+      const assignData = await assignRes.json();
       const list: AdminUserRow[] = Array.isArray(data?.users)
         ? data.users
         : Array.isArray(data)
           ? data
           : [];
       setUsers(list);
+      if (assignData?.success && Array.isArray(assignData.assignments)) {
+        setOpenRowsByUser(
+          groupOpenRowsByUser(assignData.assignments as AdminOpenAssignRow[]),
+        );
+      }
     } catch (e) {
       setErr((e as Error).message ?? "Failed to load users");
     } finally {
@@ -520,6 +580,10 @@ const AdminUserMapPage: React.FC = () => {
                 const total = trading + safe + withdrawn;
                 const netPl = mapUserNetPlUsd(p);
                 const baseline = Number(p.deposit_baseline_usd ?? 0);
+                const livePl = Number(p.live_pl ?? 0);
+                const openTrades = openTradesForUser(Number(p.id), openRowsByUser);
+                const openCount = openTradeCount(p, openRowsByUser);
+                const packageDays = daysLeftUntil(p.package_expires_at);
                 return (
                   <Marker
                     key={String(p.id)}
@@ -527,13 +591,44 @@ const AdminUserMapPage: React.FC = () => {
                     icon={markerIconForUser(p)}
                   >
                     <Popup>
-                      <div className="min-w-[220px] space-y-1 text-sm">
-                        <AdminUserTradesLink
-                          userId={p.id}
-                          name={p.name || p.telegram || `User #${p.id}`}
-                          className="font-semibold"
-                        />
-                        {p.email && <div className="text-slate-600 break-all">{p.email}</div>}
+                      <div className="min-w-[240px] max-w-[280px] space-y-1 text-sm">
+                        <AdminUserTradesLink userId={p.id} className="font-semibold">
+                          <MaskedPii
+                            value={p.name || p.telegram || `User #${p.id}`}
+                            kind="name"
+                          />
+                        </AdminUserTradesLink>
+                        {p.email ? (
+                          <div className="break-all text-slate-600">
+                            <MaskedPii value={p.email} kind="email" />
+                          </div>
+                        ) : null}
+                        <div className="text-xs text-slate-600">
+                          {p.active_package_id ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-slate-800">
+                                {packageDisplayName(String(p.active_package_id))}
+                              </span>
+                              {packageDays != null ? (
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                    daysLeftBadgeClass(packageDays),
+                                  )}
+                                >
+                                  {packageDays <= 0 ? "Expired" : `${packageDays}d left`}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">No active plan</span>
+                          )}
+                          {p.package_expires_at ? (
+                            <div className="mt-0.5 text-[11px] text-slate-500">
+                              Ends {formatAdminDate(String(p.package_expires_at))}
+                            </div>
+                          ) : null}
+                        </div>
                         {(p.city || p.state || p.country) && (
                           <div className="text-slate-600">
                             {[p.city, p.state, p.country].filter(Boolean).join(", ")}
@@ -555,6 +650,56 @@ const AdminUserMapPage: React.FC = () => {
                         <div className="text-slate-700 tabular-nums text-xs">
                           Total value: {fmtUsd(total)}
                           {baseline > 0.01 ? ` · Baseline ${fmtUsd(baseline)}` : ""}
+                        </div>
+                        <div className="mt-2 border-t border-slate-200 pt-2">
+                          <p className="text-xs font-semibold text-slate-800">
+                            Open trades
+                            {openCount > 0 ? (
+                              <span className="ml-1.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-700">
+                                {openCount}
+                              </span>
+                            ) : null}
+                          </p>
+                          {openCount > 0 && Number.isFinite(livePl) ? (
+                            <p className="mt-0.5 text-xs tabular-nums text-slate-600">
+                              Live P/L:{" "}
+                              <span className={cn("font-semibold", plTextClass(livePl))}>
+                                {fmtUsd(livePl)}
+                              </span>
+                            </p>
+                          ) : null}
+                          {openTrades.length > 0 ? (
+                            <ul className="mt-1.5 max-h-36 space-y-1 overflow-y-auto pr-1">
+                              {openTrades.map((trade) => {
+                                const ticket = String(
+                                  trade.ticket_id ?? trade.assignment_id ?? "",
+                                );
+                                const grossPl = rowGrossPl(trade);
+                                const symbol = String(trade.symbol ?? "—");
+                                return (
+                                  <li
+                                    key={`${ticket}-${trade.assignment_id ?? ""}`}
+                                    className="flex items-start justify-between gap-2 text-xs"
+                                  >
+                                    <span className="min-w-0 truncate text-slate-600">
+                                      {symbol}
+                                      {ticket ? ` · #${ticket}` : ""}
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "shrink-0 font-semibold tabular-nums",
+                                        plTextClass(grossPl),
+                                      )}
+                                    >
+                                      {fmtUsd(grossPl)}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="mt-1 text-xs text-slate-500">No open trades</p>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-1 pt-1">
                           {p.profitable ? (
