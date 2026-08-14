@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ExternalLink, Loader2, MapPin, RefreshCw, Search } from "lucide-react";
 import { API_BASE } from "@/config/api";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ type LoginLocationLog = {
   user_name?: string | null;
   user_email?: string | null;
   user_telegram?: string | null;
+  address_repeat_count?: number | string | null;
 };
 
 const PAGE_SIZE = 40;
@@ -46,6 +46,7 @@ export default function AdminLoginLocationLogsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [userIdFilter, setUserIdFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
   const [draftFilter, setDraftFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -62,6 +63,8 @@ export default function AdminLoginLocationLogsPage() {
       });
       if (userIdFilter && /^\d+$/.test(userIdFilter)) {
         qs.set("userId", userIdFilter);
+      } else if (searchFilter) {
+        qs.set("search", searchFilter);
       }
       const res = await fetch(`${API_BASE}/admin/login-location-logs?${qs}`);
       const data = await res.json();
@@ -75,16 +78,40 @@ export default function AdminLoginLocationLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, userIdFilter]);
+  }, [page, userIdFilter, searchFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const applyFilter = () => {
+    const trimmed = draftFilter.trim();
     setPage(1);
-    setUserIdFilter(draftFilter.trim());
+    if (/^\d+$/.test(trimmed)) {
+      setUserIdFilter(trimmed);
+      setSearchFilter("");
+    } else {
+      setUserIdFilter("");
+      setSearchFilter(trimmed);
+    }
   };
+
+  const filterByUserId = (id: number) => {
+    const idStr = String(id);
+    setDraftFilter(idStr);
+    setUserIdFilter(idStr);
+    setSearchFilter("");
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setDraftFilter("");
+    setUserIdFilter("");
+    setSearchFilter("");
+    setPage(1);
+  };
+
+  const hasActiveFilter = Boolean(userIdFilter || searchFilter);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
@@ -113,31 +140,23 @@ export default function AdminLoginLocationLogsPage() {
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="min-w-[160px] flex-1">
-          <label className="mb-1 block text-xs font-semibold text-slate-500">User ID</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">User name or ID</label>
           <input
             value={draftFilter}
             onChange={(e) => setDraftFilter(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") applyFilter();
             }}
-            placeholder="Filter by user id"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm tabular-nums"
+            placeholder="Name, email, telegram, or user id"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           />
         </div>
         <Button type="button" onClick={applyFilter} className="gap-1.5 bg-yellow-900 text-white hover:bg-yellow-800">
           <Search className="h-4 w-4" />
           Filter
         </Button>
-        {userIdFilter ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setDraftFilter("");
-              setUserIdFilter("");
-              setPage(1);
-            }}
-          >
+        {hasActiveFilter ? (
+          <Button type="button" variant="ghost" onClick={clearFilters}>
             Clear
           </Button>
         ) : null}
@@ -192,7 +211,14 @@ export default function AdminLoginLocationLogsPage() {
                           className="font-semibold"
                         />
                         <p className="text-xs text-slate-500">
-                          #{row.user_id}
+                          <button
+                            type="button"
+                            onClick={() => filterByUserId(row.user_id)}
+                            className="font-semibold tabular-nums text-yellow-900 underline-offset-2 hover:underline"
+                            title="Show all logins for this user"
+                          >
+                            #{row.user_id}
+                          </button>
                           {row.user_email ? ` · ${row.user_email}` : ""}
                         </p>
                       </td>
@@ -210,7 +236,17 @@ export default function AdminLoginLocationLogsPage() {
                       </td>
                       <td className="max-w-xs px-4 py-3 text-slate-800">
                         {available ? (
-                          row.address || "Coordinates only (geocode unavailable)"
+                          <span className="inline-flex flex-wrap items-center gap-1.5">
+                            <span>{row.address || "Coordinates only (geocode unavailable)"}</span>
+                            {Number(row.address_repeat_count) > 1 ? (
+                              <span
+                                className="rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-violet-900"
+                                title="Times this user logged from this address"
+                              >
+                                ×{Number(row.address_repeat_count)}
+                              </span>
+                            ) : null}
+                          </span>
                         ) : (
                           <span className="text-amber-800">Location unavailable</span>
                         )}
