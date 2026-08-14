@@ -46,6 +46,7 @@ import AdminUserProfilePage from "./pages/AdminUserProfilePage";
 import AdminUserTradesPage from "./pages/AdminUserTradesPage";
 import AdminWithdrawalsPage from "./pages/AdminWithdrawalsPage";
 import AdminBulkWithdrawPage from "./pages/AdminBulkWithdrawPage";
+import AdminBulkTradingToSafePage from "./pages/AdminBulkTradingToSafePage";
 import SupportTicketsPage from "./pages/userSIdebar/SupportTicketsPage";
 import AdminSupportTicketsPage from "./pages/AdminSupportTicketsPage";
 import AdminUserMapPage from "./pages/AdminUserMapPage";
@@ -193,6 +194,7 @@ const App = () => (
               <Route path="employees" element={<AdminEmployeesPage />} />
               <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="bulk-withdraw" element={<AdminBulkWithdrawPage />} />
+              <Route path="bulk-trading-to-safe" element={<AdminBulkTradingToSafePage />} />
               <Route path="support-tickets" element={<AdminSupportTicketsPage />} />
               <Route path="maintenance" element={<AdminMaintenancePage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />

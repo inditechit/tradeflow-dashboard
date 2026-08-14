@@ -117,6 +117,7 @@ const MENU: MenuEntry[] = [
       },
       { name: "Referral payable", icon: Coins, path: "/admin/referral-payable" },
       { name: "Bulk withdraw", icon: Users, path: "/admin/bulk-withdraw" },
+      { name: "Bulk Trading → Safe", icon: ArrowLeftRight, path: "/admin/bulk-trading-to-safe" },
       { name: "Wallet ledger", icon: ScrollText, path: "/admin/wallet-ledger" },
     ],
   },
