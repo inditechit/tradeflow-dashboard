@@ -44,6 +44,7 @@ import {
   type AdminOpenAssignRow,
 } from "@/utils/adminLiveFinance";
 import type { UserTradeRowLike } from "@/utils/userTradePl";
+import { isTradeClosed } from "@/utils/userTradePl";
 
 const adminSocket = io(SOCKET_URL, { transports: ["websocket"] });
 import {
@@ -84,8 +85,12 @@ import {
   ADMIN_USERS_DEFAULT_PAGE_SIZE,
   ADMIN_USERS_PAGE_SIZE_OPTIONS,
   ADMIN_USERS_INITIAL_SORT,
+  ADMIN_USERS_INITIAL_OPEN_TRADES,
+  ADMIN_USERS_INITIAL_PACKAGES,
   defaultAdminUsersUrlState,
+  loadAdminUsersListState,
   parseAdminUsersUrlState,
+  saveAdminUsersListState,
   serializeAdminUsersUrlState,
   type AdminUsersSortMode,
   type AdminUsersUrlState,
@@ -116,11 +121,12 @@ const ACTIVE_PLAN_PACKAGE_IDS = new Set(
 
 const ADMIN_OVERRIDE_PACKAGE_ID = "admin-override";
 
-/** Default: show users without an active paid plan (hide active + admin override). */
-const DEFAULT_FILTER_PACKAGES: string[] = [];
-
+/** Landing default matches ADMIN_USERS_INITIAL_PACKAGES — active plan (+ admin override). */
 function isDefaultPackageFilter(packages: string[]): boolean {
-  return packages.length === 0;
+  return (
+    packages.length === ADMIN_USERS_INITIAL_PACKAGES.length &&
+    packages.every((p, i) => p === ADMIN_USERS_INITIAL_PACKAGES[i])
+  );
 }
 
 function userHasActivePaidOrOverridePlan(loc: {
@@ -157,7 +163,10 @@ function rowOpenAssignmentCount(
   openRowsByUser: Record<number, UserTradeRowLike[]>,
 ): number {
   const uid = Number(loc.id);
-  const fromRows = uid > 0 ? openRowsByUser[uid]?.length ?? 0 : 0;
+  const fromRows =
+    uid > 0
+      ? (openRowsByUser[uid] ?? []).filter((r) => !isTradeClosed(r)).length
+      : 0;
   const fromApi = Number(loc.open_positions ?? 0);
   return Math.max(fromRows, fromApi);
 }
@@ -215,6 +224,7 @@ function daysLeftBadgeClass(days: number): string {
 const AdminPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { currentUser, setCurrentUser } = useApp();
 
   const listState = useMemo(() => parseAdminUsersUrlState(searchParams), [searchParams]);
   const {
@@ -227,6 +237,7 @@ const AdminPage = () => {
     filterPackages,
     filterTrading,
     filterOpenPl,
+    filterOpenTrades,
     filterReferrer,
     filterTag,
     filterRisks,
@@ -241,12 +252,13 @@ const AdminPage = () => {
     (patch: Partial<AdminUsersUrlState>, opts?: { resetPage?: boolean }) => {
       const next = { ...listState, ...patch };
       if (opts?.resetPage) next.page = 1;
+      saveAdminUsersListState(next, currentUser?.userId);
       const nextParams = serializeAdminUsersUrlState(next);
       if (nextParams.toString() !== searchParams.toString()) {
         setSearchParams(nextParams, { replace: true });
       }
     },
-    [listState, searchParams, setSearchParams],
+    [listState, searchParams, setSearchParams, currentUser?.userId],
   );
 
   const [locations, setLocations] = useState<any[]>([]);
@@ -267,7 +279,6 @@ const AdminPage = () => {
     loadAdminUsersColumnVisibility(),
   );
 
-  const { currentUser, setCurrentUser } = useApp();
   const { can, isAdmin } = useEmployeeAccess();
   const { filtersCollapsed } = useAdminUsersFiltersCollapsed();
   const { revealed: piiRevealed } = useAdminPiiReveal();
@@ -327,6 +338,7 @@ const AdminPage = () => {
 
   const tableTopRef = useRef<HTMLDivElement>(null);
   const prevUserCountRef = useRef(0);
+  const usersUrlHydratedForRef = useRef<number | null>(null);
 
   const handleMagicLogin = useCallback(
     async (loc: Record<string, unknown>) => {
@@ -427,6 +439,25 @@ const AdminPage = () => {
   useEffect(() => {
     markAdminUsersSeen();
   }, []);
+
+  // Restore saved filters from localStorage (per admin user) — overrides URL until admin changes filters.
+  useEffect(() => {
+    const adminId = Number(currentUser?.userId);
+    if (!adminId) return;
+    if (usersUrlHydratedForRef.current === adminId) return;
+    usersUrlHydratedForRef.current = adminId;
+
+    const stored = loadAdminUsersListState(adminId);
+    const target = stored ?? parseAdminUsersUrlState(searchParams);
+    if (!stored) {
+      saveAdminUsersListState(target, adminId);
+    }
+
+    const canonical = serializeAdminUsersUrlState(target);
+    if (canonical.toString() !== searchParams.toString()) {
+      setSearchParams(canonical, { replace: true });
+    }
+  }, [currentUser?.userId, searchParams, setSearchParams]);
 
   useEffect(() => {
     void fetchLocations();
@@ -726,10 +757,16 @@ const AdminPage = () => {
   const filteredLocations = useMemo(() => {
     const selectedUserIdSet = new Set(filterSelectedUserIds);
     const filtered = locations.filter((loc) => {
+      const uid = String(loc.id);
+      // Name picks always show — other filters do not apply to explicitly selected users.
+      if (selectedUserIdSet.size > 0 && selectedUserIdSet.has(uid)) {
+        return true;
+      }
+
       const emailStr = String(loc.email || "").toLowerCase();
 
       const matchName =
-        selectedUserIdSet.size === 0 || selectedUserIdSet.has(String(loc.id));
+        selectedUserIdSet.size === 0 || selectedUserIdSet.has(uid);
       const matchEmail = emailStr.includes(filterEmail.toLowerCase());
       const matchUserId =
         !filterUserId.trim() || String(loc.id) === filterUserId.trim();
@@ -763,10 +800,6 @@ const AdminPage = () => {
         tradingWalletUsd(loc) > WALLET_COLUMN_SORT_MIN_USD;
       const matchSafeWalletColumn =
         userSort !== "safe_wallet_high" || safeWalletUsd(loc) > WALLET_COLUMN_SORT_MIN_USD;
-
-      const openAssignCount = rowOpenAssignmentCount(loc, openRowsByUser);
-      const matchAssignmentsColumn =
-        userSort !== "assignments_high" || openAssignCount > 0;
 
       const activePkg = String(loc.active_package_id ?? "").trim();
       const matchPackage =
@@ -819,7 +852,6 @@ const AdminPage = () => {
         matchWallet &&
         matchTradingWalletColumn &&
         matchSafeWalletColumn &&
-        matchAssignmentsColumn &&
         matchPackage &&
         matchTrading &&
         matchOpenPl &&
@@ -829,6 +861,13 @@ const AdminPage = () => {
     });
 
     return filtered.sort((a, b) => {
+      if (filterOpenTrades === "with_open") {
+        const openDiff =
+          rowOpenAssignmentCount(b, openRowsByUser) -
+          rowOpenAssignmentCount(a, openRowsByUser);
+        if (openDiff !== 0) return openDiff;
+      }
+
       if (filterOpenPl === "profit") {
         const plDiff =
           rowPlVsBaseline(b, financeOverlay) - rowPlVsBaseline(a, financeOverlay);
@@ -879,6 +918,7 @@ const AdminPage = () => {
     filterPackages,
     filterTrading,
     filterOpenPl,
+    filterOpenTrades,
     filterReferrer,
     filterTag,
     filterRisks,
@@ -926,6 +966,8 @@ const AdminPage = () => {
       !isDefaultPackageFilter(filterPackages) ||
       filterTrading !== "all" ||
       filterOpenPl !== "all" ||
+      (filterOpenTrades !== "all" &&
+        filterOpenTrades !== ADMIN_USERS_INITIAL_OPEN_TRADES) ||
       filterReferrer !== "all" ||
       filterTag !== "all" ||
       filterRisks.length > 0 ||
@@ -942,6 +984,7 @@ const AdminPage = () => {
       filterPackages,
       filterTrading,
       filterOpenPl,
+      filterOpenTrades,
       filterReferrer,
       filterTag,
       filterRisks,
@@ -964,7 +1007,7 @@ const AdminPage = () => {
       case "safe_wallet_high":
         return "safe wallet (high → low, hide $0)";
       case "assignments_high":
-        return "open trade assignments (most → least, hide none)";
+        return "open trade assignments (most → least)";
       default:
         return "wallet balance (high → low)";
     }
@@ -998,6 +1041,7 @@ const AdminPage = () => {
   };
 
   const {
+    page: safeUserPage,
     pageItems: pagedLocations,
     totalPages: userTotalPages,
     total: filteredUserTotal,
@@ -1304,8 +1348,10 @@ const AdminPage = () => {
           options={packageFilterOptions}
           selected={filterPackages}
           onToggle={toggleFilterPackage}
-          onClear={() => patchListState({ filterPackages: [] }, { resetPage: true })}
-          emptyLabel="Default (hide active plans)"
+          onClear={() =>
+            patchListState({ filterPackages: [...ADMIN_USERS_INITIAL_PACKAGES] }, { resetPage: true })
+          }
+          emptyLabel="Active plan (default)"
           className="sm:col-span-2"
         />
         <div>
@@ -1325,6 +1371,24 @@ const AdminPage = () => {
             <option value="all">All users</option>
             <option value="active">Trade active</option>
             <option value="stopped">Trade stopped</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Open trades
+          </label>
+          <select
+            value={filterOpenTrades}
+            onChange={(e) =>
+              patchListState(
+                { filterOpenTrades: e.target.value as "all" | "with_open" },
+                { resetPage: true },
+              )
+            }
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="with_open">Sort: open trades first</option>
+            <option value="all">All users (no open-trade sort)</option>
           </select>
         </div>
         <EmployeeGate perm="filter:users:tag">
@@ -1438,11 +1502,11 @@ const AdminPage = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
-              setSearchParams(serializeAdminUsersUrlState(defaultAdminUsersUrlState()), {
-                replace: true,
-              })
-            }
+            onClick={() => {
+              const cleared = defaultAdminUsersUrlState();
+              saveAdminUsersListState(cleared, currentUser?.userId);
+              setSearchParams(serializeAdminUsersUrlState(cleared), { replace: true });
+            }}
             className="h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:px-8"
           >
             Clear Filters
@@ -1569,7 +1633,7 @@ const AdminPage = () => {
             ) : null}
           </div>
         </div>
-        <div ref={tableTopRef} className="max-h-[min(70vh,52rem)] overflow-auto">
+        <div ref={tableTopRef} className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200">
@@ -1610,7 +1674,7 @@ const AdminPage = () => {
                         : isSafeWalletCol
                           ? "Sort by safe wallet (high → low). Hides $0. Click again to reset."
                           : isEquityCol
-                            ? "Sort by open trade assignments (most → least). Hides users with none. Click again to reset."
+                            ? "Sort by open trade assignments (most → least). Click again to reset."
                             : undefined
                     }
                   >
@@ -2097,7 +2161,7 @@ const AdminPage = () => {
           </table>
         </div>
         <ListPaginationBar
-          page={userPage}
+          page={safeUserPage}
           totalPages={userTotalPages}
           total={filteredUserTotal}
           pageSize={userPageSize}

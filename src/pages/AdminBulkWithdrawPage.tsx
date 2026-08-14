@@ -274,8 +274,8 @@ const AdminBulkWithdrawPage = () => {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
             Shows users with <span className="font-semibold">Safe Wallet</span> balance.{" "}
-            <span className="font-semibold">Net deposit</span> is pocket capital (withdrawals recycle
-            profit; redeposited profit does not stack as new pocket money).{" "}
+            <span className="font-semibold">Net deposit</span> is fresh money from pocket (profit
+            recycled as recharge does not count).{" "}
             <span className="font-semibold">Baseline</span> is the deposit recovery baseline for profit
             share.
           </p>

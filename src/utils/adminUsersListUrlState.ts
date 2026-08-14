@@ -16,6 +16,14 @@ export type AdminUsersSortMode =
 /** Default sort on first visit (no `sort` query param). */
 export const ADMIN_USERS_INITIAL_SORT: AdminUsersSortMode = "assignments_high";
 
+export type AdminUsersOpenTradesFilter = "all" | "with_open";
+
+/** Default: sort users with open trades to the top (does not hide anyone). */
+export const ADMIN_USERS_INITIAL_OPEN_TRADES: AdminUsersOpenTradesFilter = "with_open";
+
+/** Default package filter on first visit (no `pkg` query param). */
+export const ADMIN_USERS_INITIAL_PACKAGES = ["active"] as const;
+
 export type AdminUsersUrlState = {
   filterSelectedUserIds: string[];
   filterEmail: string;
@@ -26,6 +34,7 @@ export type AdminUsersUrlState = {
   filterPackages: string[];
   filterTrading: "all" | "active" | "stopped";
   filterOpenPl: "all" | "profit" | "loss";
+  filterOpenTrades: AdminUsersOpenTradesFilter;
   filterReferrer: string;
   filterTag: string;
   filterRisks: Array<"none" | RiskId>;
@@ -56,9 +65,10 @@ export function defaultAdminUsersUrlState(): AdminUsersUrlState {
     filterKyc: "all",
     filterOnline: "all",
     filterWallet: "all",
-    filterPackages: [],
+    filterPackages: [...ADMIN_USERS_INITIAL_PACKAGES],
     filterTrading: "all",
     filterOpenPl: "all",
+    filterOpenTrades: "all",
     filterReferrer: "all",
     filterTag: "all",
     filterRisks: [],
@@ -118,7 +128,17 @@ export function parseAdminUsersUrlState(params: URLSearchParams): AdminUsersUrlS
     ? (sortRaw as AdminUsersSortMode)
     : ADMIN_USERS_INITIAL_SORT;
 
+  const openTradesRaw = params.has("openTrades") ? params.get("openTrades") : null;
+  const filterOpenTrades: AdminUsersOpenTradesFilter =
+    openTradesRaw === "all" ? "all" : openTradesRaw === "with_open" ? "with_open" : ADMIN_USERS_INITIAL_OPEN_TRADES;
+
   const filterUserId = (params.get("userId") || "").replace(/[^\d]/g, "");
+
+  const filterPackages = !params.has("pkg")
+    ? [...ADMIN_USERS_INITIAL_PACKAGES]
+    : params.get("pkg") === "_none"
+      ? []
+      : parseCsv(params.get("pkg"));
 
   return {
     filterSelectedUserIds: parseCsv(params.get("names")),
@@ -127,9 +147,10 @@ export function parseAdminUsersUrlState(params: URLSearchParams): AdminUsersUrlS
     filterKyc: params.get("kyc") || defaults.filterKyc,
     filterOnline,
     filterWallet,
-    filterPackages: parseCsv(params.get("pkg")),
+    filterPackages,
     filterTrading,
     filterOpenPl,
+    filterOpenTrades,
     filterReferrer: params.get("referrer") || defaults.filterReferrer,
     filterTag: params.get("tag") || defaults.filterTag,
     filterRisks: parseRisks(params.get("risks")),
@@ -153,9 +174,23 @@ export function serializeAdminUsersUrlState(state: AdminUsersUrlState): URLSearc
   if (state.filterKyc !== defaults.filterKyc) params.set("kyc", state.filterKyc);
   if (state.filterOnline !== defaults.filterOnline) params.set("online", state.filterOnline);
   if (state.filterWallet !== defaults.filterWallet) params.set("wallet", state.filterWallet);
-  if (state.filterPackages.length) params.set("pkg", state.filterPackages.join(","));
+  if (state.filterPackages.length === 0) {
+    params.set("pkg", "_none");
+  } else {
+    const pkgJoined = state.filterPackages.join(",");
+    if (pkgJoined === ADMIN_USERS_INITIAL_PACKAGES.join(",")) {
+      params.set("pkg", "active");
+    } else {
+      params.set("pkg", pkgJoined);
+    }
+  }
   if (state.filterTrading !== defaults.filterTrading) params.set("trading", state.filterTrading);
   if (state.filterOpenPl !== defaults.filterOpenPl) params.set("openPl", state.filterOpenPl);
+  if (state.filterOpenTrades === "with_open") {
+    params.set("openTrades", "with_open");
+  } else {
+    params.set("openTrades", "all");
+  }
   if (state.filterReferrer !== defaults.filterReferrer) {
     params.set("referrer", state.filterReferrer);
   }
@@ -168,4 +203,38 @@ export function serializeAdminUsersUrlState(state: AdminUsersUrlState): URLSearc
   if (state.pageSize !== defaults.pageSize) params.set("pageSize", String(state.pageSize));
 
   return params;
+}
+
+export const ADMIN_USERS_LIST_STATE_KEY = "tradeflow.admin.users.listState";
+
+export function adminUsersListStateStorageKey(adminUserId?: number | string | null): string {
+  const id = Number(adminUserId);
+  if (id > 0) return `${ADMIN_USERS_LIST_STATE_KEY}.${id}`;
+  return ADMIN_USERS_LIST_STATE_KEY;
+}
+
+/** Persisted list filters (query-string form) — survives refresh and navigation until admin changes them. */
+export function loadAdminUsersListState(adminUserId?: number | string | null): AdminUsersUrlState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(adminUsersListStateStorageKey(adminUserId));
+    if (!raw?.trim()) return null;
+    const qs = raw.startsWith("?") ? raw.slice(1) : raw;
+    return parseAdminUsersUrlState(new URLSearchParams(qs));
+  } catch {
+    return null;
+  }
+}
+
+export function saveAdminUsersListState(
+  state: AdminUsersUrlState,
+  adminUserId?: number | string | null,
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const qs = serializeAdminUsersUrlState(state).toString();
+    window.localStorage.setItem(adminUsersListStateStorageKey(adminUserId), qs);
+  } catch {
+    // ignore quota / private mode
+  }
 }

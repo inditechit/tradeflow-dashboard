@@ -10,6 +10,7 @@ import {
   isMapAboveBaselineUser,
   isMapProfitableUser,
   mapUserDepositedUsd,
+  mapUserNetPlUsd,
   mapUserSafeUsd,
   mapUserTradingUsd,
   mapUserWithdrawnUsd,
@@ -17,6 +18,9 @@ import {
   MAP_PROFITABLE_MIN_DEPOSIT_USD,
 } from "@/utils/adminUserMapUtils";
 import { AdminUserTradesLink } from "@/components/admin/AdminUserTradesLink";
+import { cn } from "@/lib/utils";
+
+type MapStatCard = "traders" | "profitable_all" | "profitable_map" | "countries";
 
 type AdminUserRow = {
   id: number | string;
@@ -44,6 +48,7 @@ type AdminUserRow = {
   total_withdrawn_usd?: number | string | null;
   completed_withdraw_usd?: number | string | null;
   deposit_baseline_usd?: number | string | null;
+  live_pl?: number | string | null;
 };
 
 type PinUser = AdminUserRow & {
@@ -164,7 +169,7 @@ const AdminUserMapPage: React.FC = () => {
     try {
       setLoading(true);
       setErr(null);
-      const res = await fetch(`${API_BASE}/admin/users`);
+      const res = await fetch(`${API_BASE}/admin/users?finance=1`);
       const data = await res.json();
       const list: AdminUserRow[] = Array.isArray(data?.users)
         ? data.users
@@ -269,10 +274,42 @@ const AdminUserMapPage: React.FC = () => {
     () => filteredPins.filter((p) => p.profitable).length,
     [filteredPins],
   );
+  const profitablePinnedTotal = useMemo(
+    () => allPins.filter((p) => p.profitable).length,
+    [allPins],
+  );
   const totalProfitableTraders = useMemo(
     () => traderUsers.filter((u) => isMapProfitableUser(u)).length,
     [traderUsers],
   );
+
+  const tradersCardActive =
+    profitableFilter === "all" && countryFilter === "all" && walletFilter === "all" && onlineFilter === "all";
+  const profitableCardActive = profitableFilter === "profitable";
+  const countriesCardActive = countryFilter === "all";
+
+  const handleStatCardClick = (card: MapStatCard) => {
+    switch (card) {
+      case "traders":
+        if (tradersCardActive && !query.trim()) return;
+        setProfitableFilter("all");
+        setCountryFilter("all");
+        setWalletFilter("all");
+        setOnlineFilter("all");
+        setQuery("");
+        break;
+      case "profitable_all":
+      case "profitable_map":
+        setProfitableFilter((prev) => (prev === "profitable" ? "all" : "profitable"));
+        break;
+      case "countries":
+        if (countryFilter === "all") return;
+        setCountryFilter("all");
+        break;
+      default:
+        break;
+    }
+  };
 
   const usersWithoutLocation = traderUsers.length - allPins.length;
 
@@ -285,7 +322,9 @@ const AdminUserMapPage: React.FC = () => {
             User map
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {loading ? "Loading users…" : `${filteredPins.length} pinned · ${usersWithoutLocation} without coordinates`}
+            {loading
+              ? "Loading users…"
+              : `${filteredPins.length} pinned · ${usersWithoutLocation} without coordinates · click stat cards to filter`}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5">
@@ -298,7 +337,7 @@ const AdminUserMapPage: React.FC = () => {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-3 w-3 rounded-full bg-emerald-600 ring-1 ring-emerald-800/30" />
-              Profitable (≥{MAP_PROFITABLE_MIN_DEPOSIT_USD} deposited &amp; total &gt; ${MAP_PROFITABLE_MIN_DEPOSIT_USD})
+              Net profit (P/L &gt; $0 after deposits)
             </span>
           </p>
         </div>
@@ -365,11 +404,32 @@ const AdminUserMapPage: React.FC = () => {
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <button
+          type="button"
+          onClick={() => handleStatCardClick("traders")}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50",
+            tradersCardActive && !query.trim()
+              ? "border-slate-400 bg-slate-50 ring-2 ring-slate-300/60"
+              : "border-slate-200 bg-white hover:bg-slate-50",
+          )}
+          title="Show all traders on the map (clear filters)"
+        >
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Traders</p>
           <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{traderUsers.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 shadow-sm">
+          <p className="text-[11px] text-slate-500">{allPins.length} pinned on map</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatCardClick("profitable_all")}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+            profitableCardActive
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300/60"
+              : "border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50",
+          )}
+          title="Filter map to net-profitable traders (click again to clear)"
+        >
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
             Profitable (all)
           </p>
@@ -377,21 +437,50 @@ const AdminUserMapPage: React.FC = () => {
             {totalProfitableTraders}
           </p>
           <p className="text-[11px] text-emerald-800/80">
-            Deposited ≥ ${MAP_PROFITABLE_MIN_DEPOSIT_USD}, trading+safe+withdraw &gt; ${MAP_PROFITABLE_MIN_DEPOSIT_USD}
+            Net P/L &gt; $0 · min ${MAP_PROFITABLE_MIN_DEPOSIT_USD} deposited
           </p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatCardClick("profitable_map")}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+            profitableCardActive
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300/60"
+              : "border-emerald-200 bg-white hover:bg-emerald-50/80",
+          )}
+          title="Filter map to profitable pinned traders (click again to clear)"
+        >
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1">
             <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
             Profitable on map
           </p>
-          <p className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-700">{profitableOnMap}</p>
-          <p className="text-[11px] text-slate-500">Of {filteredPins.length} visible pins</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-700">
+            {profitableCardActive ? profitableOnMap : profitablePinnedTotal}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {profitableCardActive
+              ? `Of ${filteredPins.length} visible pins`
+              : `Of ${allPins.length} pinned traders`}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatCardClick("countries")}
+          className={cn(
+            "rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50",
+            countriesCardActive && profitableFilter === "all"
+              ? "border-slate-400 bg-slate-50 ring-2 ring-slate-300/60"
+              : "border-slate-200 bg-white hover:bg-slate-50",
+          )}
+          title="Show traders from all countries (clear country filter)"
+        >
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Countries</p>
           <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{countryOptions.length}</p>
-        </div>
+          <p className="text-[11px] text-slate-500">
+            {countryFilter === "all" ? "All countries on map" : `Filtered: ${countryFilter}`}
+          </p>
+        </button>
       </div>
 
       {err && (
@@ -429,6 +518,7 @@ const AdminUserMapPage: React.FC = () => {
                 const withdrawn = mapUserWithdrawnUsd(p);
                 const deposited = mapUserDepositedUsd(p);
                 const total = trading + safe + withdrawn;
+                const netPl = mapUserNetPlUsd(p);
                 const baseline = Number(p.deposit_baseline_usd ?? 0);
                 return (
                   <Marker
@@ -455,6 +545,13 @@ const AdminUserMapPage: React.FC = () => {
                         <div className="text-slate-600 tabular-nums text-xs">
                           Deposited {fmtUsd(deposited)} · Withdrawn {fmtUsd(withdrawn)}
                         </div>
+                        <div
+                          className={`tabular-nums text-xs font-semibold ${
+                            netPl > 0.02 ? "text-emerald-700" : netPl < -0.02 ? "text-red-700" : "text-slate-600"
+                          }`}
+                        >
+                          Net P/L: {fmtUsd(netPl)}
+                        </div>
                         <div className="text-slate-700 tabular-nums text-xs">
                           Total value: {fmtUsd(total)}
                           {baseline > 0.01 ? ` · Baseline ${fmtUsd(baseline)}` : ""}
@@ -462,7 +559,11 @@ const AdminUserMapPage: React.FC = () => {
                         <div className="flex flex-wrap gap-1 pt-1">
                           {p.profitable ? (
                             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
-                              Profitable
+                              Net profit
+                            </span>
+                          ) : netPl < -0.02 ? (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-800">
+                              Net loss
                             </span>
                           ) : null}
                           {p.aboveBaseline ? (

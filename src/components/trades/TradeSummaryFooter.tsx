@@ -46,7 +46,7 @@ export function TradeSummaryFooter({
     <tfoot className="border-t-2 border-slate-200 bg-slate-50">
       <tr>
         <td colSpan={colSpan} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-          Complete profit ({profitLabel})
+          Gross profit ({profitLabel})
         </td>
         <td className="px-6 py-3 text-sm font-bold tabular-nums text-emerald-600">
           {fmtUsd(tableTotals.profit)}
@@ -55,7 +55,7 @@ export function TradeSummaryFooter({
       </tr>
       <tr>
         <td colSpan={colSpan} className="px-6 py-3 text-right text-sm font-semibold text-slate-700">
-          Complete loss ({profitLabel})
+        Gross loss ({profitLabel})
         </td>
         <td className="px-6 py-3 text-sm font-bold tabular-nums text-red-600">
           {fmtUsd(tableTotals.loss)}

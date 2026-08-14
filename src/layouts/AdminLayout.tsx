@@ -90,7 +90,7 @@ const AdminLayoutInner = () => {
           hideMobileMenuButton
         />
         <main className="admin-main-panel min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-2.5 sm:px-4 sm:py-4 md:overflow-x-auto md:p-8">
-          <div className="mx-auto w-full min-w-0 max-w-7xl pb-16 md:pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto w-full min-w-0 max-w-7xl pb-4 md:pb-6">
             <EmployeeTabGuard>
               <Outlet />
             </EmployeeTabGuard>
