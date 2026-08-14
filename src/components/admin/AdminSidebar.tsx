@@ -87,7 +87,7 @@ const MENU: MenuEntry[] = [
     highlightKey: "new_users",
   },
   { kind: "item", name: "User map", icon: MapIcon, path: "/admin/user-map" },
-  { kind: "item", name: "Login locations", icon: MapPin, path: "/admin/login-locations" },
+  { kind: "item", name: "LOC Records", icon: MapPin, path: "/admin/login-locations" },
   {
     kind: "group",
     label: "Payments",
