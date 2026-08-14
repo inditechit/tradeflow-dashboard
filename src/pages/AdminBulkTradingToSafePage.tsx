@@ -194,7 +194,7 @@ const AdminBulkTradingToSafePage = () => {
       if (amt > max + 0.001) {
         toast({
           title: `User #${u.user_id} amount too high`,
-          description: `Max parkable is ${max.toFixed(2)} (keeps trading at baseline).`,
+          description: `Max movable is ${max.toFixed(2)} (trading − deposit baseline).`,
           variant: "destructive",
         });
         return;
@@ -249,9 +249,9 @@ const AdminBulkTradingToSafePage = () => {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
             Move profit from <span className="font-semibold">Trading Wallet</span> to{" "}
-            <span className="font-semibold">Safe Wallet</span> for users who are above their settle
-            baseline. Trading after the move stays at or above baseline — no Exit-pool admin cut on
-            these partial parks.
+            <span className="font-semibold">Safe Wallet</span>. Only the amount{" "}
+            <span className="font-semibold">above deposit baseline</span> can move — deposit baseline
+            stays in Trading.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Users must have no open trades (or trading stopped). For full Exit pool settle, use user
@@ -331,7 +331,7 @@ const AdminBulkTradingToSafePage = () => {
                   User
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
-                  Park baseline
+                  Deposit baseline
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Trading
@@ -340,7 +340,7 @@ const AdminBulkTradingToSafePage = () => {
                   Safe
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
-                  Max parkable
+                  Profit above baseline
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 sm:px-6">
                   Amount to Safe
@@ -409,7 +409,7 @@ const AdminBulkTradingToSafePage = () => {
                       <td className="px-4 py-3 tabular-nums font-semibold text-indigo-900 sm:px-6">
                         {money(maxPark)}
                         <div className="text-[11px] font-normal text-slate-500">
-                          above baseline
+                          max to Safe
                         </div>
                       </td>
                       <td className="px-4 py-3 sm:px-6">
@@ -459,8 +459,8 @@ const AdminBulkTradingToSafePage = () => {
           <DialogHeader>
             <DialogTitle className="text-black">Move Trading → Safe</DialogTitle>
             <DialogDescription className="text-slate-600">
-              Funds move from Trading Wallet to Safe Wallet. Trading will remain at or above the
-              settle baseline for each user.
+              Only profit above deposit baseline moves to Safe. Each user keeps at least their
+              deposit baseline in Trading.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm text-slate-800">

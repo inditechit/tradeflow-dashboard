@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
 import PermissionsGate from "@/components/PermissionsGate";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
@@ -94,6 +95,7 @@ const App = () => (
       <Sonner />
       <AppProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <PermissionsGate>
           <Routes>
 
