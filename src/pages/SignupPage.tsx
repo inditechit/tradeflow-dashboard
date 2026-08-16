@@ -105,14 +105,14 @@ function DocUploadRow({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   return (
-    <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+    <div className="space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
           {icon}
           {label}
         </div>
         {value ? (
-          <button type="button" onClick={onClear} className="text-xs text-slate-500 hover:text-red-600">
+          <button type="button" onClick={onClear} className="text-[11px] text-slate-500 hover:text-red-600">
             Remove
           </button>
         ) : null}
@@ -121,16 +121,16 @@ function DocUploadRow({
         <img
           src={value}
           alt={label}
-          className="max-h-40 w-full rounded-lg border border-slate-200 bg-white object-contain"
+          className="max-h-16 w-full rounded-md border border-slate-200 bg-white object-contain"
         />
       ) : (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 bg-white py-2 text-center"
         >
-          <Camera size={20} className="mb-2 text-slate-400" />
-          <span className="text-sm font-semibold text-neutral-800">Take / upload photo</span>
+          <Camera size={14} className="text-slate-400" />
+          <span className="text-[11px] font-semibold text-neutral-800">Take / upload</span>
         </button>
       )}
       <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={onPick} className="hidden" />
@@ -168,6 +168,19 @@ export default function SignupPage() {
       sessionStorage.setItem("referrer_key", refValue);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }, []);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
   }, []);
 
   useEffect(() => {
@@ -427,53 +440,53 @@ export default function SignupPage() {
   const StepIcon = copy.Icon;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-200 p-4 py-10">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-200">
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
-      <div className="pointer-events-none absolute top-[1.5%] z-0 flex h-[60px] w-full items-center overflow-hidden border-y border-slate-300/50 bg-white/60 backdrop-blur-md">
+      <div className="pointer-events-none absolute left-0 right-0 top-4 z-0 flex h-[56px] items-center overflow-hidden border-y border-slate-300/50 bg-white/60 backdrop-blur-md md:top-8">
         <TradingViewTicker symbols={cryptoSymbols} />
       </div>
-      <div className="pointer-events-none absolute bottom-[1.5%] z-0 flex h-[60px] w-full items-center overflow-hidden border-y border-slate-300/30 bg-white/30 backdrop-blur-sm">
+      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-0 flex h-[56px] items-center overflow-hidden border-y border-slate-300/30 bg-white/30 backdrop-blur-sm md:bottom-8">
         <TradingViewTicker symbols={forexSymbols} />
       </div>
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-100 bg-white/95 shadow-2xl shadow-neutral-900/12 backdrop-blur-md">
-        <div className="border-b border-slate-100 bg-white p-6 text-center sm:p-8">
-          <div className="mb-2 inline-flex items-center justify-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-neutral-900">
-            <Shield size={18} />
-            Copy Trade Engine
+      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+        <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xl shadow-slate-900/10">
+          <div className="text-center">
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-neutral-900">
+              <Shield size={12} />
+              <span className="text-[10px] font-semibold uppercase tracking-wide">Copy Trade Engine</span>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-slate-800">Create your account</h1>
+            <p className="mt-0.5 text-[11px] text-slate-500">{copy.title}</p>
           </div>
-          <h1 className="mt-3 text-2xl font-bold text-slate-800 sm:text-3xl">Create your account</h1>
-          <p className="mt-2 text-sm text-slate-500">{copy.title}</p>
-        </div>
 
-        <div className="space-y-5 p-6 sm:p-8">
           {errorMessage ? (
-            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center text-sm font-medium text-red-600">
+            <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-center text-xs text-red-600">
               {errorMessage}
             </div>
           ) : null}
 
           {googleBusy ? (
-            <div className="flex flex-col items-center gap-3 py-6 text-slate-600">
-              <Loader2 className="h-8 w-8 animate-spin text-yellow-700" />
-              <p className="text-sm font-medium">Creating your account…</p>
+            <div className="flex flex-col items-center gap-2 py-6 text-slate-600">
+              <Loader2 className="h-6 w-6 animate-spin text-yellow-700" />
+              <p className="text-xs font-medium">Creating your account…</p>
             </div>
           ) : (
-            <div className="space-y-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-neutral-900 ring-1 ring-yellow-200">
-                  <StepIcon className="h-5 w-5" />
+            <div className="mt-3 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-neutral-900 ring-1 ring-yellow-200">
+                  <StepIcon className="h-4 w-4" />
                 </div>
-                <div>
-                  <h2 className="font-semibold text-slate-900">{copy.title}</h2>
-                  <p className="mt-0.5 text-xs text-slate-500">{copy.hint}</p>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-slate-900">{copy.title}</h2>
+                  <p className="text-[11px] text-slate-500">{copy.hint}</p>
                 </div>
               </div>
 
               {step === "name" ? (
                 <input
                   autoFocus
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                   placeholder="Full name"
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
@@ -486,18 +499,18 @@ export default function SignupPage() {
                   country="in"
                   value={form.mobile}
                   onChange={(v) => update("mobile", v)}
-                  inputClass="!w-full !h-12 !rounded-xl !text-sm"
+                  inputClass="!w-full !h-10 !rounded-lg !text-sm"
                   containerClass="!w-full"
-                  buttonClass="!rounded-l-xl"
+                  buttonClass="!rounded-l-lg !h-10"
                 />
               ) : null}
 
               {step === "telegram" ? (
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">@</span>
+                  <span className="absolute inset-y-0 left-3 flex items-center text-sm text-slate-400">@</span>
                   <input
                     autoFocus
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-8 pr-4 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                     placeholder="telegram_username"
                     value={form.telegram}
                     onChange={(e) => update("telegram", e.target.value.replace(/^@/, ""))}
@@ -511,7 +524,7 @@ export default function SignupPage() {
                   autoFocus
                   type="email"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                   placeholder="you@example.com"
                   value={form.email}
                   onChange={(e) => {
@@ -524,12 +537,12 @@ export default function SignupPage() {
               ) : null}
 
               {step === "otp" ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <input
                     autoFocus
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-center font-mono text-lg tracking-[0.35em] text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-base tracking-[0.35em] text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                     placeholder="••••••"
                     maxLength={6}
                     value={otp}
@@ -539,6 +552,7 @@ export default function SignupPage() {
                     <Button
                       type="button"
                       variant="outline"
+                      size="sm"
                       className="border-slate-200"
                       disabled={otpState === "sending"}
                       onClick={() => void sendOtp()}
@@ -547,6 +561,7 @@ export default function SignupPage() {
                     </Button>
                     <Button
                       type="button"
+                      size="sm"
                       className="bg-[#FFD700] font-semibold text-black hover:bg-[#E6C200]"
                       onClick={() => void verifyOtp()}
                     >
@@ -554,8 +569,8 @@ export default function SignupPage() {
                     </Button>
                   </div>
                   {otpState === "verified" ? (
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" /> Email verified
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Email verified
                     </p>
                   ) : null}
                 </div>
@@ -565,7 +580,7 @@ export default function SignupPage() {
                 <PasswordInput
                   autoFocus
                   autoComplete="new-password"
-                  className="h-12 rounded-xl border-slate-200"
+                  className="h-10 rounded-lg border-slate-200"
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && void goNext()}
@@ -573,19 +588,20 @@ export default function SignupPage() {
               ) : null}
 
               {step === "images" ? (
-                <div className="space-y-4">
-                  <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                    <p className="text-sm font-semibold text-slate-800">Live selfie (required)</p>
+                <div className="max-h-[42vh] space-y-2 overflow-y-auto pr-0.5">
+                  <div className="space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
+                    <p className="text-xs font-semibold text-slate-800">Live selfie (required)</p>
                     {livePhoto ? (
                       <img
                         src={livePhoto}
                         alt="Live selfie"
-                        className="max-h-48 w-full rounded-lg border border-slate-200 object-contain"
+                        className="max-h-16 w-full rounded-md border border-slate-200 object-contain"
                       />
                     ) : (
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         className="w-full border-yellow-300"
                         onClick={() => setCameraOpen(true)}
                       >
@@ -601,19 +617,19 @@ export default function SignupPage() {
                   </div>
                   <DocUploadRow
                     label="ID proof (optional)"
-                    icon={<FileText className="h-4 w-4" />}
+                    icon={<FileText className="h-3.5 w-3.5" />}
                     value={idProof}
                     onPick={(e) => void handleFile(e, setIdProof)}
                     onClear={() => setIdProof("")}
                   />
                   <DocUploadRow
                     label="Address proof (optional)"
-                    icon={<Home className="h-4 w-4" />}
+                    icon={<Home className="h-3.5 w-3.5" />}
                     value={addressProof}
                     onPick={(e) => void handleFile(e, setAddressProof)}
                     onClear={() => setAddressProof("")}
                   />
-                  <label className="flex items-start gap-2 text-xs text-slate-600">
+                  <label className="flex items-start gap-2 text-[11px] text-slate-600">
                     <input
                       type="checkbox"
                       className="mt-0.5"
@@ -635,9 +651,9 @@ export default function SignupPage() {
                 </div>
               ) : null}
 
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2">
                 {step !== "name" ? (
-                  <Button type="button" variant="outline" className="border-slate-200" onClick={goBack}>
+                  <Button type="button" variant="outline" size="sm" className="border-slate-200" onClick={goBack}>
                     <ArrowLeft className="mr-1 h-4 w-4" />
                     Back
                   </Button>
@@ -645,6 +661,7 @@ export default function SignupPage() {
                 {step !== "otp" ? (
                   <Button
                     type="button"
+                    size="sm"
                     className="flex-1 bg-[#FFD700] font-bold text-black hover:bg-[#E6C200]"
                     disabled={isSubmitting}
                     onClick={() => void goNext()}
@@ -667,10 +684,14 @@ export default function SignupPage() {
               </div>
 
               {step === "name" && GOOGLE_CLIENT_ID ? (
-                <div className="space-y-3 pt-2">
-                  <div className="relative py-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    <span className="relative z-10 bg-white px-3">or</span>
-                    <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-slate-100" />
+                <div className="space-y-2">
+                  <div className="relative py-0.5">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-200" />
+                    </div>
+                    <div className="relative flex justify-center text-[10px] uppercase">
+                      <span className="bg-white px-2 text-slate-400">or</span>
+                    </div>
                   </div>
                   <div className="flex justify-center">
                     <GoogleLogin
@@ -681,6 +702,8 @@ export default function SignupPage() {
                       onError={() => setErrorMessage("Google signup popup failed.")}
                       useOneTap={false}
                       text="signup_with"
+                      size="medium"
+                      width="288"
                     />
                   </div>
                 </div>
@@ -688,7 +711,7 @@ export default function SignupPage() {
             </div>
           )}
 
-          <p className="text-center text-sm text-slate-500">
+          <p className="mt-3 text-center text-[11px] text-slate-500">
             Already have an account?{" "}
             <button
               type="button"

@@ -76,7 +76,7 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full pl-10 pr-4 py-3.5 rounded-xl text-sm bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 transition-all outline-none shadow-sm"
+      className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
     />
   </div>
 );
@@ -102,6 +102,19 @@ const LoginPage = () => {
 
   useEffect(() => {
     captureReferralKeyFromUrl();
+  }, []);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
   }, []);
 
   // 1. Changed state from telegram to email
@@ -233,7 +246,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-slate-200 overflow-hidden">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-200">
 
       {/* --- CREATIVE BACKGROUND ELEMENTS --- */}
 
@@ -270,7 +283,7 @@ const LoginPage = () => {
       {/* --- PAGE LAYOUT: TOP STRIP, FORM, BOTTOM STRIP --- */}
 
       {/* Top Parallel Line (Crypto) - Visually Above the form */}
-      <div className="relative z-0 w-full h-[72px] mt-10 md:mt-16 bg-white/50 border-y border-slate-300/60 backdrop-blur-md flex items-center overflow-hidden pointer-events-none shrink-0">
+      <div className="pointer-events-none absolute left-0 right-0 top-4 z-0 flex h-[56px] items-center overflow-hidden border-y border-slate-300/60 bg-white/50 backdrop-blur-md md:top-8">
         <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
         <div className="w-full opacity-80">
           <TradingViewTicker widgetId="ticker-crypto" symbols={cryptoSymbols} />
@@ -278,37 +291,26 @@ const LoginPage = () => {
       </div>
 
       {/* Form Container - Centered */}
-      <div className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-2xl shadow-neutral-900/12 overflow-hidden">
-
-          {/* Header */}
-          <div className="text-center p-8 border-b border-slate-100 bg-white">
-            <div className="inline-flex items-center gap-3 mb-3 px-4 py-2 rounded-full bg-yellow-50 text-neutral-900 border border-yellow-200">
-              <Shield size={20} />
-              <span className="text-sm font-semibold uppercase">
+      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+        <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xl shadow-slate-900/10">
+          <div className="text-center">
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-neutral-900">
+              <Shield size={12} />
+              <span className="text-[10px] font-semibold uppercase tracking-wide">
                 Secure Login
               </span>
             </div>
-
-            <h1 className="text-3xl font-bold text-slate-800 mt-3">
-              Welcome Back
-            </h1>
-
-            <p className="text-slate-500 text-sm mt-2">
-              Login to continue to your account
-            </p>
+            <h1 className="text-lg font-bold tracking-tight text-slate-800">Welcome Back</h1>
+            <p className="mt-0.5 text-[11px] text-slate-500">Login to continue to your account</p>
           </div>
 
-          {/* Error */}
           {errorMessage && (
-            <div className="mx-6 mt-6 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm text-center">
+            <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-center text-xs text-red-600">
               {errorMessage}
             </div>
           )}
 
-          {/* Form */}
-          <div className="p-8 space-y-6">
-            {/* 4. Changed Input to Email */}
+          <div className="mt-3 space-y-2.5">
             <InputField
               icon={Mail}
               type="email"
@@ -323,7 +325,7 @@ const LoginPage = () => {
               onChange={(e) => update("password", e.target.value)}
             />
 
-            <div className="text-right text-sm">
+            <div className="-mt-0.5 text-right text-[11px]">
               <Link
                 to="/forgot-password"
                 className="font-semibold text-neutral-900 hover:underline"
@@ -335,18 +337,18 @@ const LoginPage = () => {
             <button
               onClick={handleLogin}
               disabled={!isValid || isSubmitting}
-              className="w-full py-4 rounded-xl bg-[#FFD700] text-black text-lg font-bold shadow-lg shadow-black/25 hover:bg-[#E6C200] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FFD700] py-2 text-sm font-bold text-black shadow-sm transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting && <Loader2 className="animate-spin" size={20} />}
+              {isSubmitting && <Loader2 className="animate-spin" size={16} />}
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
 
-            <div className="relative">
+            <div className="relative py-0.5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 text-slate-400">or</span>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-white px-2 text-slate-400">or</span>
               </div>
             </div>
 
@@ -360,29 +362,31 @@ const LoginPage = () => {
                   onError={() => setErrorMessage("Google login popup failed.")}
                   useOneTap={false}
                   text="signin_with"
+                  size="medium"
+                  width="288"
                 />
               </div>
             ) : (
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-[11px] text-slate-400">
                 Google login is disabled (missing client ID).
               </p>
             )}
 
-            <div className="text-center text-sm text-slate-500">
+            <p className="pt-0.5 text-center text-[11px] text-slate-500">
               Don't have an account?{" "}
               <span
                 onClick={() => navigate("/signup")}
-                className="text-neutral-900 font-semibold cursor-pointer hover:underline"
+                className="cursor-pointer font-semibold text-neutral-900 hover:underline"
               >
                 Sign up
               </span>
-            </div>
+            </p>
           </div>
         </div>
       </div>
 
       {/* Bottom Parallel Line (Forex/Gold) - Visually Below the form */}
-      <div className="relative z-0 w-full h-[72px] mb-10 md:mb-16 bg-white/20 border-y border-slate-300/30 backdrop-blur-sm flex items-center overflow-hidden pointer-events-none shrink-0">
+      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-0 flex h-[56px] items-center overflow-hidden border-y border-slate-300/30 bg-white/20 backdrop-blur-sm md:bottom-8">
         <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-transparent to-slate-200 z-10" />
         <div className="w-full opacity-60">
           <TradingViewTicker widgetId="ticker-forex" symbols={forexSymbols} />
