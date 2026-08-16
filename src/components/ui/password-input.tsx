@@ -80,7 +80,7 @@ function AuthPasswordField({
         autoComplete={autoComplete}
         autoFocus={autoFocus}
         disabled={disabled}
-        className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-11 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-11 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
       />
 
       <button

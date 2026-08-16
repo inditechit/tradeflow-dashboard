@@ -450,14 +450,14 @@ export default function SignupPage() {
       </div>
 
       <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-        <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xl shadow-slate-900/10">
+        <div className="w-full max-w-[24.2rem] rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-xl shadow-slate-900/10">
           <div className="text-center">
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-neutral-900">
               <Shield size={12} />
               <span className="text-[10px] font-semibold uppercase tracking-wide">Copy Trade Engine</span>
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-800">Create your account</h1>
-            <p className="mt-0.5 text-[11px] text-slate-500">{copy.title}</p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-800">Create your account</h1>
+            <p className="mt-0.5 text-xs text-slate-500">{copy.title}</p>
           </div>
 
           {errorMessage ? (
@@ -472,21 +472,21 @@ export default function SignupPage() {
               <p className="text-xs font-medium">Creating your account…</p>
             </div>
           ) : (
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-3.5 space-y-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-neutral-900 ring-1 ring-yellow-200">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-neutral-900 ring-1 ring-yellow-200">
                   <StepIcon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold text-slate-900">{copy.title}</h2>
-                  <p className="text-[11px] text-slate-500">{copy.hint}</p>
+                  <p className="text-xs text-slate-500">{copy.hint}</p>
                 </div>
               </div>
 
               {step === "name" ? (
                 <input
                   autoFocus
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                   placeholder="Full name"
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
@@ -499,9 +499,9 @@ export default function SignupPage() {
                   country="in"
                   value={form.mobile}
                   onChange={(v) => update("mobile", v)}
-                  inputClass="!w-full !h-10 !rounded-lg !text-sm"
+                  inputClass="!w-full !h-11 !rounded-lg !text-sm"
                   containerClass="!w-full"
-                  buttonClass="!rounded-l-lg !h-10"
+                  buttonClass="!rounded-l-lg !h-11"
                 />
               ) : null}
 
@@ -510,7 +510,7 @@ export default function SignupPage() {
                   <span className="absolute inset-y-0 left-3 flex items-center text-sm text-slate-400">@</span>
                   <input
                     autoFocus
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                     placeholder="telegram_username"
                     value={form.telegram}
                     onChange={(e) => update("telegram", e.target.value.replace(/^@/, ""))}
@@ -524,7 +524,7 @@ export default function SignupPage() {
                   autoFocus
                   type="email"
                   autoComplete="email"
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                   placeholder="you@example.com"
                   value={form.email}
                   onChange={(e) => {
@@ -542,7 +542,7 @@ export default function SignupPage() {
                     autoFocus
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-base tracking-[0.35em] text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-base tracking-[0.35em] text-slate-800 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
                     placeholder="••••••"
                     maxLength={6}
                     value={otp}
@@ -580,7 +580,7 @@ export default function SignupPage() {
                 <PasswordInput
                   autoFocus
                   autoComplete="new-password"
-                  className="h-10 rounded-lg border-slate-200"
+                  className="h-11 rounded-lg border-slate-200"
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && void goNext()}
@@ -703,7 +703,7 @@ export default function SignupPage() {
                       useOneTap={false}
                       text="signup_with"
                       size="medium"
-                      width="288"
+                      width="320"
                     />
                   </div>
                 </div>
@@ -711,7 +711,7 @@ export default function SignupPage() {
             </div>
           )}
 
-          <p className="mt-3 text-center text-[11px] text-slate-500">
+          <p className="mt-3 text-center text-xs text-slate-500">
             Already have an account?{" "}
             <button
               type="button"

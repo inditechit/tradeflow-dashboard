@@ -76,7 +76,7 @@ const InputField = ({ icon: Icon, placeholder, type = "text", value, onChange }:
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
+      className="h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm outline-none transition-all placeholder-slate-400 focus:border-neutral-900 focus:ring-1 focus:ring-yellow-500"
     />
   </div>
 );
@@ -292,7 +292,7 @@ const LoginPage = () => {
 
       {/* Form Container - Centered */}
       <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-        <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xl shadow-slate-900/10">
+        <div className="w-full max-w-[24.2rem] rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-xl shadow-slate-900/10">
           <div className="text-center">
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-neutral-900">
               <Shield size={12} />
@@ -300,8 +300,8 @@ const LoginPage = () => {
                 Secure Login
               </span>
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-800">Welcome Back</h1>
-            <p className="mt-0.5 text-[11px] text-slate-500">Login to continue to your account</p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-800">Welcome Back</h1>
+            <p className="mt-0.5 text-xs text-slate-500">Login to continue to your account</p>
           </div>
 
           {errorMessage && (
@@ -310,7 +310,7 @@ const LoginPage = () => {
             </div>
           )}
 
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-3.5 space-y-3">
             <InputField
               icon={Mail}
               type="email"
@@ -325,7 +325,7 @@ const LoginPage = () => {
               onChange={(e) => update("password", e.target.value)}
             />
 
-            <div className="-mt-0.5 text-right text-[11px]">
+            <div className="-mt-0.5 text-right text-xs">
               <Link
                 to="/forgot-password"
                 className="font-semibold text-neutral-900 hover:underline"
@@ -337,7 +337,7 @@ const LoginPage = () => {
             <button
               onClick={handleLogin}
               disabled={!isValid || isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FFD700] py-2 text-sm font-bold text-black shadow-sm transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FFD700] py-2.5 text-[15px] font-bold text-black shadow-sm transition hover:bg-[#E6C200] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="animate-spin" size={16} />}
               {isSubmitting ? "Logging in..." : "Login"}
@@ -363,7 +363,7 @@ const LoginPage = () => {
                   useOneTap={false}
                   text="signin_with"
                   size="medium"
-                  width="288"
+                  width="320"
                 />
               </div>
             ) : (
@@ -372,7 +372,7 @@ const LoginPage = () => {
               </p>
             )}
 
-            <p className="pt-0.5 text-center text-[11px] text-slate-500">
+            <p className="pt-0.5 text-center text-xs text-slate-500">
               Don't have an account?{" "}
               <span
                 onClick={() => navigate("/signup")}
