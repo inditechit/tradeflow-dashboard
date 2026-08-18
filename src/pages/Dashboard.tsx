@@ -258,6 +258,7 @@ const Dashboard = () => {
   const [assignments, setAssignments] = useState<AdminOpenAssignRow[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [liveProfitByTicket, setLiveProfitByTicket] = useState<Record<string, number>>({});
+  const [livePriceByTicket, setLivePriceByTicket] = useState<Record<string, number>>({});
   const [dialogTicket, setDialogTicket] = useState<string | null>(null);
 
   const fetchFinancials = async () => {
@@ -336,7 +337,38 @@ const Dashboard = () => {
     fetchUsers();
     void fetchAssignments();
 
-    socket.on("mt5data", (trade: Mt5Trade) => {
+    const applyLiveTick = (payload: {
+      ticket?: unknown;
+      profit?: unknown;
+      price?: unknown;
+    }) => {
+      const ticket = String(payload.ticket ?? "");
+      if (!ticket) return;
+      const raw = Number(payload.profit);
+      const mark = Number(payload.price);
+      const hasProfit = Number.isFinite(raw);
+      const hasPrice = Number.isFinite(mark) && mark > 0;
+      if (hasProfit) {
+        setLiveProfitByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      }
+      if (hasPrice) {
+        setLivePriceByTicket((prev) => ({ ...prev, [ticket]: mark }));
+      }
+      if (hasProfit || hasPrice) {
+        setAssignments((prev) =>
+          prev.map((r) => {
+            if (String(r.ticket_id ?? "") !== ticket) return r;
+            return {
+              ...r,
+              ...(hasProfit ? { mt5_total_profit: raw } : {}),
+              ...(hasPrice ? { price: mark } : {}),
+            };
+          }),
+        );
+      }
+    };
+
+    const onMt5Data = (trade: Mt5Trade) => {
       setTrades((prev) => {
         const index = prev.findIndex((t) => Number(t.ticket) === Number(trade.ticket));
         if (index !== -1) {
@@ -346,9 +378,10 @@ const Dashboard = () => {
         }
         return [trade, ...prev];
       });
-    });
+      applyLiveTick(trade);
+    };
 
-    socket.on("mt5close", (trade: Mt5Trade) => {
+    const onMt5Close = (trade: Mt5Trade) => {
       setTrades((prev) => {
         const ticket = Number(trade.ticket);
         const idx = prev.findIndex((t) => Number(t.ticket) === ticket);
@@ -363,23 +396,25 @@ const Dashboard = () => {
         }
         return [merged, ...prev];
       });
-    });
+    };
 
-    socket.on("mt5live", (live: { ticket?: number; profit?: number }) => {
+    const onMt5Live = (live: { ticket?: unknown; profit?: unknown; price?: unknown }) => {
       setTrades((prev) =>
-        prev.map((t) => (Number(t.ticket) === Number(live.ticket) ? { ...t, profit: live.profit } : t)),
+        prev.map((t) =>
+          Number(t.ticket) === Number(live.ticket) ? { ...t, profit: live.profit as number } : t,
+        ),
       );
-      const ticket = String(live.ticket ?? "");
-      const raw = Number(live.profit);
-      if (ticket && Number.isFinite(raw)) {
-        setLiveProfitByTicket((prev) => ({ ...prev, [ticket]: raw }));
-      }
-    });
+      applyLiveTick(live);
+    };
+
+    socket.on("mt5data", onMt5Data);
+    socket.on("mt5close", onMt5Close);
+    socket.on("mt5live", onMt5Live);
 
     return () => {
-      socket.off("mt5data");
-      socket.off("mt5close");
-      socket.off("mt5live");
+      socket.off("mt5data", onMt5Data);
+      socket.off("mt5close", onMt5Close);
+      socket.off("mt5live", onMt5Live);
     };
   }, []);
 
@@ -400,22 +435,43 @@ const Dashboard = () => {
     for (const [ticket, rows] of byTicket) {
       const sample = rows[0];
       if (isMasterTradeClosed(sample)) continue;
+      const fromTrade = trades.find((t) => String(t.ticket ?? "") === ticket);
       const liveMaster = liveProfitByTicket[ticket];
+      const storedPl = Number(sample.mt5_total_profit ?? 0);
+      const tradePl = Number(fromTrade?.profit);
       const masterPl =
         liveMaster != null && Number.isFinite(liveMaster)
           ? liveMaster
-          : Number(sample.mt5_total_profit ?? 0);
+          : Number.isFinite(storedPl) && storedPl !== 0
+            ? storedPl
+            : Number.isFinite(tradePl)
+              ? tradePl
+              : storedPl;
+      const liveMark = livePriceByTicket[ticket];
+      const markPrice =
+        liveMark != null && Number.isFinite(liveMark)
+          ? liveMark
+          : fromTrade?.price != null
+            ? Number(fromTrade.price)
+            : sample.price != null
+              ? Number(sample.price)
+              : undefined;
       let userShareSum = 0;
       let adminPlSum = 0;
       let userExposureSum = 0;
       let stoppedUserCount = 0;
       for (const r of rows) {
         if (isUserStoppedTrade(r)) stoppedUserCount += 1;
-        const split = resolveRowAdminUserPl(r, String(ticket), liveProfitByTicket);
+        const split = resolveRowAdminUserPl(r, String(ticket), masterPl);
         adminPlSum += split.adminShare;
         userShareSum += split.userShare;
         userExposureSum += Number(r.reserved_exposure_usd ?? 0);
       }
+      const slicedPl = Math.round((userShareSum + adminPlSum) * 100) / 100;
+      const copyPl =
+        Math.abs(slicedPl) < 0.005 && Math.abs(masterPl) > 0.005
+          ? Math.round(masterPl * 100) / 100
+          : slicedPl;
       groups.push({
         ticket,
         symbol: String(sample.symbol ?? "—"),
@@ -424,11 +480,11 @@ const Dashboard = () => {
         openTime: sample.open_time != null ? String(sample.open_time) : null,
         type: sample.mt5_type != null ? String(sample.mt5_type) : undefined,
         volume: Number(sample.mt5_volume ?? 0),
-        price: sample.price != null ? Number(sample.price) : undefined,
+        price: markPrice,
         assigns: rows,
         adminPlSum: Math.round(adminPlSum * 100) / 100,
         userShareSum: Math.round(userShareSum * 100) / 100,
-        copyPl: Math.round((userShareSum + adminPlSum) * 100) / 100,
+        copyPl,
         totalSharePct: ticketSharePct(rows),
         tradeExposureUsd:
           sample.trade_exposure_usd != null ? Number(sample.trade_exposure_usd) : null,
@@ -442,7 +498,7 @@ const Dashboard = () => {
       return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
     });
     return groups;
-  }, [assignments, liveProfitByTicket]);
+  }, [assignments, liveProfitByTicket, livePriceByTicket, trades]);
 
   const livePlTotals = useMemo(() => {
     let copyPl = 0;

@@ -612,11 +612,12 @@ export function rowGrossPl(
   r: UserTradeRowLike,
   liveMt5Profit?: number,
 ): number {
-  if (liveMt5Profit == null && r.raw_proportional_pl != null) {
-    return Number(r.raw_proportional_pl);
-  }
-  if (liveMt5Profit == null && r.user_raw_pl != null) {
-    return Number(r.user_raw_pl);
+  const hasLive = liveMt5Profit != null && Number.isFinite(liveMt5Profit);
+  // Open trades: always recompute from live / mt5_total_profit. Cached
+  // raw_proportional_pl is often 0 (or stale) and hides live losses.
+  if (!hasLive && !isOpenTrade(r)) {
+    if (r.raw_proportional_pl != null) return Number(r.raw_proportional_pl);
+    if (r.user_raw_pl != null) return Number(r.user_raw_pl);
   }
   return rowDisplayPl(r, liveMt5Profit);
 }

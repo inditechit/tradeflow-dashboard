@@ -204,15 +204,25 @@ const OpenTrades = () => {
   }, [fetchAssignments]);
 
   useEffect(() => {
-    const applyLive = (payload: { ticket?: unknown; profit?: unknown }) => {
+    const applyLive = (payload: { ticket?: unknown; profit?: unknown; price?: unknown }) => {
       const ticket = String(payload.ticket ?? "");
       const raw = Number(payload.profit);
-      if (!ticket || !Number.isFinite(raw)) return;
-      setLiveProfitByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      const mark = Number(payload.price);
+      const hasProfit = Number.isFinite(raw);
+      const hasPrice = Number.isFinite(mark) && mark > 0;
+      if (!ticket || (!hasProfit && !hasPrice)) return;
+      if (hasProfit) {
+        setLiveProfitByTicket((prev) => ({ ...prev, [ticket]: raw }));
+      }
       setAssignments((prev) =>
-        prev.map((r) =>
-          String(r.ticket_id ?? "") === ticket ? { ...r, mt5_total_profit: raw } : r,
-        ),
+        prev.map((r) => {
+          if (String(r.ticket_id ?? "") !== ticket) return r;
+          return {
+            ...r,
+            ...(hasProfit ? { mt5_total_profit: raw } : {}),
+            ...(hasPrice ? { price: mark } : {}),
+          };
+        }),
       );
     };
     const onConnect = () => setSocketLive(true);

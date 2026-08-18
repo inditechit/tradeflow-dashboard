@@ -96,9 +96,10 @@ export function estimateGrossProfitSplit(grossPl: number, userSharePct = 50) {
 export function resolveRowAdminUserPl(
   r: AdminOpenAssignRow,
   ticket: string,
-  live?: Record<string, number>,
+  live?: Record<string, number> | number,
 ) {
-  const gross = rowGrossPl(r, live?.[ticket]);
+  const liveProfit = typeof live === "number" ? live : live?.[ticket];
+  const gross = rowGrossPl(r, liveProfit);
   const userSharePct = Number(r.user_profit_share_pct ?? r.user_pct ?? r.snapshot_pct ?? 50) || 50;
 
   if (isTradeClosed(r)) {
