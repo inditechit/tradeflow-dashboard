@@ -171,6 +171,7 @@ export function MaskedPii({ value, kind, className, empty = "—" }: MaskedPiiPr
       role="button"
       tabIndex={0}
       className={cn("cursor-pointer select-none", className)}
+      style={{ whiteSpace: "nowrap" }}
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

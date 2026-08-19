@@ -20,6 +20,7 @@ type FilterCheckboxDropdownProps = {
   emptyLabel?: string;
   className?: string;
   contentClassName?: string;
+  compact?: boolean;
 };
 
 export function FilterCheckboxDropdown({
@@ -33,6 +34,7 @@ export function FilterCheckboxDropdown({
   emptyLabel = "All",
   className,
   contentClassName,
+  compact = false,
 }: FilterCheckboxDropdownProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -56,7 +58,12 @@ export function FilterCheckboxDropdown({
 
   return (
     <div className={className}>
-      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+      <label
+        className={cn(
+          "block font-semibold uppercase tracking-wide text-slate-600",
+          compact ? "mb-0.5 truncate text-[10px]" : "mb-1.5 text-xs",
+        )}
+      >
         {label}
         {selected.length > 0 ? (
           <span className="ml-1 font-normal normal-case text-slate-500">
@@ -69,7 +76,12 @@ export function FilterCheckboxDropdown({
           <Button
             type="button"
             variant="outline"
-            className="h-[38px] w-full justify-between rounded-lg border-slate-300 bg-white px-3 text-sm font-normal text-slate-800 hover:bg-slate-50"
+            className={cn(
+              "w-full justify-between border-slate-300 bg-white font-normal text-slate-800 hover:bg-slate-50",
+              compact
+                ? "h-8 rounded-md px-2 text-xs"
+                : "h-[38px] rounded-lg px-3 text-sm",
+            )}
           >
             <span className="truncate text-left">{triggerText}</span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />

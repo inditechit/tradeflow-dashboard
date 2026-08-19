@@ -158,6 +158,11 @@ function rowLivePl(
   return Number(loc.live_pl ?? 0);
 }
 
+const USER_FILTER_LABEL =
+  "mb-0.5 block truncate text-[10px] font-semibold uppercase tracking-wide text-slate-600";
+const USER_FILTER_CTRL =
+  "h-8 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500";
+
 function rowOpenAssignmentCount(
   loc: { id?: unknown; open_positions?: unknown },
   openRowsByUser: Record<number, UserTradeRowLike[]>,
@@ -1227,9 +1232,10 @@ const AdminPage = () => {
       </div>
 
       {!filtersCollapsed ? (
-      <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-8">
+      <div className="mb-4 grid grid-cols-2 gap-x-2 gap-y-1.5 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:grid-cols-4 lg:grid-cols-8">
         <EmployeeGate perm="filter:users:name">
         <FilterCheckboxDropdown
+          compact
           label="Search Name"
           options={userNameFilterOptions}
           selected={filterSelectedUserIds}
@@ -1241,58 +1247,41 @@ const AdminPage = () => {
           contentClassName="min-w-[280px]"
         />
         </EmployeeGate>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            User ID
-          </label>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 147"
-              value={filterUserId}
-              onChange={(e) =>
-                patchListState(
-                  { filterUserId: e.target.value.replace(/[^\d]/g, "") },
-                  { resetPage: true },
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            {filterUserId && (
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-2 text-xs text-slate-600 hover:bg-slate-50"
-                onClick={() => patchListState({ filterUserId: "" }, { resetPage: true })}
-              >
-                Clear
-              </button>
-            )}
-          </div>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>User ID</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="e.g. 147"
+            value={filterUserId}
+            onChange={(e) =>
+              patchListState(
+                { filterUserId: e.target.value.replace(/[^\d]/g, "") },
+                { resetPage: true },
+              )
+            }
+            className={`${USER_FILTER_CTRL} placeholder:text-slate-400`}
+          />
         </div>
         <EmployeeGate perm="filter:users:email">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Search Email
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Search Email</label>
           <input
             type="text"
             placeholder="Filter by email..."
             value={filterEmail}
             onChange={(e) => patchListState({ filterEmail: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={`${USER_FILTER_CTRL} placeholder:text-slate-400`}
           />
         </div>
         </EmployeeGate>
         <EmployeeGate perm="filter:users:kyc">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            KYC Status
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>KYC Status</label>
           <select
             value={filterKyc}
             onChange={(e) => patchListState({ filterKyc: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
@@ -1303,10 +1292,8 @@ const AdminPage = () => {
         </div>
         </EmployeeGate>
         <EmployeeGate perm="filter:users:online">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Platform status
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Platform status</label>
           <select
             value={filterOnline}
             onChange={(e) =>
@@ -1315,7 +1302,7 @@ const AdminPage = () => {
                 { resetPage: true },
               )
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All users</option>
             <option value="live">Live on platform</option>
@@ -1323,10 +1310,8 @@ const AdminPage = () => {
         </div>
         </EmployeeGate>
         <EmployeeGate perm="filter:users:wallet">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Wallet balance
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Wallet balance</label>
           <select
             value={filterWallet}
             onChange={(e) =>
@@ -1335,7 +1320,7 @@ const AdminPage = () => {
                 { resetPage: true },
               )
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All users</option>
             <option value="with_balance">Funded</option>
@@ -1344,6 +1329,7 @@ const AdminPage = () => {
         </div>
         </EmployeeGate>
         <FilterCheckboxDropdown
+          compact
           label="Package"
           options={packageFilterOptions}
           selected={filterPackages}
@@ -1352,12 +1338,9 @@ const AdminPage = () => {
             patchListState({ filterPackages: [...ADMIN_USERS_INITIAL_PACKAGES] }, { resetPage: true })
           }
           emptyLabel="Active plan (default)"
-          className="sm:col-span-2"
         />
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Trade
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Trade</label>
           <select
             value={filterTrading}
             onChange={(e) =>
@@ -1366,17 +1349,15 @@ const AdminPage = () => {
                 { resetPage: true },
               )
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All users</option>
             <option value="active">Trade active</option>
             <option value="stopped">Trade stopped</option>
           </select>
         </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Open trades
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Open trades</label>
           <select
             value={filterOpenTrades}
             onChange={(e) =>
@@ -1385,21 +1366,19 @@ const AdminPage = () => {
                 { resetPage: true },
               )
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="with_open">Sort: open trades first</option>
             <option value="all">All users (no open-trade sort)</option>
           </select>
         </div>
         <EmployeeGate perm="filter:users:tag">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Tag
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Tag</label>
           <select
             value={filterTag}
             onChange={(e) => patchListState({ filterTag: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All tags</option>
             {allTags.map((tag) => (
@@ -1410,24 +1389,22 @@ const AdminPage = () => {
         </EmployeeGate>
         <EmployeeGate perm="filter:users:risk">
         <FilterCheckboxDropdown
+          compact
           label="Risk"
           options={riskFilterOptions}
           selected={filterRisks}
           onToggle={(value) => toggleFilterRisk(value as "none" | RiskId)}
           onClear={() => patchListState({ filterRisks: [] }, { resetPage: true })}
           emptyLabel="All risks"
-          className="sm:col-span-2"
         />
         </EmployeeGate>
         <EmployeeGate perm="filter:users:referrer">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Referred by
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Referred by</label>
           <select
             value={filterReferrer}
             onChange={(e) => patchListState({ filterReferrer: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="all">All referrers</option>
             <option value="none">No referrer (direct)</option>
@@ -1439,39 +1416,33 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Joined from
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Joined from</label>
           <input
             type="date"
             value={filterJoinFrom}
             onChange={(e) => patchListState({ filterJoinFrom: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           />
         </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Joined to
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Joined to</label>
           <input
             type="date"
             value={filterJoinTo}
             onChange={(e) => patchListState({ filterJoinTo: e.target.value }, { resetPage: true })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           />
         </div>
         <EmployeeGate perm="filter:users:wallet_sort">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Sort users
-          </label>
+        <div className="min-w-0">
+          <label className={USER_FILTER_LABEL}>Sort users</label>
           <select
             value={userSort}
             onChange={(e) =>
               patchListState({ userSort: e.target.value as UserSortMode }, { resetPage: true })
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className={USER_FILTER_CTRL}
           >
             <option value="assignments_high">Trade assignments — most first</option>
             <option value="wallet_high">Wallet — highest first</option>
@@ -1481,7 +1452,7 @@ const AdminPage = () => {
           </select>
         </div>
         </EmployeeGate>
-        <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-8">
+        <div className="flex min-w-0 items-end gap-1">
           <Button
             type="button"
             variant={userSort === "joined_new" ? "default" : "outline"}
@@ -1491,13 +1462,13 @@ const AdminPage = () => {
                 { resetPage: true },
               )
             }
-            className={`h-[38px] rounded-lg px-4 ${
+            className={`h-8 min-w-0 flex-1 rounded-md px-1.5 text-[10px] ${
               userSort === "joined_new"
                 ? "bg-slate-900 text-white hover:bg-slate-800"
                 : "border-slate-300 text-slate-700 hover:bg-slate-100"
             }`}
           >
-            {userSort === "joined_new" ? "Join date (newest)" : "Sort by join date"}
+            {userSort === "joined_new" ? "Newest" : "Join date"}
           </Button>
           <Button
             type="button"
@@ -1507,9 +1478,9 @@ const AdminPage = () => {
               saveAdminUsersListState(cleared, currentUser?.userId);
               setSearchParams(serializeAdminUsersUrlState(cleared), { replace: true });
             }}
-            className="h-[38px] rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 sm:px-8"
+            className="h-8 min-w-0 flex-1 rounded-md border-slate-300 px-1.5 text-[10px] text-slate-700 hover:bg-slate-100"
           >
-            Clear Filters
+            Clear
           </Button>
         </div>
       </div>
@@ -1522,25 +1493,25 @@ const AdminPage = () => {
       )}
 
       {totals && (
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => toggleWalletColumnSort("trading_wallet_high")}
             className={cn(
-              "rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
+              "rounded-lg border px-3 py-2 text-left transition hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
               userSort === "trading_wallet_high"
                 ? "border-amber-400 bg-amber-100 ring-2 ring-amber-300/60"
                 : "border-amber-200 bg-amber-50/50",
             )}
             title="Sort users by trading wallet (high → low). Hides $0 balances. Click again to reset."
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
               Trading Wallet total
               {userSort === "trading_wallet_high" ? (
-                <span className="ml-1 normal-case text-[10px] font-bold">· sorted</span>
+                <span className="ml-1 normal-case text-[9px] font-bold">· sorted</span>
               ) : null}
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+            <p className="mt-0.5 text-base font-bold tabular-nums text-slate-900">
               USD{" "}
               {totals.sum_trading_wallet_usd.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -1552,20 +1523,20 @@ const AdminPage = () => {
             type="button"
             onClick={() => toggleWalletColumnSort("safe_wallet_high")}
             className={cn(
-              "rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
+              "rounded-lg border px-3 py-2 text-left transition hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
               userSort === "safe_wallet_high"
                 ? "border-emerald-400 bg-emerald-100 ring-2 ring-emerald-300/60"
                 : "border-emerald-200 bg-emerald-50/50",
             )}
             title="Sort users by safe wallet (high → low). Hides $0 balances. Click again to reset."
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
               Safe Wallet total
               {userSort === "safe_wallet_high" ? (
-                <span className="ml-1 normal-case text-[10px] font-bold">· sorted</span>
+                <span className="ml-1 normal-case text-[9px] font-bold">· sorted</span>
               ) : null}
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+            <p className="mt-0.5 text-base font-bold tabular-nums text-slate-900">
               USD{" "}
               {totals.sum_safe_wallet_usd.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -1573,11 +1544,11 @@ const AdminPage = () => {
               })}
             </p>
           </button>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Total withdraw
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+            <p className="mt-0.5 text-base font-bold tabular-nums text-slate-900">
               USD{" "}
               {totals.sum_total_withdraw_usd.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -1589,8 +1560,8 @@ const AdminPage = () => {
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/90 px-4 py-3 sm:px-6">
-          <p className="text-sm font-semibold text-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/90 px-3 py-1.5">
+          <p className="text-xs font-semibold text-slate-800">
             {hasActiveFilters ? (
               <>
                 Showing{" "}
@@ -1634,7 +1605,7 @@ const AdminPage = () => {
           </div>
         </div>
         <div ref={tableTopRef} className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200">
                 {ADMIN_USERS_TABLE_COLUMNS.filter((c) => showCol(c.id)).map((col) => {
@@ -1646,7 +1617,7 @@ const AdminPage = () => {
                   <th
                     key={col.id}
                     className={cn(
-                      "sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-6 sm:py-4",
+                      "sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-2.5 py-1.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)] sm:px-3",
                       (isTradingWalletCol || isSafeWalletCol || isEquityCol) &&
                         "cursor-pointer select-none hover:bg-slate-100",
                       isTradingWalletCol &&
@@ -1723,11 +1694,11 @@ const AdminPage = () => {
                   )}
                 >
                   {showCol("name") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="flex items-start gap-0.5">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
+                    <div className="flex min-w-0 items-center gap-0.5">
                       <AdminUserTradesLink
                         userId={loc.id}
-                        className="inline-flex max-w-[calc(100%-1.25rem)] truncate font-semibold"
+                        className="inline-flex max-w-[7.5rem] truncate text-xs font-semibold"
                       >
                         <MaskedPii value={loc.name} kind="name" />
                       </AdminUserTradesLink>
@@ -1738,7 +1709,7 @@ const AdminPage = () => {
                             className="shrink-0 rounded p-0.5 text-yellow-900 opacity-70 hover:opacity-100"
                             aria-label="User actions"
                           >
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            <ChevronDown className="h-3 w-3" />
                           </button>
                         </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-56 border-slate-200 bg-white shadow-lg">
@@ -1801,16 +1772,16 @@ const AdminPage = () => {
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                      <AdminUserTradesLink
+                        userId={loc.id}
+                        className="shrink-0 font-mono text-[10px] font-normal text-slate-400 hover:text-yellow-900"
+                      >
+                        #{loc.id}
+                      </AdminUserTradesLink>
                     </div>
-                    <AdminUserTradesLink
-                      userId={loc.id}
-                      className="mt-0.5 font-mono text-[11px] font-normal text-slate-400 hover:text-yellow-900"
-                    >
-                      #{loc.id}
-                    </AdminUserTradesLink>
                     {!showCol("package") && loc.active_package_id ? (
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-slate-600">
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                        <span className="truncate text-[10px] font-medium text-slate-600">
                           {packageDisplayName(String(loc.active_package_id))}
                         </span>
                         {(() => {
@@ -1819,7 +1790,7 @@ const AdminPage = () => {
                           return (
                             <span
                               className={cn(
-                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide",
                                 daysLeftBadgeClass(days),
                               )}
                               title={`Package ends ${formatAdminDate(loc.package_expires_at)}`}
@@ -1830,7 +1801,7 @@ const AdminPage = () => {
                         })()}
                       </div>
                     ) : !showCol("package") ? (
-                      <div className="mt-1.5 text-[11px] font-medium text-slate-400">
+                      <div className="mt-0.5 text-[10px] font-medium text-slate-400">
                         No active plan
                       </div>
                     ) : null}
@@ -1838,12 +1809,12 @@ const AdminPage = () => {
                   )}
 
                   {showCol("status") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm sm:px-6 sm:py-4">
-                    <div className="flex items-center gap-2">
+                  <td className="align-middle whitespace-nowrap px-2.5 py-1.5 text-xs sm:px-3">
+                    <div className="flex items-center gap-1.5">
                       <span
                         aria-hidden
                         className={cn(
-                          "inline-block h-2.5 w-2.5 rounded-full",
+                          "inline-block h-2 w-2 rounded-full",
                           Number(loc.is_online) === 1
                             ? "bg-emerald-500 ring-2 ring-emerald-200"
                             : "bg-red-500 ring-2 ring-red-200",
@@ -1857,22 +1828,22 @@ const AdminPage = () => {
                       >
                         {lastSeenLabel(loc.last_seen_at, loc.is_online)}
                       </span>
+                      {!showCol("trading") ? (
+                        <span
+                          className={cn(
+                            "text-[10px] font-medium",
+                            isTradeActive(loc) ? "text-emerald-600" : "text-amber-700",
+                          )}
+                        >
+                          · {isTradeActive(loc) ? "Active" : "Stop"}
+                        </span>
+                      ) : null}
                     </div>
-                    {!showCol("trading") ? (
-                      <p
-                        className={cn(
-                          "mt-1 text-[11px] font-medium",
-                          isTradeActive(loc) ? "text-emerald-600" : "text-amber-700",
-                        )}
-                      >
-                        Trade: {isTradeActive(loc) ? "Active" : "Stop"}
-                      </p>
-                    ) : null}
                   </td>
                   )}
 
                   {showCol("wallet") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <button
                       type="button"
                       onClick={() => toggleWalletColumnSort("trading_wallet_high")}
@@ -1892,7 +1863,7 @@ const AdminPage = () => {
                   )}
 
                   {showCol("safe_wallet") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <button
                       type="button"
                       onClick={() => toggleWalletColumnSort("safe_wallet_high")}
@@ -1909,21 +1880,23 @@ const AdminPage = () => {
                   )}
 
                   {showCol("equity") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <div className="font-semibold tabular-nums text-slate-900">
                       USD {fmtUsdCell(equityVal)}
+                      {openPos > 0 ? (
+                        <span className="ml-1 text-[10px] font-medium text-slate-500">
+                          {openPos} open
+                        </span>
+                      ) : null}
                     </div>
-                    {openPos > 0 && (
-                      <span className="text-[11px] text-slate-500">{openPos} open</span>
-                    )}
                     {loc.soft_bust && (
-                      <span className="text-[11px] font-medium text-amber-800">Soft bust</span>
+                      <span className="text-[10px] font-medium text-amber-800">Soft bust</span>
                     )}
                   </td>
                   )}
 
                   {showCol("live_pl") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <span
                       className={`font-semibold tabular-nums ${
                         livePl >= 0 ? "text-emerald-700" : "text-red-700"
@@ -1935,7 +1908,7 @@ const AdminPage = () => {
                   )}
 
                   {showCol("admin_share") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <span
                       className={`font-semibold tabular-nums ${
                         adminShare > 0.01
@@ -1954,7 +1927,7 @@ const AdminPage = () => {
                   )}
 
                   {showCol("kyc") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
                         loc.kyc_status === "verified"
@@ -1968,43 +1941,43 @@ const AdminPage = () => {
                   )}
 
                   {showCol("email") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     <MaskedPii value={loc.email} kind="email" className="break-all" />
                   </td>
                   )}
 
                   {showCol("mobile") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle whitespace-nowrap px-2.5 py-1.5 text-sm tabular-nums text-slate-700 sm:px-3">
                     <MaskedPii value={loc.mobile} kind="mobile" />
                   </td>
                   )}
 
                   {showCol("telegram") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle whitespace-nowrap px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {String(loc.telegram ?? "—")}
                   </td>
                   )}
 
                   {showCol("joined") && (
-                  <td className="align-top whitespace-nowrap px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle whitespace-nowrap px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {formatAdminDate(String(loc.created_at ?? ""))}
                   </td>
                   )}
 
                   {showCol("package") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     {loc.active_package_id ? (
-                      <div>
-                        <div className="text-sm font-medium text-slate-800">
+                      <div className="flex items-center gap-1">
+                        <span className="truncate font-medium text-slate-800">
                           {packageDisplayName(String(loc.active_package_id))}
-                        </div>
+                        </span>
                         {(() => {
                           const days = daysLeftUntil(loc.package_expires_at);
                           if (days == null) return null;
                           return (
                             <span
                               className={cn(
-                                "mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide",
                                 daysLeftBadgeClass(days),
                               )}
                             >
@@ -2014,13 +1987,13 @@ const AdminPage = () => {
                         })()}
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-400">No active plan</span>
+                      <span className="text-slate-400">No active plan</span>
                     )}
                   </td>
                   )}
 
                   {showCol("referrer") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {Number(loc.referrer_id) > 0 ? (
                       <div>
                         <div className="font-medium">{referrerDisplayLabel(loc)}</div>
@@ -2035,19 +2008,19 @@ const AdminPage = () => {
                   )}
 
                   {showCol("risk") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     {renderRiskBadges(loc.risk)}
                   </td>
                   )}
 
                   {showCol("label") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {labels.label ? labels.label : <span className="text-slate-400">—</span>}
                   </td>
                   )}
 
                   {showCol("tags") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     {labels.tags.length ? (
                       <div className="flex flex-wrap gap-1">
                         {labels.tags.map((tag) => (
@@ -2069,25 +2042,25 @@ const AdminPage = () => {
                   )}
 
                   {showCol("deposit_baseline") && (
-                  <td className="align-top px-4 py-3 font-semibold tabular-nums text-slate-900 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 font-semibold tabular-nums text-slate-900 sm:px-3">
                     {fmtUsdCell(Number(loc.deposit_baseline ?? NaN))}
                   </td>
                   )}
 
                   {showCol("open_positions") && (
-                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 tabular-nums text-slate-800 sm:px-3">
                     {openPos}
                   </td>
                   )}
 
                   {showCol("withdrawable") && (
-                  <td className="align-top px-4 py-3 font-semibold tabular-nums text-slate-900 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 font-semibold tabular-nums text-slate-900 sm:px-3">
                     {fmtUsdCell(withdrawableVal)}
                   </td>
                   )}
 
                   {showCol("equity_pl") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <span
                       className={`font-semibold tabular-nums ${
                         equityPl >= 0 ? "text-emerald-700" : "text-red-700"
@@ -2099,7 +2072,7 @@ const AdminPage = () => {
                   )}
 
                   {showCol("country") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {[loc.city, loc.state, loc.country]
                       .map((v) => (v != null ? String(v).trim() : ""))
                       .filter(Boolean)
@@ -2108,13 +2081,13 @@ const AdminPage = () => {
                   )}
 
                   {showCol("experience") && (
-                  <td className="align-top px-4 py-3 text-sm text-slate-700 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 text-sm text-slate-700 sm:px-3">
                     {String(loc.experience ?? "—")}
                   </td>
                   )}
 
                   {showCol("profit_pct") && (
-                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 tabular-nums text-slate-800 sm:px-3">
                     {loc.profit_percentage != null && Number.isFinite(Number(loc.profit_percentage))
                       ? `${Number(loc.profit_percentage).toFixed(2)}%`
                       : "—"}
@@ -2122,19 +2095,19 @@ const AdminPage = () => {
                   )}
 
                   {showCol("fee_lot") && (
-                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 tabular-nums text-slate-800 sm:px-3">
                     {fmtUsdCell(Number(loc.dollar_amount ?? NaN))}
                   </td>
                   )}
 
                   {showCol("recharge_total") && (
-                  <td className="align-top px-4 py-3 tabular-nums text-slate-800 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 tabular-nums text-slate-800 sm:px-3">
                     {fmtUsdCell(Number(loc.recharge_total_usd ?? NaN))}
                   </td>
                   )}
 
                   {showCol("trading") && (
-                  <td className="align-top px-4 py-3 sm:px-6 sm:py-4">
+                  <td className="align-middle px-2.5 py-1.5 sm:px-3">
                     <span
                       className={cn(
                         "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold",
@@ -2152,7 +2125,7 @@ const AdminPage = () => {
               })}
               {filteredLocations.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={Math.max(visibleUserCols, 1)} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={Math.max(visibleUserCols, 1)} className="px-3 py-4 text-center text-slate-500">
                     No users match your filters.
                   </td>
                 </tr>
