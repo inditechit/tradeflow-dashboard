@@ -53,7 +53,7 @@ export const ADMIN_USERS_TABLE_COLUMNS: AdminUsersColumnDef[] = [
   { id: "safe_wallet", label: "Safe Wallet", defaultVisible: true, perm: "col:users:wallet" },
   {
     id: "equity",
-    label: "Equity (trading + open P/L)",
+    label: "Live Wallet",
     defaultVisible: true,
     perm: "col:users:equity",
   },

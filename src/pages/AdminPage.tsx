@@ -936,6 +936,13 @@ const AdminPage = () => {
 
   const totalUserCount = locations.length;
   const filteredUserCount = filteredLocations.length;
+  const sumLiveWalletUsd = useMemo(() => {
+    let sum = 0;
+    for (const loc of locations) {
+      sum += rowEquity(loc, financeOverlay);
+    }
+    return Math.round(sum * 100) / 100;
+  }, [locations, financeOverlay]);
   const stoppedWithOpenPlCount = useMemo(
     () =>
       locations.filter((loc) => {
@@ -1493,7 +1500,7 @@ const AdminPage = () => {
       )}
 
       {totals && (
-        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <button
             type="button"
             onClick={() => toggleWalletColumnSort("trading_wallet_high")}
@@ -1544,6 +1551,24 @@ const AdminPage = () => {
               })}
             </p>
           </button>
+          <div
+            className="rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2"
+            title="Trading wallet + open (live) P/L for all users"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-900">
+              Live Wallet total
+            </p>
+            <p className="mt-0.5 text-base font-bold tabular-nums text-slate-900">
+              USD{" "}
+              {sumLiveWalletUsd.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+            <p className="mt-0.5 text-[9px] leading-tight text-sky-800/80">
+              Total equity of users
+            </p>
+          </div>
           <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Total withdraw

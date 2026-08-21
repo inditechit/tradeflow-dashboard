@@ -57,7 +57,7 @@ function toSheetRow(
     Tags: tags.join(", "),
     "Trading Wallet (USD)": num(walletBal),
     "Safe Wallet (USD)": num(safeBal),
-    "Equity (USD)": num(equityVal),
+    "Live Wallet (USD)": num(equityVal),
     "Open P/L (USD)": num(livePl),
     "Withdrawable (USD)": num(withdrawableVal),
     "Open Positions": Number(loc.open_positions ?? 0) || 0,
